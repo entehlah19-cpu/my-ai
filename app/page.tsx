@@ -1,4 +1,4 @@
-export default function Home() {
+ export default function Home() {
   return (
     <main style={{
       display: "flex",
