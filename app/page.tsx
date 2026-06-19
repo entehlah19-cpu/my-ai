@@ -7,9 +7,6 @@ export default function Home() {
   const [messages, setMessages] = useState<{ role: 'user' | 'ai'; text: string }>();
   const [isLoading, setIsLoading] = useState(false);
 
-  // Kunci API asli kamu dari Google AI Studio
-  const GEMINI_API_KEY = 'AQ.Ab8RN6KIRamsKBkOOs1Sv9VKd2CvW5tNKOssmtwE00MxDe1'; 
-
   const handleKirim = async () => {
     if (!input.trim() || isLoading) return;
 
@@ -19,6 +16,7 @@ export default function Home() {
     setIsLoading(true);
 
     try {
+      // Memanggil API internal Next.js secara aman di sisi server
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -38,6 +36,7 @@ export default function Home() {
     <main style={{ padding: '20px', maxWidth: '700px', margin: '0 auto', fontFamily: 'sans-serif' }}>
       <h2 style={{ textAlign: 'center', marginBottom: '20px', color: '#0070f3' }}>🤖 My AI Website (Pro)</h2>
       
+      {/* Ruang Obrolan */}
       <div style={{ height: '450px', overflowY: 'auto', border: '1px solid #ddd', padding: '15px', borderRadius: '8px', marginBottom: '15px', backgroundColor: '#f9f9f9' }}>
         {messages.map((msg, index) => (
           <div key={index} style={{ textAlign: msg.role === 'user'? 'right' : 'left', margin: '10px 0' }}>
@@ -61,6 +60,7 @@ export default function Home() {
         {isLoading && <p style={{ color: '#888', fontStyle: 'italic', fontSize: '14px' }}>My AI sedang berpikir keras...</p>}
       </div>
 
+      {/* Kolom Input & Tombol */}
       <div style={{ display: 'flex', gap: '10px' }}>
         <input 
           value={input}
