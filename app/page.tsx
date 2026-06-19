@@ -9,8 +9,8 @@ export default function Home() {
   ]);
   const [isLoading, setIsLoading] = useState(false);
 
-  // ⚠️ MASUKKAN API KEY YANG KAMU SALIN DARI GOOGLE AI STUDIO
-const GEMINI_API_KEY = 'AQ.Ab8RN6IjfSE7AhKS7UYKKq2HxVwK8W5tNK0ssmtxEOONwDel7g'
+  // Kunci API asli kamu tanpa tambahan teks salah
+  const GEMINI_API_KEY = 'AQ.Ab8RN6ljfSE7AhKS7UYKKq2HxVwK8W5tNKOssmtwE00MxDe1'; 
 
   const handleKirim = async () => {
     if (!input.trim() || isLoading) return;
@@ -21,12 +21,14 @@ const GEMINI_API_KEY = 'AQ.Ab8RN6IjfSE7AhKS7UYKKq2HxVwK8W5tNK0ssmtxEOONwDel7g'
     setIsLoading(true);
 
     try {
-      // Mengirim pertanyaan ke server pintar Google Gemini
+      // Menggunakan model gemini-2.5-flash terbaru yang lebih kompatibel
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json'
+          },
           body: JSON.stringify({
             contents: [{ parts: [{ text: pesanUser }] }]
           })
@@ -34,10 +36,13 @@ const GEMINI_API_KEY = 'AQ.Ab8RN6IjfSE7AhKS7UYKKq2HxVwK8W5tNK0ssmtxEOONwDel7g'
       );
 
       const data = await response.json();
-      // Mengambil teks jawaban dari AI
-      const jawabanAI = data.candidates[0].content.parts[0].text;
-
-      setMessages((prev) => [...prev, { role: 'ai', text: jawabanAI }]);
+      
+      if (data.candidates && data.candidates[0].content.parts[0].text) {
+        const jawabanAI = data.candidates[0].content.parts[0].text;
+        setMessages((prev) => [...prev, { role: 'ai', text: jawabanAI }]);
+      } else {
+        setMessages((prev) => [...prev, { role: 'ai', text: 'Kunci API terhubung, tapi permintaan ditolak. Coba kirim pesan sekali lagi ya!' }]);
+      }
     } catch (error) {
       setMessages((prev) => [...prev, { role: 'ai', text: 'Waduh, sistemku agak sibuk. Coba kirim pesan lagi ya!' }]);
     } finally {
@@ -49,7 +54,6 @@ const GEMINI_API_KEY = 'AQ.Ab8RN6IjfSE7AhKS7UYKKq2HxVwK8W5tNK0ssmtxEOONwDel7g'
     <main style={{ padding: '20px', maxWidth: '700px', margin: '0 auto', fontFamily: 'sans-serif' }}>
       <h2 style={{ textAlign: 'center', marginBottom: '20px', color: '#0070f3' }}>🤖 My AI Website (Pro)</h2>
       
-      {/* Ruang Obrolan */}
       <div style={{ height: '450px', overflowY: 'auto', border: '1px solid #ddd', padding: '15px', borderRadius: '8px', marginBottom: '15px', backgroundColor: '#f9f9f9' }}>
         {messages.map((msg, index) => (
           <div key={index} style={{ textAlign: msg.role === 'user' ? 'right' : 'left', margin: '10px 0' }}>
@@ -64,7 +68,7 @@ const GEMINI_API_KEY = 'AQ.Ab8RN6IjfSE7AhKS7UYKKq2HxVwK8W5tNK0ssmtxEOONwDel7g'
               color: msg.role === 'user' ? 'white' : 'black', 
               maxWidth: '85%', 
               textAlign: 'left',
-              whiteSpace: 'pre-wrap' // Supaya tulisan penjelasan panjang rapi kebawah
+              whiteSpace: 'pre-wrap'
             }}>
               {msg.text}
             </span>
@@ -73,7 +77,6 @@ const GEMINI_API_KEY = 'AQ.Ab8RN6IjfSE7AhKS7UYKKq2HxVwK8W5tNK0ssmtxEOONwDel7g'
         {isLoading && <p style={{ color: '#888', fontStyle: 'italic', fontSize: '14px' }}>My AI sedang berpikir keras...</p>}
       </div>
 
-      {/* Kolom Input & Tombol */}
       <div style={{ display: 'flex', gap: '10px' }}>
         <input 
           value={input}
