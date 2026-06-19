@@ -10,7 +10,7 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
 
   // ⚠️ MASUKKAN API KEY YANG KAMU SALIN DARI GOOGLE AI STUDIO
-const GEMINI_API_KEY = 'AQ.Ab8RN6ljfSE7AhKS7UYKKq2HxVwK8';
+const GEMINI_API_KEY = 'AQ.Ab8RN6IjfSE7AhKS7UYKKq2HxVwK8W5tNK0ssmtxEOONwDel7g'
 
   const handleKirim = async () => {
     if (!input.trim() || isLoading) return;
