@@ -9,8 +9,8 @@ export default function Home() {
   ]);
   const [isLoading, setIsLoading] = useState(false);
 
-  // ⚠️ MASUKKAN API KEY YANG KAMU SALIN DARI GOOGLE AI STUDIO DI BAWAH INI:
-  const GEMINI_API_KEY = 'AIzaSYAQ.Ab8RN6JM_t66xLn20WDz45DEFZb8IiNLJ4SSrdmp-DpK-cH72Q' 
+  // ⚠️ MASUKKAN API KEY YANG KAMU SALIN DARI GOOGLE AI STUDIO
+const GEMINI_API_KEY = 'AQ.Ab8RN6ljfSE7AhKS7UYKKq2HxVwK8';
 
   const handleKirim = async () => {
     if (!input.trim() || isLoading) return;
