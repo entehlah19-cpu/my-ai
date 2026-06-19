@@ -10,7 +10,7 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
 
   // ⚠️ MASUKKAN API KEY YANG KAMU SALIN DARI GOOGLE AI STUDIO DI BAWAH INI:
-  const GEMINI_API_KEY = 'AQ.Ab8RN6JM_t66xLn20WDz45DEFZb8IiNLJ4SSrdmp-DpK-cH72Q' 
+  const GEMINI_API_KEY = 'AIzaSYAQ.Ab8RN6JM_t66xLn20WDz45DEFZb8IiNLJ4SSrdmp-DpK-cH72Q' 
 
   const handleKirim = async () => {
     if (!input.trim() || isLoading) return;
