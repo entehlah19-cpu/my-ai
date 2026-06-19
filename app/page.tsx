@@ -9,8 +9,8 @@ export default function Home() {
   ]);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Kunci API asli kamu
-  const GEMINI_API_KEY = 'AQ.Ab8RN6ljfSE7AhKS7UYKKq2HxVwK8W5tNKOssmtwE00MxDe1'; 
+  // Kunci asli kamu dari foto 715.jpg (Harap salin menggunakan tombol salin di HP agar kodenya utuh)
+  const GEMINI_API_KEY = 'AQ.Ab8RN6KIRamsKBkOOs1Sv9VKd2Cv'; 
 
   const handleKirim = async () => {
     if (!input.trim() || isLoading) return;
@@ -21,12 +21,14 @@ export default function Home() {
     setIsLoading(true);
 
     try {
+      // Mengubah URL dan memindahkan kunci keamanan ke bagian Headers agar mendukung kunci berformat AQ.
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent`,
         {
           method: 'POST',
           headers: { 
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${GEMINI_API_KEY}`
           },
           body: JSON.stringify({
             contents: [
@@ -40,7 +42,6 @@ export default function Home() {
 
       const data = await response.json();
       
-      // Menampilkan pesan eror asli dari Google ke layar chat jika gagal
       if (data.error) {
         setMessages((prev) => [...prev, { role: 'ai', text: `Eror dari Google: ${data.error.message} (${data.error.status})` }]);
         return;
@@ -105,3 +106,13 @@ export default function Home() {
     </main>
   );
 }
+~/.bashrc
+from google import genai
+
+client = genai.Client(api_key="AQ.Ab8RN6KlRamsKBkOOs1Sv9VKd2CvKFzvNML7OoqKH5Lg9pcSKQ")
+
+response = client.models.generate_content(
+    model="gemini-3.5-flash",
+    contents="Explain how AI works in a few words"
+)
+print(response.text)
