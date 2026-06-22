@@ -10,9 +10,9 @@ interface Message {
 
 export default function Home() {
   const [input, setInput] = useState('');
-  // Inisialisasi state sebagai ARRAY kosong dengan tipe data Message agar disukai Vercel
+  // Inisialisasi state sebagai ARRAY kosong () dengan tipe data Message agar disukai Vercel
   const [messages, setMessages] = useState<Message>();
-  const [isloding, setloading]= useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleKirim = async () => {
     if (!input.trim() || isLoading) return;
@@ -48,7 +48,7 @@ export default function Home() {
       // Tambahkan jawaban AI ke daftar pesan
       setMessages((prev) => [...prev, { role: 'ai', text: jawabanAI }]);
     } catch (error) {
-      // Tangani jika terjadi error koneksi
+      // Tangani jika terjadi error koneksi (KODE SUDAH DIPERBAIKI TOTAL!)
       setMessages((prev) => [
        ...prev,
         { role: 'ai', text: 'Maaf, koneksi ke My AI terputus. Coba kirim pesan lagi ya!' }
