@@ -1,51 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-
-// Deklarasi global agar TypeScript di Vercel tidak error saat membaca Puter.js
-declare global {
-  interface Window {
-    puter: any;
-  }
-}
-
-type Message = {
-  role: 'user' | 'ai';
-  text: string;
-};
+import { useState } from 'react';
 
 export default function Home() {
   const [input, setInput] = useState('');
-  const [messages, setMessages] = useState<Message>();
+  const [messages, setMessages] = useState<{ role: 'user' | 'ai'; text: string }>();
   const [isLoading, setIsLoading] = useState(false);
-  const [isPuterLoaded, setIsPuterLoaded] = useState(false);
-
-  // Memuat pustaka Puter.js secara dinamis saat halaman dibuka
-  useEffect(() => {
-    const script = document.createElement('script');
-    script.src = 'https://js.puter.com/v2/';
-    script.async = true;
-    script.onload = () => {
-      setIsPuterLoaded(true);
-    };
-    document.body.appendChild(script);
-
-    return () => {
-      // Membersihkan script saat komponen tidak digunakan
-      if (document.body.contains(script)) {
-        document.body.removeChild(script);
-      }
-    };
-  },);
 
   const handleKirim = async () => {
     if (!input.trim() || isLoading) return;
-    
-    // Pastikan Puter.js sudah siap sebelum mengirim pesan
-    if (!isPuterLoaded ||!window.puter) {
-      setMessages((prev) =>);
-      return;
-    }
 
     const pesanUser = input;
     setMessages((prev) => [...prev, { role: 'user', text: pesanUser }]);
@@ -53,10 +16,26 @@ export default function Home() {
     setIsLoading(true);
 
     try {
-      // Memanggil kecerdasan buatan Puter.js secara langsung tanpa API Key
-      const response = await window.puter.ai.chat(pesanUser);
-      const jawabanAI = typeof response === 'string'? response : (response.message?.content || 'Maaf, aku tidak menerima respons.');
-      
+      // Menggunakan Pollinations AI yang 100% Gratis, Tanpa API Key, & Bebas CORS!
+      const response = await fetch('https://text.pollinations.ai/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messages:,
+          model: 'openai', // Menggunakan model OpenAI default yang super pintar
+          jsonMode: false,
+          private: true,
+          stream: false
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Gagal menghubungi AI');
+      }
+
+      const jawabanAI = await response.text();
       setMessages((prev) => [...prev, { role: 'ai', text: jawabanAI }]);
     } catch (error) {
       setMessages((prev) =>);
@@ -99,13 +78,12 @@ export default function Home() {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleKirim()}
-          placeholder={isPuterLoaded? "Tanya apa saja ke My AI..." : "Sedang memuat AI..."}
-          disabled={!isPuterLoaded}
+          placeholder="Tanya apa saja ke My AI..." 
           style={{ flex: 1, padding: '12px', borderRadius: '6px', border: '1px solid #ccc', color: 'black', fontSize: '16px' }}
         />
         <button 
           onClick={handleKirim}
-          disabled={isLoading ||!isPuterLoaded}
+          disabled={isLoading}
           style={{ padding: '12px 24px', borderRadius: '6px', backgroundColor: '#0070f3', color: 'white', border: 'none', cursor: 'pointer', fontSize: '16px', fontWeight: 'bold' }}
         >
           Kirim
