@@ -16,7 +16,7 @@ export default function Home() {
     setIsLoading(true);
 
     try {
-      // Menggunakan Pollinations AI yang 100% Gratis, Tanpa API Key, & Bebas CORS!
+      // Memanggil AI gratis Pollinations (tanpa API key, aman dari CORS)
       const response = await fetch('https://text.pollinations.ai/', {
         method: 'POST',
         headers: {
@@ -25,7 +25,8 @@ export default function Home() {
         body: JSON.stringify({
           messages: [
             { role: 'user', content: pesanUser }
-          ]
+          ],
+          model: 'openai'
         })
       });
 
@@ -36,7 +37,8 @@ export default function Home() {
       const jawabanAI = await response.text();
       setMessages((prev) => [...prev, { role: 'ai', text: jawabanAI }]);
     } catch (error) {
-      setMessages((prev) =>);
+      // INI SUDAH DIPERBAIKI! Tidak ada lagi kode kosong yang menggantung
+      setMessages((prev) => [...prev, { role: 'ai', text: 'Maaf, koneksiku terputus. Coba kirim pesan lagi ya!' }]);
     } finally {
       setIsLoading(false);
     }
@@ -48,6 +50,13 @@ export default function Home() {
       
       {/* Ruang Obrolan */}
       <div style={{ height: '450px', overflowY: 'auto', border: '1px solid #ddd', padding: '15px', borderRadius: '8px', marginBottom: '15px', backgroundColor: '#f9f9f9' }}>
+        <div style={{ textAlign: 'left', margin: '10px 0' }}>
+          <div style={{ fontSize: '12px', color: '#888', marginBottom: '2px' }}>My AI</div>
+          <span style={{ display: 'inline-block', padding: '10px 14px', borderRadius: '12px', backgroundColor: '#e4e6eb', color: 'black', maxWidth: '85%', textAlign: 'left' }}>
+            Halo! Aku My AI. Aku sekarang sudah di-upgrade menjadi sangat pintar dan bisa menjawab apa saja secara gratis tanpa API Key. Ada yang bisa kubantu?
+          </span>
+        </div>
+
         {messages.map((msg, index) => (
           <div key={index} style={{ textAlign: msg.role === 'user'? 'right' : 'left', margin: '10px 0' }}>
             <div style={{ fontSize: '12px', color: '#888', marginBottom: '2px' }}>
