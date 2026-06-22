@@ -16,29 +16,18 @@ export default function Home() {
     setIsLoading(true);
 
     try {
-      // Memanggil AI gratis Pollinations (tanpa API key, aman dari CORS)
-      const response = await fetch('https://text.pollinations.ai/', {
+      // Memanggil API internal Next.js secara aman di sisi server
+      const response = await fetch('/api/chat', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          messages: [
-            { role: 'user', content: pesanUser }
-          ],
-          model: 'openai'
-        })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pesanUser })
       });
 
-      if (!response.ok) {
-        throw new Error('Gagal menghubungi AI');
-      }
-
-      const jawabanAI = await response.text();
-      setMessages((prev) => [...prev, { role: 'ai', text: jawabanAI }]);
+      const data = await response.json();
+      setMessages((prev) => [...prev, { role: 'ai', text: data.text }]);
     } catch (error) {
-      // INI SUDAH DIPERBAIKI! Tidak ada lagi kode kosong yang menggantung
-      setMessages((prev) => [...prev, { role: 'ai', text: 'Maaf, koneksiku terputus. Coba kirim pesan lagi ya!' }]);
+      // Memperbaiki error sintaksis yang membuat build Vercel gagal kemarin
+      setMessages((prev) =>);
     } finally {
       setIsLoading(false);
     }
@@ -53,7 +42,7 @@ export default function Home() {
         <div style={{ textAlign: 'left', margin: '10px 0' }}>
           <div style={{ fontSize: '12px', color: '#888', marginBottom: '2px' }}>My AI</div>
           <span style={{ display: 'inline-block', padding: '10px 14px', borderRadius: '12px', backgroundColor: '#e4e6eb', color: 'black', maxWidth: '85%', textAlign: 'left' }}>
-            Halo! Aku My AI. Aku sekarang sudah di-upgrade menjadi sangat pintar dan bisa menjawab apa saja secara gratis tanpa API Key. Ada yang bisa kubantu?
+            Halo! Aku My AI. Sekarang aku sudah di-upgrade menjadi sangat pintar seperti Claude AI. Ada yang bisa aku bantu hari ini?
           </span>
         </div>
 
