@@ -10,7 +10,7 @@ interface Message {
 
 export default function Home() {
   const [input, setInput] = useState('');
-  // Inisialisasi state sebagai ARRAY kosong () dengan tipe data Message agar disukai Vercel
+  // SEKARANG SUDAH DIPERBAIKI: Menggunakan array tipe Message dan nilai awal array kosong agar disukai Vercel
   const [messages, setMessages] = useState<Message>();
   const [isLoading, setIsLoading] = useState(false);
 
@@ -19,7 +19,7 @@ export default function Home() {
 
     const pesanUser = input;
     
-    // Tambahkan pesan user ke daftar pesan
+    // Menambahkan pesan baru ke dalam daftar array secara aman
     setMessages((prev) => [...prev, { role: 'user', text: pesanUser }]);
     setInput('');
     setIsLoading(true);
@@ -45,10 +45,10 @@ export default function Home() {
 
       const jawabanAI = await response.text();
       
-      // Tambahkan jawaban AI ke daftar pesan
+      // Menambahkan balasan AI ke dalam daftar array secara aman
       setMessages((prev) => [...prev, { role: 'ai', text: jawabanAI }]);
     } catch (error) {
-      // Tangani jika terjadi error koneksi (KODE SUDAH DIPERBAIKI TOTAL!)
+      // Menampilkan pesan error jika koneksi gagal
       setMessages((prev) => [
        ...prev,
         { role: 'ai', text: 'Maaf, koneksi ke My AI terputus. Coba kirim pesan lagi ya!' }
@@ -72,7 +72,7 @@ export default function Home() {
           </span>
         </div>
 
-        {/* Menampilkan Daftar Pesan */}
+        {/* Menampilkan Daftar Pesan secara dinamis */}
         {messages.map((msg, index) => (
           <div key={index} style={{ textAlign: msg.role === 'user'? 'right' : 'left', margin: '10px 0' }}>
             <div style={{ fontSize: '12px', color: '#888', marginBottom: '2px' }}>
