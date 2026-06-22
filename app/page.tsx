@@ -1,14 +1,51 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+
+// Deklarasi global agar TypeScript di Vercel tidak error saat membaca Puter.js
+declare global {
+  interface Window {
+    puter: any;
+  }
+}
+
+type Message = {
+  role: 'user' | 'ai';
+  text: string;
+};
 
 export default function Home() {
   const [input, setInput] = useState('');
-  const [messages, setMessages] = useState<{ role: 'user' | 'ai'; text: string }>();
+  const [messages, setMessages] = useState<Message>();
   const [isLoading, setIsLoading] = useState(false);
+  const [isPuterLoaded, setIsPuterLoaded] = useState(false);
+
+  // Memuat pustaka Puter.js secara dinamis saat halaman dibuka
+  useEffect(() => {
+    const script = document.createElement('script');
+    script.src = 'https://js.puter.com/v2/';
+    script.async = true;
+    script.onload = () => {
+      setIsPuterLoaded(true);
+    };
+    document.body.appendChild(script);
+
+    return () => {
+      // Membersihkan script saat komponen tidak digunakan
+      if (document.body.contains(script)) {
+        document.body.removeChild(script);
+      }
+    };
+  },);
 
   const handleKirim = async () => {
     if (!input.trim() || isLoading) return;
+    
+    // Pastikan Puter.js sudah siap sebelum mengirim pesan
+    if (!isPuterLoaded ||!window.puter) {
+      setMessages((prev) =>);
+      return;
+    }
 
     const pesanUser = input;
     setMessages((prev) => [...prev, { role: 'user', text: pesanUser }]);
@@ -16,15 +53,11 @@ export default function Home() {
     setIsLoading(true);
 
     try {
-      // Memanggil API internal Next.js secara aman di sisi server
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pesanUser })
-      });
-
-      const data = await response.json();
-      setMessages((prev) => [...prev, { role: 'ai', text: data.text }]);
+      // Memanggil kecerdasan buatan Puter.js secara langsung tanpa API Key
+      const response = await window.puter.ai.chat(pesanUser);
+      const jawabanAI = typeof response === 'string'? response : (response.message?.content || 'Maaf, aku tidak menerima respons.');
+      
+      setMessages((prev) => [...prev, { role: 'ai', text: jawabanAI }]);
     } catch (error) {
       setMessages((prev) =>);
     } finally {
@@ -66,12 +99,13 @@ export default function Home() {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleKirim()}
-          placeholder="Tanya apa saja ke My AI..." 
+          placeholder={isPuterLoaded? "Tanya apa saja ke My AI..." : "Sedang memuat AI..."}
+          disabled={!isPuterLoaded}
           style={{ flex: 1, padding: '12px', borderRadius: '6px', border: '1px solid #ccc', color: 'black', fontSize: '16px' }}
         />
         <button 
           onClick={handleKirim}
-          disabled={isLoading}
+          disabled={isLoading ||!isPuterLoaded}
           style={{ padding: '12px 24px', borderRadius: '6px', backgroundColor: '#0070f3', color: 'white', border: 'none', cursor: 'pointer', fontSize: '16px', fontWeight: 'bold' }}
         >
           Kirim
