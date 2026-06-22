@@ -12,7 +12,7 @@ export default function Home() {
   const [input, setInput] = useState('');
   // Inisialisasi state sebagai ARRAY kosong dengan tipe data Message agar disukai Vercel
   const [messages, setMessages] = useState<Message>();
-  const [isLoading, setIsLoading] = useState(false);
+  const [isloding, setloading]= useState(false);
 
   const handleKirim = async () => {
     if (!input.trim() || isLoading) return;
