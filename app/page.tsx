@@ -10,7 +10,7 @@ interface Message {
 
 export default function Home() {
   const [input, setInput] = useState('');
-  // Inisialisasi state sebagai ARRAY kosong dengan tipe data Message
+  // Inisialisasi state sebagai ARRAY kosong dengan tipe data Message agar disukai Vercel
   const [messages, setMessages] = useState<Message>();
   const [isLoading, setIsLoading] = useState(false);
 
