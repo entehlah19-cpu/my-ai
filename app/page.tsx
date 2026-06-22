@@ -23,11 +23,9 @@ export default function Home() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          messages:,
-          model: 'openai', // Menggunakan model OpenAI default yang super pintar
-          jsonMode: false,
-          private: true,
-          stream: false
+          messages: [
+            { role: 'user', content: pesanUser }
+          ]
         })
       });
 
