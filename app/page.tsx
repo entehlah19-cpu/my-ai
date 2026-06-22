@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 
-// Mendefinisikan tipe data pesan agar TypeScript tidak error
+// Mendefinisikan tipe data pesan secara ketat agar disukai oleh TypeScript
 interface Message {
   role: 'user' | 'ai';
   text: string;
@@ -10,7 +10,7 @@ interface Message {
 
 export default function Home() {
   const [input, setInput] = useState('');
-  // SEKARANG SUDAH DIPERBAIKI: Menggunakan array tipe Message dan nilai awal array kosong agar disukai Vercel
+  // PERBAIKAN UTAMA: Inisialisasi state sebagai ARRAY dari Message (Message) dengan default array kosong ()
   const [messages, setMessages] = useState<Message>();
   const [isLoading, setIsLoading] = useState(false);
 
@@ -19,13 +19,13 @@ export default function Home() {
 
     const pesanUser = input;
     
-    // Menambahkan pesan baru ke dalam daftar array secara aman
+    // PERBAIKAN: Menambahkan pesan user ke array dengan aman
     setMessages((prev) => [...prev, { role: 'user', text: pesanUser }]);
     setInput('');
     setIsLoading(true);
 
     try {
-      // Memanggil AI gratis Pollinations (tanpa API key, aman dari CORS)
+      // Memanggil AI gratis dari Pollinations AI (Tanpa API Key, Bebas CORS)
       const response = await fetch('https://text.pollinations.ai/', {
         method: 'POST',
         headers: {
@@ -45,10 +45,10 @@ export default function Home() {
 
       const jawabanAI = await response.text();
       
-      // Menambahkan balasan AI ke dalam daftar array secara aman
+      // Menambahkan balasan AI ke array dengan aman
       setMessages((prev) => [...prev, { role: 'ai', text: jawabanAI }]);
     } catch (error) {
-      // Menampilkan pesan error jika koneksi gagal
+      // PERBAIKAN SINTAKSIS: Menangani error tanpa kode menggantung
       setMessages((prev) => [
        ...prev,
         { role: 'ai', text: 'Maaf, koneksi ke My AI terputus. Coba kirim pesan lagi ya!' }
@@ -64,7 +64,7 @@ export default function Home() {
       
       {/* Ruang Obrolan */}
       <div style={{ height: '450px', overflowY: 'auto', border: '1px solid #ddd', padding: '15px', borderRadius: '8px', marginBottom: '15px', backgroundColor: '#f9f9f9' }}>
-        {/* Pesan Sambutan Awal */}
+        {/* Pesan Sambutan Awal dari My AI */}
         <div style={{ textAlign: 'left', margin: '10px 0' }}>
           <div style={{ fontSize: '12px', color: '#888', marginBottom: '2px' }}>My AI</div>
           <span style={{ display: 'inline-block', padding: '10px 14px', borderRadius: '12px', backgroundColor: '#e4e6eb', color: 'black', maxWidth: '85%', textAlign: 'left' }}>
@@ -72,7 +72,7 @@ export default function Home() {
           </span>
         </div>
 
-        {/* Menampilkan Daftar Pesan secara dinamis */}
+        {/* Menampilkan Daftar Pesan */}
         {messages.map((msg, index) => (
           <div key={index} style={{ textAlign: msg.role === 'user'? 'right' : 'left', margin: '10px 0' }}>
             <div style={{ fontSize: '12px', color: '#888', marginBottom: '2px' }}>
