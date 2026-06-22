@@ -2,32 +2,57 @@
 
 import { useState } from 'react';
 
+// Mendefinisikan tipe data pesan agar TypeScript tidak error
+interface Message {
+  role: 'user' | 'ai';
+  text: string;
+}
+
 export default function Home() {
   const [input, setInput] = useState('');
-  const [messages, setMessages] = useState<{ role: 'user' | 'ai'; text: string }>();
+  // Inisialisasi state sebagai ARRAY kosong dengan tipe data Message
+  const [messages, setMessages] = useState<Message>();
   const [isLoading, setIsLoading] = useState(false);
 
   const handleKirim = async () => {
     if (!input.trim() || isLoading) return;
 
     const pesanUser = input;
+    
+    // Tambahkan pesan user ke daftar pesan
     setMessages((prev) => [...prev, { role: 'user', text: pesanUser }]);
     setInput('');
     setIsLoading(true);
 
     try {
-      // Memanggil API internal Next.js secara aman di sisi server
-      const response = await fetch('/api/chat', {
+      // Memanggil AI gratis Pollinations (tanpa API key, aman dari CORS)
+      const response = await fetch('https://text.pollinations.ai/', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pesanUser })
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messages: [
+            { role: 'user', content: pesanUser }
+          ],
+          model: 'openai'
+        })
       });
 
-      const data = await response.json();
-      setMessages((prev) => [...prev, { role: 'ai', text: data.text }]);
+      if (!response.ok) {
+        throw new Error('Gagal menghubungi AI');
+      }
+
+      const jawabanAI = await response.text();
+      
+      // Tambahkan jawaban AI ke daftar pesan
+      setMessages((prev) => [...prev, { role: 'ai', text: jawabanAI }]);
     } catch (error) {
-      // Memperbaiki error sintaksis yang membuat build Vercel gagal kemarin
-      setMessages((prev) =>);
+      // Tangani jika terjadi error koneksi
+      setMessages((prev) => [
+       ...prev,
+        { role: 'ai', text: 'Maaf, koneksi ke My AI terputus. Coba kirim pesan lagi ya!' }
+      ]);
     } finally {
       setIsLoading(false);
     }
@@ -39,13 +64,15 @@ export default function Home() {
       
       {/* Ruang Obrolan */}
       <div style={{ height: '450px', overflowY: 'auto', border: '1px solid #ddd', padding: '15px', borderRadius: '8px', marginBottom: '15px', backgroundColor: '#f9f9f9' }}>
+        {/* Pesan Sambutan Awal */}
         <div style={{ textAlign: 'left', margin: '10px 0' }}>
           <div style={{ fontSize: '12px', color: '#888', marginBottom: '2px' }}>My AI</div>
           <span style={{ display: 'inline-block', padding: '10px 14px', borderRadius: '12px', backgroundColor: '#e4e6eb', color: 'black', maxWidth: '85%', textAlign: 'left' }}>
-            Halo! Aku My AI. Sekarang aku sudah di-upgrade menjadi sangat pintar seperti Claude AI. Ada yang bisa aku bantu hari ini?
+            Halo! Aku My AI. Aku sekarang sudah di-upgrade menjadi sangat pintar dan bisa menjawab apa saja secara gratis tanpa API Key. Ada yang bisa kubantu?
           </span>
         </div>
 
+        {/* Menampilkan Daftar Pesan */}
         {messages.map((msg, index) => (
           <div key={index} style={{ textAlign: msg.role === 'user'? 'right' : 'left', margin: '10px 0' }}>
             <div style={{ fontSize: '12px', color: '#888', marginBottom: '2px' }}>
