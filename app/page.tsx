@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 
-// Mendefinisikan tipe data pesan secara ketat agar disukai oleh TypeScript
+// Mendefinisikan tipe data pesan agar TypeScript di Vercel tidak eror
 interface Message {
   role: 'user' | 'ai';
   text: string;
@@ -10,18 +10,13 @@ interface Message {
 
 export default function Home() {
   const [input, setInput] = useState('');
-  // PERBAIKAN UTAMA: Menggunakan array dari Message (Message) dengan default array kosong () agar disukai Vercel
-  const [messages, setMessages] = useState<Message>([
-    { role: 'ai', text: 'Halo! Aku My AI. Aku sekarang sudah di-upgrade menjadi sangat pintar dan bisa menjawab apa saja secara gratis tanpa API Key. Ada yang bisa kubantu?' }
-  ]);
+  const [messages, setMessages] = useState<Message>();
   const [isLoading, setIsLoading] = useState(false);
 
   const handleKirim = async () => {
     if (!input.trim() || isLoading) return;
 
     const pesanUser = input;
-    
-    // Tambahkan pesan user ke daftar pesan
     setMessages((prev) => [...prev, { role: 'user', text: pesanUser }]);
     setInput('');
     setIsLoading(true);
@@ -46,13 +41,10 @@ export default function Home() {
       }
 
       const jawabanAI = await response.text();
-      
-      // Tambahkan jawaban AI ke daftar pesan
       setMessages((prev) => [...prev, { role: 'ai', text: jawabanAI }]);
     } catch (error) {
-      // Tangani jika terjadi error koneksi (KODE SUDAH DIPERBAIKI TOTAL!)
       setMessages((prev) => [
-      ...prev,
+       ...prev,
         { role: 'ai', text: 'Maaf, koneksi ke My AI terputus. Coba kirim pesan lagi ya!' }
       ]);
     } finally {
@@ -66,7 +58,13 @@ export default function Home() {
       
       {/* Ruang Obrolan */}
       <div style={{ height: '450px', overflowY: 'auto', border: '1px solid #ddd', padding: '15px', borderRadius: '8px', marginBottom: '15px', backgroundColor: '#f9f9f9' }}>
-        {/* Menampilkan Daftar Pesan */}
+        <div style={{ textAlign: 'left', margin: '10px 0' }}>
+          <div style={{ fontSize: '12px', color: '#888', marginBottom: '2px' }}>My AI</div>
+          <span style={{ display: 'inline-block', padding: '10px 14px', borderRadius: '12px', backgroundColor: '#e4e6eb', color: 'black', maxWidth: '85%', textAlign: 'left' }}>
+            Halo! Aku My AI. Aku sekarang sudah di-upgrade menjadi sangat pintar dan bisa menjawab apa saja secara gratis tanpa API Key. Ada yang bisa kubantu?
+          </span>
+        </div>
+
         {messages.map((msg, index) => (
           <div key={index} style={{ textAlign: msg.role === 'user'? 'right' : 'left', margin: '10px 0' }}>
             <div style={{ fontSize: '12px', color: '#888', marginBottom: '2px' }}>
@@ -109,15 +107,3 @@ export default function Home() {
     </main>
   );
 }
-import type { NextConfig } from "next";
-
-const nextConfig: NextConfig = {
-  typescript: {
-    ignoreBuildErrors: true, // Mengabaikan error TypeScript saat proses build
-  },
-  eslint: {
-    ignoreDuringBuilds: true, // Mengabaikan error ESLint saat proses build
-  },
-};
-
-export default nextConfig;
