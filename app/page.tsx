@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 
-// Mendefinisikan tipe data pesan secara ketat agar disukai oleh TypeScript
+// Mendefinisikan tipe data pesan agar TypeScript tidak error
 interface Message {
   role: 'user' | 'ai';
   text: string;
@@ -10,8 +10,10 @@ interface Message {
 
 export default function Home() {
   const [input, setInput] = useState('');
-  // PERBAIKAN UTAMA: Menggunakan array dari Message (Message) dengan default array kosong ()
+  
+  // INI YANG DIPERBAIKI: Ditambahkan kurung siku dan nilai awal ()
   const [messages, setMessages] = useState<Message>();
+  
   const [isLoading, setIsLoading] = useState(false);
 
   const handleKirim = async () => {
@@ -19,13 +21,13 @@ export default function Home() {
 
     const pesanUser = input;
     
-    // Menambahkan pesan baru ke dalam daftar array secara aman
+    // Tambahkan pesan user ke daftar pesan
     setMessages((prev) => [...prev, { role: 'user', text: pesanUser }]);
     setInput('');
     setIsLoading(true);
 
     try {
-      // Memanggil AI gratis Pollinations (tanpa API key, aman dari CORS restriction)
+      // Memanggil AI gratis Pollinations (tanpa API key, aman dari CORS)
       const response = await fetch('https://text.pollinations.ai/', {
         method: 'POST',
         headers: {
@@ -45,12 +47,12 @@ export default function Home() {
 
       const jawabanAI = await response.text();
       
-      // Menambahkan balasan AI ke dalam daftar array secara aman
+      // Tambahkan jawaban AI ke daftar pesan
       setMessages((prev) => [...prev, { role: 'ai', text: jawabanAI }]);
     } catch (error) {
-      // Menampilkan pesan error jika koneksi gagal (Sintaksis sudah diperbaiki tanpa kode menggantung!)
+      // Tangani jika terjadi error koneksi
       setMessages((prev) => [
-       ...prev,
+      ...prev,
         { role: 'ai', text: 'Maaf, koneksi ke My AI terputus. Coba kirim pesan lagi ya!' }
       ]);
     } finally {
@@ -72,7 +74,7 @@ export default function Home() {
           </span>
         </div>
 
-        {/* Menampilkan Daftar Pesan secara dinamis */}
+        {/* Menampilkan Daftar Pesan */}
         {messages.map((msg, index) => (
           <div key={index} style={{ textAlign: msg.role === 'user'? 'right' : 'left', margin: '10px 0' }}>
             <div style={{ fontSize: '12px', color: '#888', marginBottom: '2px' }}>
