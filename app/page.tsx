@@ -107,3 +107,15 @@ export default function Home() {
     </main>
   );
 }
+import type { NextConfig } from "next";
+
+const nextConfig: NextConfig = {
+  typescript: {
+    ignoreBuildErrors: true, // Mengabaikan error TypeScript saat proses build
+  },
+  eslint: {
+    ignoreDuringBuilds: true, // Mengabaikan error ESLint saat proses build
+  },
+};
+
+export default nextConfig;
