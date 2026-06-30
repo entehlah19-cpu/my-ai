@@ -11,7 +11,7 @@ interface Message {
 export default function Home() {
   const [input, setInput] = useState('');
   
-  // PERBAIKAN UTAMA: Menggunakan array dari Message (Message) dengan default array kosong agar disukai Vercel
+  // PERBAIKAN UTAMA: Menggunakan array dari Message (Message) agar disukai Vercel
   const [messages, setMessages] = useState<Message>([
     { role: 'ai', text: 'Halo! Aku My AI. Aku sekarang sudah di-upgrade menjadi sangat pintar dan bisa menjawab apa saja secara gratis tanpa API Key. Ada yang bisa kubantu?' }
   ]);
