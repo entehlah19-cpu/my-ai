@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 
-// Mendefinisikan tipe data pesan agar TypeScript di Vercel tidak eror
+// Mendefinisikan tipe data pesan secara ketat agar disukai oleh TypeScript
 interface Message {
   role: 'user' | 'ai';
   text: string;
@@ -10,19 +10,25 @@ interface Message {
 
 export default function Home() {
   const [input, setInput] = useState('');
-  const [messages, setMessages] = useState<Message>();
+  
+  // PERBAIKAN UTAMA: Menggunakan array dari Message (Message) dengan default array kosong () agar disukai Vercel
+  const [messages, setMessages] = useState<Message>([
+    { role: 'ai', text: 'Halo! Aku My AI. Aku sekarang sudah di-upgrade menjadi sangat pintar dan bisa menjawab apa saja secara gratis tanpa API Key. Ada yang bisa kubantu?' }
+  ]);
   const [isLoading, setIsLoading] = useState(false);
 
   const handleKirim = async () => {
     if (!input.trim() || isLoading) return;
 
     const pesanUser = input;
+    
+    // Menambahkan pesan user ke daftar pesan secara aman
     setMessages((prev) => [...prev, { role: 'user', text: pesanUser }]);
     setInput('');
     setIsLoading(true);
 
     try {
-      // Memanggil AI gratis Pollinations (tanpa API key, aman dari CORS)
+      // Memanggil AI gratis Pollinations (tanpa API key, aman dari CORS restriction)
       const response = await fetch('https://text.pollinations.ai/', {
         method: 'POST',
         headers: {
@@ -41,8 +47,11 @@ export default function Home() {
       }
 
       const jawabanAI = await response.text();
+      
+      // Menambahkan balasan AI ke dalam daftar array secara aman
       setMessages((prev) => [...prev, { role: 'ai', text: jawabanAI }]);
     } catch (error) {
+      // Menampilkan pesan error jika koneksi gagal (Sintaksis sudah diperbaiki tanpa kode menggantung!)
       setMessages((prev) => [
        ...prev,
         { role: 'ai', text: 'Maaf, koneksi ke My AI terputus. Coba kirim pesan lagi ya!' }
@@ -58,13 +67,7 @@ export default function Home() {
       
       {/* Ruang Obrolan */}
       <div style={{ height: '450px', overflowY: 'auto', border: '1px solid #ddd', padding: '15px', borderRadius: '8px', marginBottom: '15px', backgroundColor: '#f9f9f9' }}>
-        <div style={{ textAlign: 'left', margin: '10px 0' }}>
-          <div style={{ fontSize: '12px', color: '#888', marginBottom: '2px' }}>My AI</div>
-          <span style={{ display: 'inline-block', padding: '10px 14px', borderRadius: '12px', backgroundColor: '#e4e6eb', color: 'black', maxWidth: '85%', textAlign: 'left' }}>
-            Halo! Aku My AI. Aku sekarang sudah di-upgrade menjadi sangat pintar dan bisa menjawab apa saja secara gratis tanpa API Key. Ada yang bisa kubantu?
-          </span>
-        </div>
-
+        {/* Menampilkan Daftar Pesan secara dinamis */}
         {messages.map((msg, index) => (
           <div key={index} style={{ textAlign: msg.role === 'user'? 'right' : 'left', margin: '10px 0' }}>
             <div style={{ fontSize: '12px', color: '#888', marginBottom: '2px' }}>
