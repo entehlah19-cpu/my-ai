@@ -1,32 +1,59 @@
-import { NextRequest, NextResponse } from 'next/server';
+'use client';
 
-export async function POST(req: NextRequest) {
-  const { messages } = await req.json();
+import { useState } from 'react';
+import { Message } from '@/types/message';
 
-  const anthropicMessages = messages.map((m: { role: string; text: string }) => ({
-    role: m.role === 'ai' ? 'assistant' : 'user',
-    content: m.text,
-  }));
+export default function Page() {
+  const [messages, setMessages] = useState<Message[]>([
+    { role: 'ai', text: 'Halo! Aku My AI. Ada yang bisa dibantu?' },
+  ]);
+  const [input, setInput] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': process.env.ANTHROPIC_API_KEY!,
-      'anthropic-version': '2023-06-01',
-    },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 1024,
-      messages: anthropicMessages,
-    }),
-  });
+  async function sendMessage() {
+    if (!input.trim()) return;
 
-  const data = await response.json();
-  const reply = data?.content?.[0]?.text ?? 'Maaf, terjadi kesalahan.';
+    const newMessages: Message[] = [...messages, { role: 'user', text: input }];
+    setMessages(newMessages);
+    setInput('');
+    setIsLoading(true);
 
-  return NextResponse.json({ reply });
-}export type Message = {
-  role: 'user' | 'ai';
-  text: string;
-};
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: newMessages }),
+      });
+      const data = await res.json();
+      setMessages([...newMessages, { role: 'ai', text: data.reply }]);
+    } catch {
+      setMessages([...newMessages, { role: 'ai', text: 'Terjadi kesalahan, coba lagi.' }]);
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  return (
+    <div style={{ maxWidth: 600, margin: '0 auto', padding: 20 }}>
+      <h1>My AI</h1>
+      <div style={{ border: '1px solid #ccc', borderRadius: 8, padding: 12, minHeight: 300 }}>
+        {messages.map((m, i) => (
+          <div key={i} style={{ margin: '8px 0', textAlign: m.role === 'user' ? 'right' : 'left' }}>
+            <b>{m.role === 'user' ? 'Kamu' : 'AI'}:</b> {m.text}
+          </div>
+        ))}
+        {isLoading && <div>AI sedang mengetik...</div>}
+      </div>
+      <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+        <input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
+          style={{ flex: 1, padding: 8 }}
+          placeholder="Ketik pesan..."
+        />
+        <button onClick={sendMessage} disabled={isLoading}>Kirim</button>
+      </div>
+    </div>
+  );
+}
