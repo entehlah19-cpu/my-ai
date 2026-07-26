@@ -1,7 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { Message } from '@/types/message';
+
+type Message = {
+  role: 'user' | 'ai';
+  text: string;
+};
 
 export default function Page() {
   const [messages, setMessages] = useState<Message[]>([
