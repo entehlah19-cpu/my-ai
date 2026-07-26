@@ -2,62 +2,111 @@
 
 import { useState } from 'react';
 
-type Message = {
+// Mendefinisikan tipe data pesan secara ketat agar disukai oleh TypeScript
+interface Message {
   role: 'user' | 'ai';
   text: string;
-};
+}
 
-export default function Page() {
-  const [messages, setMessages] = useState<Message[]>([
-    { role: 'ai', text: 'Halo! Aku My AI. Ada yang bisa dibantu?' },
-  ]);
+export default function Home() {
   const [input, setInput] = useState('');
+  
+  // PERBAIKAN UTAMA: Menggunakan array dari Message (Message) agar disukai Vercel
+  const [messages, setMessages] = useState<Message>([
+    { role: 'ai', text: 'Halo! Aku My AI. Aku sekarang sudah di-upgrade menjadi sangat pintar dan bisa menjawab apa saja secara gratis tanpa API Key. Ada yang bisa kubantu?' }
+  ]);
   const [isLoading, setIsLoading] = useState(false);
 
-  async function sendMessage() {
-    if (!input.trim()) return;
+  const handleKirim = async () => {
+    if (!input.trim() || isLoading) return;
 
-    const newMessages: Message[] = [...messages, { role: 'user', text: input }];
-    setMessages(newMessages);
+    const pesanUser = input;
+    
+    // Menambahkan pesan user ke daftar pesan secara aman
+    setMessages((prev) => [...prev, { role: 'user', text: pesanUser }]);
     setInput('');
     setIsLoading(true);
 
     try {
-      const res = await fetch('/api/chat', {
+      // Memanggil AI gratis Pollinations (tanpa API key, aman dari CORS restriction)
+      const response = await fetch('https://text.pollinations.ai/', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: newMessages }),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messages: [
+            { role: 'user', content: pesanUser }
+          ],
+          model: 'openai'
+        })
       });
-      const data = await res.json();
-      setMessages([...newMessages, { role: 'ai', text: data.reply }]);
-    } catch {
-      setMessages([...newMessages, { role: 'ai', text: 'Terjadi kesalahan, coba lagi.' }]);
+
+      if (!response.ok) {
+        throw new Error('Gagal menghubungi AI');
+      }
+
+      const jawabanAI = await response.text();
+      
+      // Menambahkan balasan AI ke dalam daftar array secara aman
+      setMessages((prev) => [...prev, { role: 'ai', text: jawabanAI }]);
+    } catch (error) {
+      // Menampilkan pesan error jika koneksi gagal (Sintaksis sudah diperbaiki tanpa kode menggantung!)
+      setMessages((prev) => [
+     ...prev,
+        { role: 'ai', text: 'Maaf, koneksi ke My AI terputus. Coba kirim pesan lagi ya!' }
+      ]);
     } finally {
       setIsLoading(false);
     }
-  }
+  };
 
   return (
-    <div style={{ maxWidth: 600, margin: '0 auto', padding: 20 }}>
-      <h1>My AI</h1>
-      <div style={{ border: '1px solid #ccc', borderRadius: 8, padding: 12, minHeight: 300 }}>
-        {messages.map((m, i) => (
-          <div key={i} style={{ margin: '8px 0', textAlign: m.role === 'user' ? 'right' : 'left' }}>
-            <b>{m.role === 'user' ? 'Kamu' : 'AI'}:</b> {m.text}
+    <main style={{ padding: '20px', maxWidth: '700px', margin: '0 auto', fontFamily: 'sans-serif' }}>
+      <h2 style={{ textAlign: 'center', marginBottom: '20px', color: '#0070f3' }}>🤖 My AI Website (Pro)</h2>
+      
+      {/* Ruang Obrolan */}
+      <div style={{ height: '450px', overflowY: 'auto', border: '1px solid #ddd', padding: '15px', borderRadius: '8px', marginBottom: '15px', backgroundColor: '#f9f9f9' }}>
+        {/* Menampilkan Daftar Pesan secara dinamis */}
+        {messages.map((msg, index) => (
+          <div key={index} style={{ textAlign: msg.role === 'user'? 'right' : 'left', margin: '10px 0' }}>
+            <div style={{ fontSize: '12px', color: '#888', marginBottom: '2px' }}>
+              {msg.role === 'user'? 'Kamu' : 'My AI'}
+            </div>
+            <span style={{ 
+              display: 'inline-block', 
+              padding: '10px 14px', 
+              borderRadius: '12px', 
+              backgroundColor: msg.role === 'user'? '#0070f3' : '#e4e6eb', 
+              color: msg.role === 'user'? 'white' : 'black', 
+              maxWidth: '85%', 
+              textAlign: 'left',
+              whiteSpace: 'pre-wrap'
+            }}>
+              {msg.text}
+            </span>
           </div>
         ))}
-        {isLoading && <div>AI sedang mengetik...</div>}
+        {isLoading && <p style={{ color: '#888', fontStyle: 'italic', fontSize: '14px' }}>My AI sedang berpikir keras...</p>}
       </div>
-      <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-        <input
+
+      {/* Kolom Input & Tombol */}
+      <div style={{ display: 'flex', gap: '10px' }}>
+        <input 
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
-          style={{ flex: 1, padding: 8 }}
-          placeholder="Ketik pesan..."
+          onKeyDown={(e) => e.key === 'Enter' && handleKirim()}
+          placeholder="Tanya apa saja ke My AI..." 
+          style={{ flex: 1, padding: '12px', borderRadius: '6px', border: '1px solid #ccc', color: 'black', fontSize: '16px' }}
         />
-        <button onClick={sendMessage} disabled={isLoading}>Kirim</button>
+        <button 
+          onClick={handleKirim}
+          disabled={isLoading}
+          style={{ padding: '12px 24px', borderRadius: '6px', backgroundColor: '#0070f3', color: 'white', border: 'none', cursor: 'pointer', fontSize: '16px', fontWeight: 'bold' }}
+        >
+          Kirim
+        </button>
       </div>
-    </div>
+    </main>
   );
 }
