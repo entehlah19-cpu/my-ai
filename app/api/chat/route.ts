@@ -1,40 +1,29 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
-export async function POST(request: Request) {
-  try {
-    const { pesanUser } = await request.json();
-    
-    // Kunci API asli kamu dari Google AI Studio (Format resmi AQ tanpa tambahan teks)
-    const GEMINI_API_KEY = 'AQ.Ab8RN6KIRamsKBkOOs1Sv9VKd2CvW5tNKOssmtwE00MxDe1';
+export async function POST(req: NextRequest) {
+  const { messages } = await req.json();
 
-    // Memanggil model gemini-2.5-flash yang kompatibel di sisi server
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: pesanUser }] }]
-        })
-      }
-    );
+  const anthropicMessages = messages.map((m: { role: string; text: string }) => ({
+    role: m.role === 'ai' ? 'assistant' : 'user',
+    content: m.text,
+  }));
 
-    const data = await response.json();
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': process.env.ANTHROPIC_API_KEY!,
+      'anthropic-version': '2023-06-01',
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 1024,
+      messages: anthropicMessages,
+    }),
+  });
 
-    // Tampilkan pesan kesalahan jika terjadi masalah otentikasi Google
-    if (data.error) {
-      return NextResponse.json({ text: `Eror dari Google: ${data.error.message}` }, { status: 400 });
-    }
+  const data = await response.json();
+  const reply = data?.content?.[0]?.text ?? 'Maaf, terjadi kesalahan.';
 
-    if (data.candidates && data.candidates.content && data.candidates.content.parts.text) {
-      const jawabanAI = data.candidates.content.parts.text;
-      return NextResponse.json({ text: jawabanAI });
-    }
-
-    return NextResponse.json({ text: 'Maaf, My AI tidak menerima respons balik dari Google.' }, { status: 400 });
-  } catch (error) {
-    return NextResponse.json({ text: 'Terjadi kegagalan koneksi internal pada sistem.' }, { status: 500 });
-  }
+  return NextResponse.json({ reply });
 }
