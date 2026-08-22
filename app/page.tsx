@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Markdown from 'react-markdown';
 
 type Message = {
   role: 'user' | 'ai';
@@ -156,7 +157,8 @@ export default function Page() {
         <div style={{ border: '1px solid #ccc', borderRadius: 8, padding: 12, minHeight: 300 }}>
           {messages.map((m, i) => (
             <div key={i} style={{ margin: '8px 0', textAlign: m.role === 'user' ? 'right' : 'left' }}>
-              <b>{m.role === 'user' ? 'Kamu' : 'AI'}:</b> {m.text}
+              <b>{m.role === 'user' ? 'Kamu' : 'AI'}:</b>{' '}
+              {m.role === 'ai' ? <Markdown>{m.text}</Markdown> : m.text}
             </div>
           ))}
           {isLoading && <div>AI sedang mengetik...</div>}
