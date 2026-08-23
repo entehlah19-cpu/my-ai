@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Markdown from 'react-markdown';
 
 type Message = {
   role: 'user' | 'ai';
   text: string;
+  image?: { data: string; mimeType: string };
 };
 
 type Conversation = {
@@ -30,6 +31,8 @@ export default function Page() {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [pendingImage, setPendingImage] = useState<{ data: string; mimeType: string; previewUrl: string } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     try {
@@ -66,18 +69,41 @@ export default function Page() {
         if (c.id !== currentId) return c;
         const title =
           c.title === 'Obrolan Baru' && newMessages.length > 1
-            ? newMessages[1].text.slice(0, 30)
+            ? newMessages[1].text.slice(0, 30) || 'Gambar'
             : c.title;
         return { ...c, messages: newMessages, title };
       })
     );
   }
 
+  function handleImageSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 8 * 1024 * 1024) {
+      alert('Ukuran gambar maksimal 8MB ya.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      const base64Data = result.split(',')[1];
+      setPendingImage({ data: base64Data, mimeType: file.type, previewUrl: result });
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  }
+
   async function sendMessage() {
-    if (!input.trim()) return;
-    const newMessages: Message[] = [...messages, { role: 'user', text: input }];
+    if (!input.trim() && !pendingImage) return;
+    const newUserMessage: Message = {
+      role: 'user',
+      text: input,
+      ...(pendingImage ? { image: { data: pendingImage.data, mimeType: pendingImage.mimeType } } : {}),
+    };
+    const newMessages: Message[] = [...messages, newUserMessage];
     updateMessages(newMessages);
     setInput('');
+    setPendingImage(null);
     setIsLoading(true);
     try {
       const res = await fetch('/api/chat', {
@@ -159,19 +185,47 @@ export default function Page() {
             <div key={i} style={{ margin: '8px 0', textAlign: m.role === 'user' ? 'right' : 'left' }}>
               <b>{m.role === 'user' ? 'Kamu' : 'AI'}:</b>{' '}
               {m.role === 'ai' ? <Markdown>{m.text}</Markdown> : m.text}
+              {m.image && (
+                <div>
+                  <img
+                    src={`data:${m.image.mimeType};base64,${m.image.data}`}
+                    alt="gambar terkirim"
+                    style={{ maxWidth: 200, borderRadius: 8, marginTop: 4 }}
+                  />
+                </div>
+              )}
             </div>
           ))}
           {isLoading && <div>AI sedang mengetik...</div>}
         </div>
-        <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-          <input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
-            style={{ flex: 1, padding: 8 }}
-            placeholder="Ketik pesan..."
-          />
-          <button onClick={sendMessage} disabled={isLoading}>Kirim</button>
+
+        <div style={{ marginTop: 12 }}>
+          {pendingImage && (
+            <div style={{ marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <img src={pendingImage.previewUrl} alt="preview" style={{ height: 50, borderRadius: 6 }} />
+              <button onClick={() => setPendingImage(null)} style={{ fontSize: 12 }}>Hapus gambar</button>
+            </div>
+          )}
+          <div style={{ display: 'flex', gap: 8 }}>
+            <input
+              type="file"
+              accept="image/*"
+              ref={fileInputRef}
+              onChange={handleImageSelect}
+              style={{ display: 'none' }}
+            />
+            <button onClick={() => fileInputRef.current?.click()} style={{ padding: '8px 12px' }}>
+              📎
+            </button>
+            <input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
+              style={{ flex: 1, padding: 8 }}
+              placeholder="Ketik pesan..."
+            />
+            <button onClick={sendMessage} disabled={isLoading}>Kirim</button>
+          </div>
         </div>
       </div>
     </div>
