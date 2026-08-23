@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+type Attachment =
+  | { kind: 'inline'; name: string; data: string; mimeType: string }
+  | { kind: 'text'; name: string; content: string };
+
 type IncomingMessage = {
   role: string;
   text: string;
-  image?: { data: string; mimeType: string };
+  attachment?: Attachment;
 };
 
 export async function POST(req: NextRequest) {
@@ -12,10 +16,15 @@ export async function POST(req: NextRequest) {
 
     const geminiContents = messages.map((m: IncomingMessage) => {
       const parts: Record<string, unknown>[] = [];
-      if (m.text) parts.push({ text: m.text });
-      if (m.image) {
-        parts.push({ inlineData: { mimeType: m.image.mimeType, data: m.image.data } });
+
+      if (m.attachment?.kind === 'text') {
+        parts.push({ text: `[Isi file "${m.attachment.name}"]:\n${m.attachment.content}` });
       }
+      if (m.text) parts.push({ text: m.text });
+      if (m.attachment?.kind === 'inline') {
+        parts.push({ inlineData: { mimeType: m.attachment.mimeType, data: m.attachment.data } });
+      }
+
       return {
         role: m.role === 'ai' ? 'model' : 'user',
         parts,
