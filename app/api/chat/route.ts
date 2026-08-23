@@ -1,13 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+type IncomingMessage = {
+  role: string;
+  text: string;
+  image?: { data: string; mimeType: string };
+};
+
 export async function POST(req: NextRequest) {
   try {
     const { messages } = await req.json();
 
-    const geminiContents = messages.map((m: { role: string; text: string }) => ({
-      role: m.role === 'ai' ? 'model' : 'user',
-      parts: [{ text: m.text }],
-    }));
+    const geminiContents = messages.map((m: IncomingMessage) => {
+      const parts: Record<string, unknown>[] = [];
+      if (m.text) parts.push({ text: m.text });
+      if (m.image) {
+        parts.push({ inlineData: { mimeType: m.image.mimeType, data: m.image.data } });
+      }
+      return {
+        role: m.role === 'ai' ? 'model' : 'user',
+        parts,
+      };
+    });
 
     const response = await fetch(
       'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent',
