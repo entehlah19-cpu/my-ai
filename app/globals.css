@@ -1,26 +1,199 @@
-@import "tailwindcss";
-
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  box-sizing: border-box;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #ffffff;
+  color: #111111;
+}
+
+.chat-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.chat-content {
+  flex: 1;
+  padding: 30px;
+}
+
+.input-wrapper {
+  position: relative;
+  width: min(680px, calc(100% - 30px));
+  margin: 0 auto 25px;
+}
+
+.input-box {
+  height: 64px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid #dddddd;
+  border-radius: 32px;
+  background: #ffffff;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+}
+
+.plus-button {
+  width: 45px;
+  height: 45px;
+  border: 0;
+  border-radius: 50%;
+  background: #f1f1f1;
+  font-size: 28px;
+  cursor: pointer;
+}
+
+.plus-button:hover {
+  background: #e5e5e5;
+}
+
+.message-input {
+  flex: 1;
+  border: 0;
+  outline: none;
+  font-size: 16px;
+  background: transparent;
+}
+
+.send-button {
+  width: 45px;
+  height: 45px;
+  border: 0;
+  border-radius: 50%;
+  background: #2878e8;
+  color: white;
+  font-size: 25px;
+  cursor: pointer;
+}
+
+/* MENU */
+
+.attachment-menu {
+  position: absolute;
+  left: 0;
+  bottom: 75px;
+
+  width: 390px;
+  max-width: calc(100vw - 30px);
+
+  padding: 10px;
+  border-radius: 25px;
+
+  background: white;
+  box-shadow: 0 8px 35px rgba(0, 0, 0, 0.15);
+
+  animation: menuIn 0.15s ease;
+}
+
+.menu-item {
+  width: 100%;
+  min-height: 64px;
+
+  display: flex;
+  align-items: center;
+  gap: 18px;
+
+  padding: 8px 12px;
+
+  border: 0;
+  border-radius: 16px;
+
+  background: transparent;
+
+  font-size: 17px;
+  text-align: left;
+
+  cursor: pointer;
+}
+
+.menu-item:hover {
+  background: #f4f4f4;
+}
+
+.menu-icon {
+  width: 45px;
+  height: 45px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 50%;
+  background: #f2f2f2;
+
+  font-size: 22px;
+}
+
+.arrow {
+  margin-left: auto;
+  font-size: 25px;
+  color: #777;
+}
+
+.check {
+  margin-left: auto;
+  font-size: 20px;
+  color: #2878e8;
+}
+
+.active-menu {
+  background: #eef5ff;
+}
+
+/* PLUGIN */
+
+.plugin-submenu {
+  margin: 0 10px 8px 60px;
+  padding: 6px;
+
+  border-radius: 14px;
+  background: #f5f5f5;
+}
+
+.plugin-submenu button {
+  display: block;
+  width: 100%;
+
+  padding: 10px;
+
+  border: 0;
+  border-radius: 10px;
+
+  background: transparent;
+  text-align: left;
+
+  cursor: pointer;
+}
+
+.plugin-submenu button:hover {
+  background: #e7e7e7;
+}
+
+/* STATUS */
+
+.mode-badge,
+.temporary-badge {
+  display: inline-block;
+  margin: 5px;
+  padding: 8px 12px;
+  border-radius: 15px;
+  background: #f1f1f1;
+  font-size: 13px;
+}
+
+@keyframes menuIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
