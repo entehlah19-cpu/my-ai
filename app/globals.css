@@ -1,199 +1,234 @@
-* {
-  box-sizing: border-box;
+.composer {
+  position: fixed;
+  left: 50%;
+  bottom: 22px;
+  transform: translateX(-50%);
+
+  width: min(680px, calc(100% - 28px));
 }
 
-body {
-  margin: 0;
-  font-family: Arial, sans-serif;
-  background: #ffffff;
-  color: #111111;
-}
+/* =========================
+   POPUP MENU
+========================= */
 
-.chat-page {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-}
-
-.chat-content {
-  flex: 1;
-  padding: 30px;
-}
-
-.input-wrapper {
-  position: relative;
-  width: min(680px, calc(100% - 30px));
-  margin: 0 auto 25px;
-}
-
-.input-box {
-  height: 64px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 10px;
-  border: 1px solid #dddddd;
-  border-radius: 32px;
-  background: #ffffff;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
-}
-
-.plus-button {
-  width: 45px;
-  height: 45px;
-  border: 0;
-  border-radius: 50%;
-  background: #f1f1f1;
-  font-size: 28px;
-  cursor: pointer;
-}
-
-.plus-button:hover {
-  background: #e5e5e5;
-}
-
-.message-input {
-  flex: 1;
-  border: 0;
-  outline: none;
-  font-size: 16px;
-  background: transparent;
-}
-
-.send-button {
-  width: 45px;
-  height: 45px;
-  border: 0;
-  border-radius: 50%;
-  background: #2878e8;
-  color: white;
-  font-size: 25px;
-  cursor: pointer;
-}
-
-/* MENU */
-
-.attachment-menu {
+.plus-menu {
   position: absolute;
+
   left: 0;
-  bottom: 75px;
+  bottom: 78px;
 
   width: 390px;
-  max-width: calc(100vw - 30px);
+  max-width: calc(100vw - 28px);
 
   padding: 10px;
-  border-radius: 25px;
 
-  background: white;
-  box-shadow: 0 8px 35px rgba(0, 0, 0, 0.15);
+  background: #ffffff;
+  border-radius: 27px;
 
-  animation: menuIn 0.15s ease;
+  box-shadow:
+    0 10px 35px rgba(0, 0, 0, 0.12),
+    0 2px 8px rgba(0, 0, 0, 0.05);
+
+  animation: popup 0.16s ease-out;
 }
 
-.menu-item {
+.plus-menu button {
   width: 100%;
-  min-height: 64px;
+  height: 64px;
 
   display: flex;
   align-items: center;
+
   gap: 18px;
 
-  padding: 8px 12px;
+  padding: 7px 12px;
 
-  border: 0;
-  border-radius: 16px;
+  border: none;
+  border-radius: 17px;
 
   background: transparent;
 
+  color: #171717;
+
   font-size: 17px;
+  font-weight: 500;
+
   text-align: left;
 
   cursor: pointer;
+
+  transition: background 0.12s ease;
 }
 
-.menu-item:hover {
-  background: #f4f4f4;
+.plus-menu button:hover {
+  background: #f3f3f3;
 }
 
-.menu-icon {
-  width: 45px;
-  height: 45px;
+/* Icon bulat */
+
+.menu-circle {
+  width: 46px;
+  height: 46px;
+
+  flex: 0 0 46px;
 
   display: flex;
   align-items: center;
   justify-content: center;
 
   border-radius: 50%;
+
   background: #f2f2f2;
+
+  color: #171717;
 
   font-size: 22px;
 }
 
-.arrow {
+/* Arrow */
+
+.menu-arrow {
   margin-left: auto;
-  font-size: 25px;
+
+  font-size: 28px;
+  font-weight: 300;
+
   color: #777;
 }
 
+/* Check */
+
 .check {
   margin-left: auto;
-  font-size: 20px;
+
   color: #2878e8;
+
+  font-size: 21px;
+  font-weight: 700;
 }
 
-.active-menu {
-  background: #eef5ff;
+/* Active */
+
+.plus-menu button.selected {
+  background: #f0f6ff;
 }
 
-/* PLUGIN */
+/* =========================
+   INPUT
+========================= */
 
-.plugin-submenu {
-  margin: 0 10px 8px 60px;
-  padding: 6px;
+.composer-box {
+  height: 64px;
 
-  border-radius: 14px;
-  background: #f5f5f5;
+  display: flex;
+  align-items: center;
+
+  padding: 7px 9px;
+
+  border: 1px solid #dedede;
+
+  border-radius: 34px;
+
+  background: #ffffff;
+
+  box-shadow:
+    0 2px 10px rgba(0, 0, 0, 0.06);
 }
 
-.plugin-submenu button {
-  display: block;
-  width: 100%;
+.composer-box input {
+  flex: 1;
 
-  padding: 10px;
+  min-width: 0;
 
-  border: 0;
-  border-radius: 10px;
+  border: none;
+  outline: none;
 
   background: transparent;
-  text-align: left;
+
+  padding: 0 8px;
+
+  font-size: 16px;
+
+  color: #171717;
+}
+
+.composer-box input::placeholder {
+  color: #777;
+}
+
+/* + button */
+
+.plus-btn {
+  width: 46px;
+  height: 46px;
+
+  flex: 0 0 46px;
+
+  border: none;
+  border-radius: 50%;
+
+  background: #f1f1f1;
+
+  font-size: 29px;
+  font-weight: 300;
+
+  color: #222;
 
   cursor: pointer;
 }
 
-.plugin-submenu button:hover {
-  background: #e7e7e7;
+.plus-btn:hover {
+  background: #e8e8e8;
 }
 
-/* STATUS */
+/* Send */
 
-.mode-badge,
-.temporary-badge {
-  display: inline-block;
-  margin: 5px;
-  padding: 8px 12px;
-  border-radius: 15px;
-  background: #f1f1f1;
-  font-size: 13px;
+.send-btn {
+  width: 46px;
+  height: 46px;
+
+  flex: 0 0 46px;
+
+  border: none;
+  border-radius: 50%;
+
+  background: #287bea;
+
+  color: white;
+
+  font-size: 25px;
+
+  cursor: pointer;
 }
 
-@keyframes menuIn {
+/* Animation */
+
+@keyframes popup {
   from {
     opacity: 0;
-    transform: translateY(8px) scale(0.98);
+    transform: translateY(8px) scale(0.97);
   }
 
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
+  }
+}
+
+/* HP */
+
+@media (max-width: 500px) {
+  .composer {
+    bottom: 14px;
+  }
+
+  .plus-menu {
+    width: 100%;
+    border-radius: 25px;
+  }
+
+  .plus-menu button {
+    height: 62px;
+    font-size: 16px;
   }
 }
