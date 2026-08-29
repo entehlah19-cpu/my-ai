@@ -1,135 +1,185 @@
-// app/page.tsx
-//
-// Halaman chat sederhana. Yang penting di sini:
-// - userId dibuat SEKALI dan disimpan di localStorage browser,
-//   jadi tiap kamu buka app ini lagi, AI-nya tetap "kenal" kamu
-//   (ini yang bikin fitur memori kerasa jalan).
-
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-
-interface Message {
-  role: "user" | "assistant";
-  content: string;
-}
-
-function getOrCreateUserId(): string {
-  const key = "my-ai-user-id";
-  let id = localStorage.getItem(key);
-  if (!id) {
-    id = "user-" + Math.random().toString(36).slice(2, 10);
-    localStorage.setItem(key, id);
-  }
-  return id;
-}
+import { useRef, useState } from "react";
 
 export default function Home() {
-  const [userId, setUserId] = useState<string>("");
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(false);
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [thinking, setThinking] = useState(false);
+  const [temporaryChat, setTemporaryChat] = useState(false);
+  const [pluginOpen, setPluginOpen] = useState(false);
 
-  useEffect(() => {
-    setUserId(getOrCreateUserId());
-  }, []);
+  const cameraInput = useRef<HTMLInputElement>(null);
+  const photoInput = useRef<HTMLInputElement>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  const handleFile = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
 
-  async function sendMessage() {
-    if (!input.trim() || loading) return;
+    if (!files || files.length === 0) return;
 
-    const userMessage: Message = { role: "user", content: input };
-    setMessages((prev) => [...prev, userMessage]);
-    setInput("");
-    setLoading(true);
+    console.log("File dipilih:", files);
 
-    try {
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId, message: userMessage.content }),
-      });
-      const data = await res.json();
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: data.reply || "Maaf, ada kesalahan." },
-      ]);
-    } catch (err) {
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: "Gagal terhubung ke server." },
-      ]);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key === "Enter") sendMessage();
-  }
+    // Nanti di sini bisa dikirim ke API / upload server
+  };
 
   return (
-    <div className="flex flex-col h-screen bg-neutral-950 text-neutral-100">
-      <header className="border-b border-neutral-800 px-4 py-3">
-        <h1 className="text-lg font-semibold">My AI</h1>
-      </header>
+    <main className="chat-page">
 
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
-        {messages.length === 0 && (
-          <p className="text-neutral-500 text-sm">
-            Mulai ngobrol... AI ini bakal inget hal-hal penting dari chat kamu.
-          </p>
+      {/* CHAT AREA */}
+      <div className="chat-content">
+        <h1>AI Chat</h1>
+
+        {thinking && (
+          <div className="mode-badge">
+            🧠 Berpikir lebih keras aktif
+          </div>
         )}
 
-        {messages.map((m, i) => (
-          <div
-            key={i}
-            className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
+        {temporaryChat && (
+          <div className="temporary-badge">
+            💬 Obrolan sementara
+          </div>
+        )}
+      </div>
+
+      {/* INPUT AREA */}
+      <div className="input-wrapper">
+
+        <div className="input-box">
+
+          {/* TOMBOL + */}
+          <button
+            className="plus-button"
+            onClick={() => setMenuOpen(!menuOpen)}
+            aria-label="Tambah"
           >
-            <div
-              className={`max-w-[80%] rounded-2xl px-4 py-2 text-sm whitespace-pre-wrap ${
-                m.role === "user"
-                  ? "bg-blue-600 text-white"
-                  : "bg-neutral-800 text-neutral-100"
-              }`}
-            >
-              {m.content}
-            </div>
-          </div>
-        ))}
+            +
+          </button>
 
-        {loading && (
-          <div className="flex justify-start">
-            <div className="bg-neutral-800 rounded-2xl px-4 py-2 text-sm text-neutral-400">
-              Mengetik...
-            </div>
+          <input
+            className="message-input"
+            placeholder="Tanyakan apa saja"
+          />
+
+          <button className="send-button">
+            ↑
+          </button>
+        </div>
+
+        {/* MENU KIRI */}
+        {menuOpen && (
+          <div className="attachment-menu">
+
+            {/* KAMERA */}
+            <button
+              className="menu-item"
+              onClick={() => cameraInput.current?.click()}
+            >
+              <span className="menu-icon">📷</span>
+              <span>Kamera</span>
+            </button>
+
+            {/* FOTO */}
+            <button
+              className="menu-item"
+              onClick={() => photoInput.current?.click()}
+            >
+              <span className="menu-icon">🖼️</span>
+              <span>Foto</span>
+            </button>
+
+            {/* FILE */}
+            <button
+              className="menu-item"
+              onClick={() => fileInput.current?.click()}
+            >
+              <span className="menu-icon">📎</span>
+              <span>File</span>
+            </button>
+
+            {/* PLUGIN */}
+            <button
+              className="menu-item"
+              onClick={() => setPluginOpen(!pluginOpen)}
+            >
+              <span className="menu-icon">🧩</span>
+              <span>Plugin</span>
+              <span className="arrow">
+                {pluginOpen ? "⌃" : "›"}
+              </span>
+            </button>
+
+            {pluginOpen && (
+              <div className="plugin-submenu">
+                <button>🌐 Web Search</button>
+                <button>🧮 Calculator</button>
+                <button>💻 Code</button>
+              </div>
+            )}
+
+            {/* BERPIKIR LEBIH KERAS */}
+            <button
+              className={`menu-item ${
+                thinking ? "active-menu" : ""
+              }`}
+              onClick={() => setThinking(!thinking)}
+            >
+              <span className="menu-icon">🧠</span>
+              <span>Berpikir lebih keras</span>
+
+              <span className="check">
+                {thinking ? "✓" : ""}
+              </span>
+            </button>
+
+            {/* OBROLAN SEMENTARA */}
+            <button
+              className={`menu-item ${
+                temporaryChat ? "active-menu" : ""
+              }`}
+              onClick={() => setTemporaryChat(!temporaryChat)}
+            >
+              <span className="menu-icon">💬</span>
+              <span>Obrolan sementara</span>
+
+              <span className="check">
+                {temporaryChat ? "✓" : ""}
+              </span>
+            </button>
           </div>
         )}
 
-        <div ref={bottomRef} />
-      </div>
+        {/* HIDDEN INPUTS */}
 
-      <div className="border-t border-neutral-800 p-3 flex gap-2">
+        {/* Kamera */}
         <input
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="Ketik pesan..."
-          className="flex-1 bg-neutral-900 border border-neutral-700 rounded-full px-4 py-2 text-sm outline-none focus:border-blue-500"
+          ref={cameraInput}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          hidden
+          onChange={handleFile}
         />
-        <button
-          onClick={sendMessage}
-          disabled={loading}
-          className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded-full px-5 py-2 text-sm font-medium"
-        >
-          Kirim
-        </button>
+
+        {/* Foto */}
+        <input
+          ref={photoInput}
+          type="file"
+          accept="image/*"
+          hidden
+          onChange={handleFile}
+        />
+
+        {/* File */}
+        <input
+          ref={fileInput}
+          type="file"
+          multiple
+          hidden
+          onChange={handleFile}
+        />
+
       </div>
-    </div>
+    </main>
   );
 }
