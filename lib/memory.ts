@@ -1,13 +1,4 @@
 // lib/memory.ts
-//
-// Long-term memory versi "canggih" (TypeScript):
-// - Fakta diekstrak otomatis dari tiap percakapan (bukan simpan mentah)
-// - Tiap fakta punya embedding vector (buat semantic search)
-// - Saat chat baru, sistem cari fakta paling RELEVAN (bukan cuma yang terbaru)
-// - Skor akhir = kemiripan makna + kepentingan + kebaruan
-//
-// Storage masih file JSON (gampang buat dev/local). Untuk production,
-// ganti loadStore()/saveStore() ke database (Supabase/Upstash/Postgres+pgvector).
 
 import fs from "fs";
 import path from "path";
@@ -43,8 +34,6 @@ interface ExtractedFact {
   importance?: number;
 }
 
-// ---------- Storage dasar ----------
-
 function ensureStoreExists(): void {
   const dir = path.dirname(DB_PATH);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
@@ -69,8 +58,6 @@ function getUserData(userId: string): UserData {
   }
   return store[userId];
 }
-
-// ---------- Embedding & similarity ----------
 
 async function getEmbedding(text: string, apiKey: string | undefined): Promise<number[]> {
   const res = await fetch(
@@ -98,8 +85,6 @@ function cosineSimilarity(a: number[], b: number[]): number {
   }
   return dot / (Math.sqrt(normA) * Math.sqrt(normB) || 1);
 }
-
-// ---------- Ekstraksi fakta otomatis ----------
 
 export async function extractFacts(
   userMessage: string,
@@ -139,7 +124,6 @@ Kalau tidak ada fakta penting, jawab: []`;
   }
 }
 
-// Simpan fakta baru ke memori user (dengan embedding-nya)
 export async function saveFacts(
   userId: string,
   facts: ExtractedFact[],
@@ -164,8 +148,6 @@ export async function saveFacts(
   saveStore(store);
 }
 
-// ---------- Retrieval: cari fakta paling relevan ----------
-
 export async function retrieveRelevantMemories(
   userId: string,
   query: string,
@@ -183,9 +165,7 @@ export async function retrieveRelevantMemories(
     const ageInDays = (now - fact.createdAt) / (1000 * 60 * 60 * 24);
     const recencyScore = 1 / (1 + ageInDays / 30);
     const importanceScore = fact.importance / 10;
-
     const finalScore = similarity * 0.6 + importanceScore * 0.3 + recencyScore * 0.1;
-
     return { ...fact, score: finalScore };
   });
 
@@ -194,8 +174,6 @@ export async function retrieveRelevantMemories(
     .slice(0, topK)
     .map((f) => f.text);
 }
-
-// ---------- Histori mentah jangka pendek (buat konteks langsung) ----------
 
 export function addRecentMessage(
   userId: string,
