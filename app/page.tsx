@@ -1,140 +1,253 @@
-import { NextRequest, NextResponse } from "next/server";
-import {
-  retrieveRelevantMemories,
-  addRecentMessage,
-  getRecentMessages,
-  extractFacts,
-  saveFacts,
-} from "../../../lib/memory";
+"use client";
 
-const GEMINI_MODEL = "gemini-2.0-flash";
-const API_KEY = process.env.GEMINI_API_KEY;
-const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
-const OPENROUTER_MODEL = "meta-llama/llama-3.2-3b-instruct:free";
+import { useState, useEffect, useRef } from "react";
 
-// Fungsi panggil Gemini (dipisah biar rapi & bisa di-try-catch)
-async function panggilGemini(prompt: string): Promise<string> {
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${API_KEY}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-      }),
+type Message = { role: string; content: string };
+type Conversation = { id: string; title: string; messages: Message[] };
+
+export default function Home() {
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [activeId, setActiveId] = useState<string>("");
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  // Load riwayat dari localStorage saat pertama buka
+  useEffect(() => {
+    const saved = localStorage.getItem("myai-conversations");
+    if (saved) {
+      const parsed: Conversation[] = JSON.parse(saved);
+      setConversations(parsed);
+      if (parsed.length > 0) setActiveId(parsed[0].id);
+    } else {
+      buatObrolanBaru();
     }
-  );
+  }, []);
 
-  // INI KUNCINYA: kalau Gemini gagal/limit, res.ok akan false -> lempar error
-  if (!res.ok) {
-    throw new Error(`Gemini gagal dengan status ${res.status}`);
-  }
-
-  const data = await res.json();
-  const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-
-  if (!reply) {
-    throw new Error("Gemini tidak mengembalikan jawaban");
-  }
-
-  return reply;
-}
-
-// Fungsi panggil OpenRouter (fallback kalau Gemini gagal)
-async function panggilOpenRouter(prompt: string): Promise<string> {
-  const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: OPENROUTER_MODEL,
-      messages: [{ role: "user", content: prompt }],
-    }),
-  });
-
-  if (!res.ok) {
-    throw new Error(`OpenRouter gagal dengan status ${res.status}`);
-  }
-
-  const data = await res.json();
-  const reply = data?.choices?.[0]?.message?.content?.trim();
-
-  if (!reply) {
-    throw new Error("OpenRouter tidak mengembalikan jawaban");
-  }
-
-  return reply;
-}
-
-// Fungsi utama: coba Gemini dulu, kalau gagal baru OpenRouter
-async function jawabDenganFallback(prompt: string): Promise<string> {
-  try {
-    return await panggilGemini(prompt);
-  } catch (err) {
-    console.log("Gemini gagal, pindah ke OpenRouter:", (err as Error).message);
-    try {
-      return await panggilOpenRouter(prompt);
-    } catch (err2) {
-      console.log("OpenRouter juga gagal:", (err2 as Error).message);
-      return "Maaf, AI sedang sibuk banget. Coba lagi sebentar ya 🙏";
+  // Simpan ke localStorage setiap kali ada perubahan
+  useEffect(() => {
+    if (conversations.length > 0) {
+      localStorage.setItem("myai-conversations", JSON.stringify(conversations));
     }
-  }
-}
+  }, [conversations]);
 
-export async function POST(req: NextRequest) {
-  try {
-    const { userId, message } = await req.json();
+  // Auto-scroll ke bawah saat ada pesan baru
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [conversations, activeId]);
 
-    if (!userId || !message) {
-      return NextResponse.json(
-        { error: "userId dan message wajib diisi" },
-        { status: 400 }
-      );
-    }
+  const activeConversation = conversations.find((c) => c.id === activeId);
 
-    const relevantFacts = await retrieveRelevantMemories(userId, message, API_KEY, 5);
-    const recentMessages = getRecentMessages(userId);
+  const buatObrolanBaru = () => {
+    const id = Date.now().toString();
+    const baru: Conversation = { id, title: "Obrolan Baru", messages: [] };
+    setConversations((prev) => [baru, ...prev]);
+    setActiveId(id);
+  };
 
-    const memoryBlock = relevantFacts.length
-      ? relevantFacts.map((f) => `- ${f}`).join("\n")
-      : "(belum ada memori relevan)";
+  const kirimPesan = async () => {
+    if (!input.trim() || !activeId) return;
 
-    const historyBlock = recentMessages
-      .map((m) => `${m.role}: ${m.content}`)
-      .join("\n");
+    const pesanUser: Message = { role: "user", content: input };
+    const teksInput = input;
+    setInput("");
+    setLoading(true);
 
-    const prompt = `Kamu adalah AI asisten pribadi dengan memori jangka panjang.
-
-Fakta relevan yang kamu ingat tentang user (pakai kalau nyambung ke pertanyaan):
-${memoryBlock}
-
-Percakapan terakhir:
-${historyBlock}
-
-Pesan baru dari user: "${message}"
-
-Jawab secara natural, ringkas, dan langsung ke inti. Kalau ada fakta di atas yang relevan sama pertanyaan user, pakai itu buat personalisasi jawaban (tanpa harus menyebut kata "memori" secara eksplisit).`;
-
-    // GANTI bagian fetch Gemini langsung dengan fungsi fallback ini:
-    const reply = await jawabDenganFallback(prompt);
-
-    addRecentMessage(userId, "user", message);
-    addRecentMessage(userId, "assistant", reply);
-
-    extractFacts(message, reply, API_KEY)
-      .then((facts) => {
-        if (facts.length > 0) return saveFacts(userId, facts, API_KEY);
-      })
-      .catch((e) => console.error("Gagal ekstrak/simpan fakta:", e));
-
-    return NextResponse.json({ reply, memoriesUsed: relevantFacts });
-  } catch (err) {
-    console.error(err);
-    return NextResponse.json(
-      { error: "Terjadi kesalahan di server" },
-      { status: 500 }
+    setConversations((prev) =>
+      prev.map((c) =>
+        c.id === activeId
+          ? {
+              ...c,
+              title: c.messages.length === 0 ? teksInput.slice(0, 30) : c.title,
+              messages: [...c.messages, pesanUser],
+            }
+          : c
+      )
     );
-  }
+
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: "user-1", message: teksInput }),
+      });
+      const data = await res.json();
+
+      setConversations((prev) =>
+        prev.map((c) =>
+          c.id === activeId
+            ? { ...c, messages: [...c.messages, { role: "assistant", content: data.reply }] }
+            : c
+        )
+      );
+    } catch (err) {
+      setConversations((prev) =>
+        prev.map((c) =>
+          c.id === activeId
+            ? {
+                ...c,
+                messages: [
+                  ...c.messages,
+                  { role: "assistant", content: "Maaf, terjadi kesalahan. Coba lagi ya." },
+                ],
+              }
+            : c
+        )
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div style={{ display: "flex", height: "100vh", background: "#0a0a0a", color: "#f5f5f5", fontFamily: "system-ui, -apple-system, sans-serif" }}>
+      {/* Sidebar */}
+      <aside
+        style={{
+          width: 260,
+          background: "#111111",
+          borderRight: "1px solid #262626",
+          display: "flex",
+          flexDirection: "column",
+          padding: 12,
+        }}
+      >
+        <button
+          onClick={buatObrolanBaru}
+          style={{
+            background: "linear-gradient(135deg, #ff7a18, #ff9d4d)",
+            color: "#0a0a0a",
+            border: "none",
+            borderRadius: 8,
+            padding: "10px 14px",
+            fontWeight: 600,
+            cursor: "pointer",
+            marginBottom: 16,
+          }}
+        >
+          + Obrolan Baru
+        </button>
+
+        <div style={{ overflowY: "auto", flex: 1 }}>
+          {conversations.map((c) => (
+            <div
+              key={c.id}
+              onClick={() => setActiveId(c.id)}
+              style={{
+                padding: "10px 12px",
+                borderRadius: 8,
+                marginBottom: 4,
+                cursor: "pointer",
+                fontSize: 14,
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                background: c.id === activeId ? "#1f1f1f" : "transparent",
+                borderLeft: c.id === activeId ? "3px solid #ff7a18" : "3px solid transparent",
+                color: c.id === activeId ? "#ff9d4d" : "#ccc",
+              }}
+            >
+              {c.title || "Obrolan Baru"}
+            </div>
+          ))}
+        </div>
+      </aside>
+
+      {/* Chat utama */}
+      <main style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+        <header
+          style={{
+            padding: "16px 24px",
+            borderBottom: "1px solid #262626",
+            fontWeight: 700,
+            fontSize: 18,
+            letterSpacing: 0.5,
+          }}
+        >
+          <span style={{ color: "#ff7a18" }}>My</span> AI
+        </header>
+
+        <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px" }}>
+          {(activeConversation?.messages.length ?? 0) === 0 && (
+            <div style={{ color: "#666", textAlign: "center", marginTop: 60 }}>
+              Mulai percakapan dengan mengetik pesan di bawah.
+            </div>
+          )}
+
+          {activeConversation?.messages.map((m, i) => (
+            <div
+              key={i}
+              style={{
+                display: "flex",
+                justifyContent: m.role === "user" ? "flex-end" : "flex-start",
+                marginBottom: 12,
+              }}
+            >
+              <div
+                style={{
+                  maxWidth: "70%",
+                  padding: "10px 16px",
+                  borderRadius: 14,
+                  fontSize: 15,
+                  lineHeight: 1.5,
+                  background:
+                    m.role === "user"
+                      ? "linear-gradient(135deg, #ff7a18, #ff9d4d)"
+                      : "#1a1a1a",
+                  color: m.role === "user" ? "#0a0a0a" : "#f0f0f0",
+                  border: m.role === "user" ? "none" : "1px solid #2a2a2a",
+                }}
+              >
+                {m.content}
+              </div>
+            </div>
+          ))}
+
+          {loading && (
+            <div style={{ color: "#ff9d4d", fontSize: 14, fontStyle: "italic" }}>
+              Sedang mengetik...
+            </div>
+          )}
+          <div ref={bottomRef} />
+        </div>
+
+        <div style={{ padding: 16, borderTop: "1px solid #262626" }}>
+          <div style={{ display: "flex", gap: 10, maxWidth: 800, margin: "0 auto" }}>
+            <input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && kirimPesan()}
+              placeholder="Ketik pesan..."
+              style={{
+                flex: 1,
+                padding: "12px 16px",
+                borderRadius: 24,
+                border: "1px solid #333",
+                background: "#161616",
+                color: "#f5f5f5",
+                outline: "none",
+                fontSize: 15,
+              }}
+            />
+            <button
+              onClick={kirimPesan}
+              disabled={loading}
+              style={{
+                background: "linear-gradient(135deg, #ff7a18, #ff9d4d)",
+                color: "#0a0a0a",
+                border: "none",
+                borderRadius: 24,
+                padding: "0 24px",
+                fontWeight: 600,
+                cursor: loading ? "not-allowed" : "pointer",
+                opacity: loading ? 0.6 : 1,
+              }}
+            >
+              Kirim
+            </button>
+          </div>
+        </div>
+      </main>
+    </div>
+  );
 }
