@@ -9,10 +9,10 @@ import {
 
 const GEMINI_MODEL = "gemini-2.0-flash";
 const API_KEY = process.env.GEMINI_API_KEY;
-const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
-const OPENROUTER_MODEL = "meta-llama/llama-3.2-3b-instruct:free";
+const LLAMA_API_KEY = process.env.LLAMA_API_KEY;
+const OLLAMA_MODEL = "gpt-oss:120b-cloud"; // ganti sesuai model cloud yang tersedia di akunmu
 
-// Fungsi panggil Gemini (dipisah biar rapi & bisa di-try-catch)
+// Fungsi panggil Gemini
 async function panggilGemini(prompt: string): Promise<string> {
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${API_KEY}`,
@@ -25,7 +25,6 @@ async function panggilGemini(prompt: string): Promise<string> {
     }
   );
 
-  // INI KUNCINYA: kalau Gemini gagal/limit, res.ok akan false -> lempar error
   if (!res.ok) {
     throw new Error(`Gemini gagal dengan status ${res.status}`);
   }
@@ -40,44 +39,45 @@ async function panggilGemini(prompt: string): Promise<string> {
   return reply;
 }
 
-// Fungsi panggil OpenRouter (fallback kalau Gemini gagal)
-async function panggilOpenRouter(prompt: string): Promise<string> {
-  const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+// Fungsi panggil Ollama Cloud (fallback kalau Gemini gagal)
+async function panggilOllama(prompt: string): Promise<string> {
+  const res = await fetch("https://ollama.com/api/chat", {
     method: "POST",
     headers: {
-      "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
+      "Authorization": `Bearer ${LLAMA_API_KEY}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: OPENROUTER_MODEL,
+      model: OLLAMA_MODEL,
       messages: [{ role: "user", content: prompt }],
+      stream: false,
     }),
   });
 
   if (!res.ok) {
-    throw new Error(`OpenRouter gagal dengan status ${res.status}`);
+    throw new Error(`Ollama gagal dengan status ${res.status}`);
   }
 
   const data = await res.json();
-  const reply = data?.choices?.[0]?.message?.content?.trim();
+  const reply = data?.message?.content?.trim();
 
   if (!reply) {
-    throw new Error("OpenRouter tidak mengembalikan jawaban");
+    throw new Error("Ollama tidak mengembalikan jawaban");
   }
 
   return reply;
 }
 
-// Fungsi utama: coba Gemini dulu, kalau gagal baru OpenRouter
+// Fungsi utama: coba Gemini dulu, kalau gagal baru Ollama
 async function jawabDenganFallback(prompt: string): Promise<string> {
   try {
     return await panggilGemini(prompt);
   } catch (err) {
-    console.log("Gemini gagal, pindah ke OpenRouter:", (err as Error).message);
+    console.log("Gemini gagal, pindah ke Ollama:", (err as Error).message);
     try {
-      return await panggilOpenRouter(prompt);
+      return await panggilOllama(prompt);
     } catch (err2) {
-      console.log("OpenRouter juga gagal:", (err2 as Error).message);
+      console.log("Ollama juga gagal:", (err2 as Error).message);
       return "Maaf, AI sedang sibuk banget. Coba lagi sebentar ya 🙏";
     }
   }
@@ -94,7 +94,15 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const relevantFacts = await retrieveRelevantMemories(userId, message, API_KEY, 5);
+    // Bungkus pengambilan memori dengan try-catch supaya tidak crash
+    // kalau Gemini sedang limit saat proses ini juga
+    let relevantFacts: string[] = [];
+    try {
+      relevantFacts = await retrieveRelevantMemories(userId, message, API_KEY, 5);
+    } catch (err) {
+      console.log("Gagal ambil memori, lanjut tanpa memori:", (err as Error).message);
+    }
+
     const recentMessages = getRecentMessages(userId);
 
     const memoryBlock = relevantFacts.length
@@ -117,7 +125,6 @@ Pesan baru dari user: "${message}"
 
 Jawab secara natural, ringkas, dan langsung ke inti. Kalau ada fakta di atas yang relevan sama pertanyaan user, pakai itu buat personalisasi jawaban (tanpa harus menyebut kata "memori" secara eksplisit).`;
 
-    // GANTI bagian fetch Gemini langsung dengan fungsi fallback ini:
     const reply = await jawabDenganFallback(prompt);
 
     addRecentMessage(userId, "user", message);
