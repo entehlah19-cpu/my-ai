@@ -3,7 +3,10 @@
 import fs from "fs";
 import path from "path";
 
-const DB_PATH = path.join(process.cwd(), "data", "memories.json");
+// PERBAIKAN: Vercel cuma izinin nulis file ke folder /tmp.
+// Folder biasa (process.cwd()) itu read-only di server Vercel.
+const DB_PATH = path.join("/tmp", "data", "memories.json");
+
 const EMBED_MODEL = "text-embedding-004";
 const CHAT_MODEL = "gemini-2.0-flash";
 
@@ -41,13 +44,22 @@ function ensureStoreExists(): void {
 }
 
 function loadStore(): Store {
-  ensureStoreExists();
-  return JSON.parse(fs.readFileSync(DB_PATH, "utf-8") || "{}");
+  try {
+    ensureStoreExists();
+    return JSON.parse(fs.readFileSync(DB_PATH, "utf-8") || "{}");
+  } catch (err) {
+    console.log("Gagal load store, mulai dari kosong:", (err as Error).message);
+    return {};
+  }
 }
 
 function saveStore(store: Store): void {
-  ensureStoreExists();
-  fs.writeFileSync(DB_PATH, JSON.stringify(store, null, 2));
+  try {
+    ensureStoreExists();
+    fs.writeFileSync(DB_PATH, JSON.stringify(store, null, 2));
+  } catch (err) {
+    console.log("Gagal simpan store:", (err as Error).message);
+  }
 }
 
 function getUserData(userId: string): UserData {
@@ -60,19 +72,24 @@ function getUserData(userId: string): UserData {
 }
 
 async function getEmbedding(text: string, apiKey: string | undefined): Promise<number[]> {
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${EMBED_MODEL}:embedContent?key=${apiKey}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: `models/${EMBED_MODEL}`,
-        content: { parts: [{ text }] },
-      }),
-    }
-  );
-  const data = await res.json();
-  return data?.embedding?.values || [];
+  try {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${EMBED_MODEL}:embedContent?key=${apiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: `models/${EMBED_MODEL}`,
+          content: { parts: [{ text }] },
+        }),
+      }
+    );
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data?.embedding?.values || [];
+  } catch {
+    return [];
+  }
 }
 
 function cosineSimilarity(a: number[], b: number[]): number {
@@ -91,7 +108,8 @@ export async function extractFacts(
   aiReply: string,
   apiKey: string | undefined
 ): Promise<ExtractedFact[]> {
-  const prompt = `Dari percakapan berikut, ekstrak fakta-fakta PENTING tentang user yang layak diingat jangka panjang
+  try {
+    const prompt = `Dari percakapan berikut, ekstrak fakta-fakta PENTING tentang user yang layak diingat jangka panjang
 (contoh: nama, preferensi, pekerjaan, proyek yang dikerjakan, kebiasaan, hal yang disukai/tidak disukai).
 Abaikan basa-basi atau small talk yang tidak penting.
 
@@ -103,21 +121,21 @@ Jawab HANYA dalam format JSON array, tanpa markdown, tanpa penjelasan tambahan. 
 
 Kalau tidak ada fakta penting, jawab: []`;
 
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${CHAT_MODEL}:generateContent?key=${apiKey}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-      }),
-    }
-  );
-  const data = await res.json();
-  const raw: string = data?.candidates?.[0]?.content?.parts?.[0]?.text || "[]";
-  const cleaned = raw.replace(/```json|```/g, "").trim();
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${CHAT_MODEL}:generateContent?key=${apiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ role: "user", parts: [{ text: prompt }] }],
+        }),
+      }
+    );
+    if (!res.ok) return [];
+    const data = await res.json();
+    const raw: string = data?.candidates?.[0]?.content?.parts?.[0]?.text || "[]";
+    const cleaned = raw.replace(/```json|```/g, "").trim();
 
-  try {
     return JSON.parse(cleaned);
   } catch {
     return [];
