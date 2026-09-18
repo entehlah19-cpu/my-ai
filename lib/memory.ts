@@ -3,12 +3,10 @@
 import fs from "fs";
 import path from "path";
 
-// PERBAIKAN: Vercel cuma izinin nulis file ke folder /tmp.
-// Folder biasa (process.cwd()) itu read-only di server Vercel.
 const DB_PATH = path.join("/tmp", "data", "memories.json");
 
 const EMBED_MODEL = "text-embedding-004";
-const CHAT_MODEL = "gemini-2.0-flash";
+const CHAT_MODEL = "gemini-3.6-flash";
 
 interface Fact {
   id: number;
