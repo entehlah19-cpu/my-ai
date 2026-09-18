@@ -12,15 +12,24 @@ const API_KEY = process.env.GEMINI_API_KEY;
 const LLAMA_API_KEY = process.env.LLAMA_API_KEY;
 const OLLAMA_MODEL = "gpt-oss:120b";
 
-// Fungsi panggil Gemini
-async function panggilGemini(prompt: string): Promise<string> {
+type ImagePart = { mimeType: string; data: string }; // data = base64 tanpa prefix
+
+// Fungsi panggil Gemini, sekarang bisa terima gambar juga
+async function panggilGemini(prompt: string, image?: ImagePart): Promise<string> {
+  const parts: any[] = [{ text: prompt }];
+  if (image) {
+    parts.push({
+      inline_data: { mime_type: image.mimeType, data: image.data },
+    });
+  }
+
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${API_KEY}`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        contents: [{ role: "user", parts }],
       }),
     }
   );
@@ -39,7 +48,8 @@ async function panggilGemini(prompt: string): Promise<string> {
   return reply;
 }
 
-// Fungsi panggil Ollama Cloud (fallback kalau Gemini gagal)
+// Ollama (fallback) - catatan: model teks biasa tidak bisa baca gambar,
+// jadi kalau ada gambar dan Gemini gagal, kita kasih tahu keterbatasannya di prompt.
 async function panggilOllama(prompt: string): Promise<string> {
   const res = await fetch("https://ollama.com/api/chat", {
     method: "POST",
@@ -68,14 +78,16 @@ async function panggilOllama(prompt: string): Promise<string> {
   return reply;
 }
 
-// Fungsi utama: coba Gemini dulu, kalau gagal baru Ollama
-async function jawabDenganFallback(prompt: string): Promise<string> {
+async function jawabDenganFallback(prompt: string, image?: ImagePart): Promise<string> {
   try {
-    return await panggilGemini(prompt);
+    return await panggilGemini(prompt, image);
   } catch (err) {
     console.log("Gemini gagal, pindah ke Ollama:", (err as Error).message);
     try {
-      return await panggilOllama(prompt);
+      const promptFallback = image
+        ? `${prompt}\n\n(Catatan: ada gambar terlampir, tapi model cadangan ini tidak bisa membaca gambar. Jawab semampunya berdasarkan teks saja.)`
+        : prompt;
+      return await panggilOllama(promptFallback);
     } catch (err2) {
       console.log("Ollama juga gagal:", (err2 as Error).message);
       return "Maaf, AI sedang sibuk banget. Coba lagi sebentar ya 🙏";
@@ -85,18 +97,31 @@ async function jawabDenganFallback(prompt: string): Promise<string> {
 
 export async function POST(req: NextRequest) {
   try {
-    const { userId, message } = await req.json();
+    const { userId, message, image } = await req.json();
+    // image (opsional) format: { mimeType: string, data: string (base64) }
 
-    if (!userId || !message) {
+    if (!userId || (!message && !image)) {
       return NextResponse.json(
-        { error: "userId dan message wajib diisi" },
+        { error: "userId dan message/gambar wajib diisi" },
         { status: 400 }
       );
     }
 
+    // Validasi ukuran gambar (base64 sekitar 1.37x ukuran asli)
+    if (image?.data) {
+      const approxBytes = (image.data.length * 3) / 4;
+      const maxBytes = 4 * 1024 * 1024; // 4MB, batas aman Vercel
+      if (approxBytes > maxBytes) {
+        return NextResponse.json(
+          { error: "Ukuran gambar maksimal 4MB" },
+          { status: 400 }
+        );
+      }
+    }
+
     let relevantFacts: string[] = [];
     try {
-      relevantFacts = await retrieveRelevantMemories(userId, message, API_KEY, 5);
+      relevantFacts = await retrieveRelevantMemories(userId, message || "gambar", API_KEY, 5);
     } catch (err) {
       console.log("Gagal ambil memori, lanjut tanpa memori:", (err as Error).message);
     }
@@ -111,6 +136,8 @@ export async function POST(req: NextRequest) {
       .map((m) => `${m.role}: ${m.content}`)
       .join("\n");
 
+    const pesanUser = message || "(user mengirim gambar tanpa teks)";
+
     const prompt = `Kamu adalah AI asisten pribadi dengan memori jangka panjang.
 
 Fakta relevan yang kamu ingat tentang user (pakai kalau nyambung ke pertanyaan):
@@ -119,16 +146,16 @@ ${memoryBlock}
 Percakapan terakhir:
 ${historyBlock}
 
-Pesan baru dari user: "${message}"
+Pesan baru dari user: "${pesanUser}"
 
 Jawab secara natural, ringkas, dan langsung ke inti. Kalau ada fakta di atas yang relevan sama pertanyaan user, pakai itu buat personalisasi jawaban (tanpa harus menyebut kata "memori" secara eksplisit).`;
 
-    const reply = await jawabDenganFallback(prompt);
+    const reply = await jawabDenganFallback(prompt, image);
 
-    addRecentMessage(userId, "user", message);
+    addRecentMessage(userId, "user", pesanUser);
     addRecentMessage(userId, "assistant", reply);
 
-    extractFacts(message, reply, API_KEY)
+    extractFacts(pesanUser, reply, API_KEY)
       .then((facts) => {
         if (facts.length > 0) return saveFacts(userId, facts, API_KEY);
       })
