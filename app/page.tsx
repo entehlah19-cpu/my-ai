@@ -14,6 +14,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [pendingImage, setPendingImage] = useState<{ preview: string; mimeType: string; data: string } | null>(null);
   const [showAttachMenu, setShowAttachMenu] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -46,6 +47,12 @@ export default function Home() {
     const baru: Conversation = { id, title: "Obrolan Baru", messages: [] };
     setConversations((prev) => [baru, ...prev]);
     setActiveId(id);
+    setSidebarOpen(false);
+  };
+
+  const pilihObrolan = (id: string) => {
+    setActiveId(id);
+    setSidebarOpen(false);
   };
 
   const handleFilePicked = (file: File) => {
@@ -60,7 +67,7 @@ export default function Home() {
 
     const reader = new FileReader();
     reader.onload = () => {
-      const result = reader.result as string; // "data:image/png;base64,xxxx"
+      const result = reader.result as string;
       const [header, base64Data] = result.split(",");
       const mimeType = header.match(/data:(.*);base64/)?.[1] || file.type;
       setPendingImage({ preview: result, mimeType, data: base64Data });
@@ -107,6 +114,10 @@ export default function Home() {
           image: gambarUntukDikirim
             ? { mimeType: gambarUntukDikirim.mimeType, data: gambarUntukDikirim.data }
             : undefined,
+          history: (activeConversation?.messages || []).slice(-10).map((m) => ({
+            role: m.role,
+            content: m.content,
+          })),
         }),
       });
       const data = await res.json();
@@ -144,9 +155,44 @@ export default function Home() {
   };
 
   return (
-    <div style={{ display: "flex", height: "100vh", background: "#0a0a0a", color: "#f5f5f5", fontFamily: "system-ui, -apple-system, sans-serif" }}>
-      {/* Sidebar */}
-      <aside style={{ width: 260, background: "#111111", borderRight: "1px solid #262626", display: "flex", flexDirection: "column", padding: 12 }}>
+    <div style={{ display: "flex", height: "100dvh", background: "#0a0a0a", color: "#f5f5f5", fontFamily: "system-ui, -apple-system, sans-serif", overflow: "hidden" }}>
+      <style>{`
+        .sidebar {
+          width: 260px;
+          background: #111111;
+          border-right: 1px solid #262626;
+          display: flex;
+          flex-direction: column;
+          padding: 12px;
+          flex-shrink: 0;
+          transition: transform 0.25s ease;
+        }
+        .overlay { display: none; }
+        @media (max-width: 768px) {
+          .sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100dvh;
+            z-index: 100;
+            transform: translateX(-100%);
+          }
+          .sidebar.open { transform: translateX(0); }
+          .overlay.show {
+            display: block;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 99;
+          }
+          .hamburger { display: inline-flex !important; }
+        }
+        .hamburger { display: none; }
+      `}</style>
+
+      <div className={`overlay ${sidebarOpen ? "show" : ""}`} onClick={() => setSidebarOpen(false)} />
+
+      <aside className={`sidebar ${sidebarOpen ? "open" : ""}`}>
         <button
           onClick={buatObrolanBaru}
           style={{
@@ -167,7 +213,7 @@ export default function Home() {
           {conversations.map((c) => (
             <div
               key={c.id}
-              onClick={() => setActiveId(c.id)}
+              onClick={() => pilihObrolan(c.id)}
               style={{
                 padding: "10px 12px",
                 borderRadius: 8,
@@ -188,13 +234,28 @@ export default function Home() {
         </div>
       </aside>
 
-      {/* Chat utama */}
-      <main style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-        <header style={{ padding: "16px 24px", borderBottom: "1px solid #262626", fontWeight: 700, fontSize: 18 }}>
-          <span style={{ color: "#ff7a18" }}>My</span> AI
+      <main style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
+        <header style={{ padding: "16px 20px", borderBottom: "1px solid #262626", fontWeight: 700, fontSize: 18, display: "flex", alignItems: "center", gap: 12 }}>
+          <button
+            className="hamburger"
+            onClick={() => setSidebarOpen(true)}
+            style={{
+              background: "none",
+              border: "1px solid #333",
+              borderRadius: 8,
+              color: "#f5f5f5",
+              width: 36,
+              height: 36,
+              fontSize: 18,
+              cursor: "pointer",
+            }}
+          >
+            ☰
+          </button>
+          <span><span style={{ color: "#ff7a18" }}>My</span> AI</span>
         </header>
 
-        <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px" }}>
+        <div style={{ flex: 1, overflowY: "auto", padding: "16px" }}>
           {(activeConversation?.messages.length ?? 0) === 0 && (
             <div style={{ color: "#666", textAlign: "center", marginTop: 60 }}>
               Mulai percakapan dengan mengetik pesan di bawah.
@@ -205,7 +266,7 @@ export default function Home() {
             <div key={i} style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start", marginBottom: 12 }}>
               <div
                 style={{
-                  maxWidth: "70%",
+                  maxWidth: "85%",
                   padding: "10px 16px",
                   borderRadius: 14,
                   fontSize: 15,
@@ -213,6 +274,7 @@ export default function Home() {
                   background: m.role === "user" ? "linear-gradient(135deg, #ff7a18, #ff9d4d)" : "#1a1a1a",
                   color: m.role === "user" ? "#0a0a0a" : "#f0f0f0",
                   border: m.role === "user" ? "none" : "1px solid #2a2a2a",
+                  wordBreak: "break-word",
                 }}
               >
                 {m.imagePreview && (
@@ -231,10 +293,10 @@ export default function Home() {
           <div ref={bottomRef} />
         </div>
 
-        <div style={{ padding: 16, borderTop: "1px solid #262626", position: "relative" }}>
+        <div style={{ padding: "12px 16px", borderTop: "1px solid #262626", position: "relative", paddingBottom: "calc(12px + env(safe-area-inset-bottom, 0px))" }}>
           {pendingImage && (
             <div style={{ maxWidth: 800, margin: "0 auto 10px", display: "flex", alignItems: "center", gap: 10 }}>
-              <img src={pendingImage.preview} alt="preview" style={{ width: 48, height: 48, objectFit: "cover", borderRadius: 8 }} />
+              <img src={pendingImage.preview} alt="preview" style={{ width: 40, height: 40, objectFit: "cover", borderRadius: 8 }} />
               <span style={{ fontSize: 13, color: "#aaa" }}>Gambar siap dikirim</span>
               <button
                 onClick={() => setPendingImage(null)}
@@ -249,7 +311,7 @@ export default function Home() {
             <div
               style={{
                 position: "absolute",
-                bottom: 70,
+                bottom: 64,
                 left: 16,
                 background: "#1a1a1a",
                 border: "1px solid #333",
@@ -258,22 +320,15 @@ export default function Home() {
                 zIndex: 10,
               }}
             >
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                style={menuItemStyle}
-              >
+              <button onClick={() => fileInputRef.current?.click()} style={menuItemStyle}>
                 🖼️ Pilih dari Galeri
               </button>
-              <button
-                onClick={() => cameraInputRef.current?.click()}
-                style={menuItemStyle}
-              >
+              <button onClick={() => cameraInputRef.current?.click()} style={menuItemStyle}>
                 📷 Ambil Foto
               </button>
             </div>
           )}
 
-          {/* Input tersembunyi buat galeri */}
           <input
             ref={fileInputRef}
             type="file"
@@ -281,7 +336,6 @@ export default function Home() {
             style={{ display: "none" }}
             onChange={(e) => e.target.files?.[0] && handleFilePicked(e.target.files[0])}
           />
-          {/* Input tersembunyi buat kamera langsung (capture) */}
           <input
             ref={cameraInputRef}
             type="file"
@@ -291,17 +345,17 @@ export default function Home() {
             onChange={(e) => e.target.files?.[0] && handleFilePicked(e.target.files[0])}
           />
 
-          <div style={{ display: "flex", gap: 10, maxWidth: 800, margin: "0 auto" }}>
+          <div style={{ display: "flex", gap: 8, maxWidth: 800, margin: "0 auto" }}>
             <button
               onClick={() => setShowAttachMenu((v) => !v)}
               style={{
-                width: 44,
-                height: 44,
+                width: 42,
+                height: 42,
                 borderRadius: "50%",
                 border: "1px solid #333",
                 background: "#161616",
                 color: "#ff9d4d",
-                fontSize: 22,
+                fontSize: 20,
                 cursor: "pointer",
                 flexShrink: 0,
               }}
@@ -315,7 +369,8 @@ export default function Home() {
               placeholder="Ketik pesan..."
               style={{
                 flex: 1,
-                padding: "12px 16px",
+                minWidth: 0,
+                padding: "10px 14px",
                 borderRadius: 24,
                 border: "1px solid #333",
                 background: "#161616",
@@ -332,10 +387,11 @@ export default function Home() {
                 color: "#0a0a0a",
                 border: "none",
                 borderRadius: 24,
-                padding: "0 24px",
+                padding: "0 18px",
                 fontWeight: 600,
                 cursor: loading ? "not-allowed" : "pointer",
                 opacity: loading ? 0.6 : 1,
+                flexShrink: 0,
               }}
             >
               Kirim
