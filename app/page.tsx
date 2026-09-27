@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import ReactMarkdown from "react-markdown";
 
 type Message = { role: string; content: string; imagePreview?: string };
 type Conversation = { id: string; title: string; messages: Message[] };
@@ -16,6 +17,7 @@ export default function Home() {
   const [showAttachSheet, setShowAttachSheet] = useState(false);
   const [webSearchOn, setWebSearchOn] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -32,9 +34,7 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    if (conversations.length > 0) {
-      localStorage.setItem("myai-conversations", JSON.stringify(conversations));
-    }
+    localStorage.setItem("myai-conversations", JSON.stringify(conversations));
   }, [conversations]);
 
   useEffect(() => {
@@ -54,6 +54,25 @@ export default function Home() {
   const pilihObrolan = (id: string) => {
     setActiveId(id);
     setSidebarOpen(false);
+  };
+
+  const hapusObrolan = (id: string) => {
+    setConversations((prev) => {
+      const sisa = prev.filter((c) => c.id !== id);
+      // Kalau yang dihapus itu yang lagi aktif, pindah ke obrolan lain (atau buat baru kalau kosong)
+      if (id === activeId) {
+        if (sisa.length > 0) {
+          setActiveId(sisa[0].id);
+        } else {
+          const baruId = Date.now().toString();
+          setActiveId(baruId);
+          setConfirmDeleteId(null);
+          return [{ id: baruId, title: "Obrolan Baru", messages: [] }];
+        }
+      }
+      return sisa;
+    });
+    setConfirmDeleteId(null);
   };
 
   const handleFilePicked = (file: File) => {
@@ -115,7 +134,7 @@ export default function Home() {
           image: gambarUntukDikirim
             ? { mimeType: gambarUntukDikirim.mimeType, data: gambarUntukDikirim.data }
             : undefined,
-          webSearch: webSearchOn, // dikirim ke backend, siap dipakai kalau nanti Serper dipasang
+          webSearch: webSearchOn,
           history: (activeConversation?.messages || []).slice(-10).map((m) => ({
             role: m.role,
             content: m.content,
@@ -165,6 +184,24 @@ export default function Home() {
           transition: transform 0.25s ease;
         }
         .overlay { display: none; }
+        .conv-item {
+          display: flex; align-items: center; justify-content: space-between;
+          padding: 10px 12px; border-radius: 8px; margin-bottom: 4px; cursor: pointer; font-size: 14px;
+        }
+        .conv-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+        .conv-delete-btn {
+          background: none; border: none; color: #666; cursor: pointer; font-size: 15px;
+          padding: 4px 6px; flex-shrink: 0; border-radius: 6px;
+        }
+        .conv-delete-btn:hover { color: #ff5555; background: #2a1515; }
+        .confirm-box {
+          background: #1f1f1f; border: 1px solid #ff5555; border-radius: 8px;
+          padding: 8px; margin-bottom: 4px; font-size: 13px;
+        }
+        .confirm-actions { display: flex; gap: 8px; margin-top: 6px; }
+        .confirm-actions button {
+          flex: 1; padding: 5px; border-radius: 6px; border: none; cursor: pointer; font-size: 12px; font-weight: 600;
+        }
         .sheet-backdrop {
           position: fixed; inset: 0; background: rgba(0,0,0,0.6);
           z-index: 200; display: flex; align-items: flex-end; justify-content: center;
@@ -178,7 +215,7 @@ export default function Home() {
           border: 1px solid #2a2a2a; border-bottom: none;
         }
         .sheet-backdrop.open .sheet { transform: translateY(0); }
-        .sheet-grid { display: flex; gap: 12px; margin-bottom: 16px; }
+        .sheet-grid { display: flex; gap: 12px; margin-bottom: 8px; }
         .sheet-grid-item {
           flex: 1; background: #1f1f1f; border-radius: 16px; padding: 16px 8px;
           display: flex; flex-direction: column; align-items: center; gap: 8px;
@@ -205,6 +242,19 @@ export default function Home() {
           position: absolute; top: 3px; width: 20px; height: 20px; border-radius: 50%;
           background: #fff; transition: left 0.2s;
         }
+        .msg-content p { margin: 0 0 8px 0; }
+        .msg-content p:last-child { margin-bottom: 0; }
+        .msg-content strong { color: inherit; font-weight: 700; }
+        .msg-content ul, .msg-content ol { margin: 4px 0; padding-left: 20px; }
+        .msg-content li { margin-bottom: 4px; }
+        .msg-content code {
+          background: rgba(255,255,255,0.1); padding: 2px 5px; border-radius: 4px; font-size: 0.9em;
+        }
+        .msg-content pre {
+          background: rgba(0,0,0,0.3); padding: 10px; border-radius: 8px; overflow-x: auto; margin: 8px 0;
+        }
+        .msg-content pre code { background: none; padding: 0; }
+        .msg-content h1, .msg-content h2, .msg-content h3 { margin: 8px 0 4px 0; }
         @media (max-width: 768px) {
           .sidebar { position: fixed; top: 0; left: 0; height: 100dvh; z-index: 100; transform: translateX(-100%); }
           .sidebar.open { transform: translateX(0); }
@@ -227,21 +277,48 @@ export default function Home() {
           + Obrolan Baru
         </button>
         <div style={{ overflowY: "auto", flex: 1 }}>
-          {conversations.map((c) => (
-            <div
-              key={c.id}
-              onClick={() => pilihObrolan(c.id)}
-              style={{
-                padding: "10px 12px", borderRadius: 8, marginBottom: 4, cursor: "pointer", fontSize: 14,
-                whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-                background: c.id === activeId ? "#1f1f1f" : "transparent",
-                borderLeft: c.id === activeId ? "3px solid #ff7a18" : "3px solid transparent",
-                color: c.id === activeId ? "#ff9d4d" : "#ccc",
-              }}
-            >
-              {c.title || "Obrolan Baru"}
-            </div>
-          ))}
+          {conversations.map((c) =>
+            confirmDeleteId === c.id ? (
+              <div key={c.id} className="confirm-box">
+                <div>Hapus obrolan ini?</div>
+                <div className="confirm-actions">
+                  <button onClick={() => hapusObrolan(c.id)} style={{ background: "#ff5555", color: "#fff" }}>
+                    Hapus
+                  </button>
+                  <button onClick={() => setConfirmDeleteId(null)} style={{ background: "#333", color: "#fff" }}>
+                    Batal
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div
+                key={c.id}
+                className="conv-item"
+                style={{
+                  background: c.id === activeId ? "#1f1f1f" : "transparent",
+                  borderLeft: c.id === activeId ? "3px solid #ff7a18" : "3px solid transparent",
+                }}
+              >
+                <span
+                  className="conv-title"
+                  onClick={() => pilihObrolan(c.id)}
+                  style={{ color: c.id === activeId ? "#ff9d4d" : "#ccc" }}
+                >
+                  {c.title || "Obrolan Baru"}
+                </span>
+                <button
+                  className="conv-delete-btn"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setConfirmDeleteId(c.id);
+                  }}
+                  title="Hapus obrolan"
+                >
+                  🗑️
+                </button>
+              </div>
+            )
+          )}
         </div>
       </aside>
 
@@ -271,6 +348,7 @@ export default function Home() {
           {activeConversation?.messages.map((m, i) => (
             <div key={i} style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start", marginBottom: 12 }}>
               <div
+                className="msg-content"
                 style={{
                   maxWidth: "85%", padding: "10px 16px", borderRadius: 14, fontSize: 15, lineHeight: 1.5,
                   background: m.role === "user" ? "linear-gradient(135deg, #ff7a18, #ff9d4d)" : "#1a1a1a",
@@ -281,7 +359,11 @@ export default function Home() {
                 {m.imagePreview && (
                   <img src={m.imagePreview} alt="lampiran" style={{ maxWidth: "100%", borderRadius: 8, marginBottom: 6, display: "block" }} />
                 )}
-                {m.content}
+                {m.role === "assistant" ? (
+                  <ReactMarkdown>{m.content}</ReactMarkdown>
+                ) : (
+                  m.content
+                )}
               </div>
             </div>
           ))}
@@ -337,7 +419,6 @@ export default function Home() {
         </div>
       </main>
 
-      {/* Bottom Sheet Attach Menu */}
       <div className={`sheet-backdrop ${showAttachSheet ? "open" : ""}`} onClick={() => setShowAttachSheet(false)}>
         <div className="sheet" onClick={(e) => e.stopPropagation()}>
           <div style={{ textAlign: "center", fontWeight: 700, fontSize: 17, marginBottom: 16 }}>
@@ -353,24 +434,6 @@ export default function Home() {
               <div className="icon-circle">🖼️</div>
               Foto
             </button>
-            <button
-              className="sheet-grid-item"
-              onClick={() => alert("Dukungan upload dokumen (PDF, Word) segera hadir!")}
-            >
-              <div className="icon-circle">📄</div>
-              File
-            </button>
-          </div>
-
-          <div className="sheet-row">
-            <div className="sheet-row-left">
-              <div className="icon-circle-sm">🗂️</div>
-              <div>
-                <div style={{ fontWeight: 500 }}>Tambahkan ke proyek</div>
-                <div style={{ fontSize: 12, color: "#888" }}>Segera hadir</div>
-              </div>
-            </div>
-            <span style={{ color: "#555" }}>›</span>
           </div>
 
           <div className="sheet-row">
@@ -384,27 +447,6 @@ export default function Home() {
               style={{ background: webSearchOn ? "#ff7a18" : "#333" }}
             >
               <span className="knob" style={{ left: webSearchOn ? 21 : 3 }} />
-            </button>
-          </div>
-
-          <div className="sheet-row">
-            <div className="sheet-row-left">
-              <div className="icon-circle-sm">🔗</div>
-              <div style={{ fontWeight: 500 }}>Konektor</div>
-            </div>
-            <span style={{ color: "#555" }}>›</span>
-          </div>
-
-          <div className="sheet-row">
-            <div className="sheet-row-left">
-              <div className="icon-circle-sm">🧠</div>
-              <div>
-                <div style={{ fontWeight: 500 }}>Memori</div>
-                <div style={{ fontSize: 12, color: "#888" }}>Aktif untuk obrolan ini</div>
-              </div>
-            </div>
-            <button className="toggle" style={{ background: "#ff7a18" }}>
-              <span className="knob" style={{ left: 21 }} />
             </button>
           </div>
         </div>
