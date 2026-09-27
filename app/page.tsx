@@ -178,6 +178,16 @@ export default function Home() {
   return (
     <div style={{ display: "flex", height: "100dvh", background: "#0a0a0a", color: "#f5f5f5", fontFamily: "system-ui, -apple-system, sans-serif", overflow: "hidden" }}>
       <style>{`
+        * { box-sizing: border-box; }
+        input, button, textarea {
+          outline: none;
+          -webkit-tap-highlight-color: transparent;
+        }
+        input:focus, button:focus, textarea:focus {
+          outline: none;
+          box-shadow: none;
+        }
+        html, body { background: #0a0a0a; margin: 0; padding: 0; }
         .sidebar {
           width: 260px; background: #111111; border-right: 1px solid #262626;
           display: flex; flex-direction: column; padding: 12px; flex-shrink: 0;
