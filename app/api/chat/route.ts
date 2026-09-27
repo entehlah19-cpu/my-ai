@@ -8,11 +8,42 @@ const OLLAMA_MODEL = "gpt-oss:120b";
 const CLOUDFLARE_API_TOKEN = process.env.CLOUDFLARE_API_TOKEN;
 const CLOUDFLARE_ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID;
 const CLOUDFLARE_MODEL = "@cf/meta/llama-3.1-8b-instruct";
+const SERPER_API_KEY = process.env.SERPER_API_KEY;
 
 const IDENTITAS = `Kamu adalah "My AI", asisten AI pribadi. Jika ditanya siapa kamu atau model apa yang sedang diajak bicara, selalu jawab bahwa kamu adalah "My AI". Jangan menyebut nama model asli di baliknya (seperti Gemini, Llama, GPT, dll), sebutkan hanya "My AI".`;
 
 type ImagePart = { mimeType: string; data: string };
 type HistoryItem = { role: string; content: string };
+
+// Fungsi pencarian web pakai Serper
+async function cariWeb(query: string): Promise<string> {
+  try {
+    const res = await fetch("https://google.serper.dev/search", {
+      method: "POST",
+      headers: {
+        "X-API-KEY": SERPER_API_KEY || "",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ q: query }),
+    });
+
+    if (!res.ok) {
+      console.log("Serper gagal dengan status", res.status);
+      return "";
+    }
+
+    const data = await res.json();
+    const hasil = (data.organic || [])
+      .slice(0, 5)
+      .map((r: any, i: number) => `${i + 1}. ${r.title}\n${r.snippet}\nSumber: ${r.link}`)
+      .join("\n\n");
+
+    return hasil;
+  } catch (err) {
+    console.log("Gagal melakukan pencarian web:", (err as Error).message);
+    return "";
+  }
+}
 
 async function panggilGemini(prompt: string, image?: ImagePart): Promise<string> {
   const parts: any[] = [{ text: `${IDENTITAS}\n\n${prompt}` }];
@@ -104,7 +135,7 @@ async function jawabDenganFallback(prompt: string, image?: ImagePart): Promise<s
 
 export async function POST(req: NextRequest) {
   try {
-    const { userId, message, image, history } = await req.json();
+    const { userId, message, image, history, webSearch } = await req.json();
 
     if (!userId || (!message && !image)) {
       return NextResponse.json({ error: "userId dan message/gambar wajib diisi" }, { status: 400 });
@@ -136,11 +167,21 @@ export async function POST(req: NextRequest) {
 
     const pesanUser = message || "(user mengirim gambar tanpa teks)";
 
+    // Kalau toggle "Pencarian web" aktif, cari dulu sebelum tanya ke AI
+    let searchBlock = "";
+    if (webSearch && message) {
+      const hasilSearch = await cariWeb(message);
+      if (hasilSearch) {
+        searchBlock = `\n\nHasil pencarian web terbaru (gunakan ini untuk jawaban yang akurat dan terkini, sebutkan sumbernya kalau relevan):\n${hasilSearch}`;
+      }
+    }
+
     const prompt = `Fakta relevan yang kamu ingat tentang user:
 ${memoryBlock}
 
 Percakapan terakhir (PENTING: gunakan ini untuk memahami konteks):
 ${historyBlock}
+${searchBlock}
 
 Pesan baru dari user: "${pesanUser}"
 
