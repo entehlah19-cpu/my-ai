@@ -13,7 +13,8 @@ export default function Home() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [pendingImage, setPendingImage] = useState<{ preview: string; mimeType: string; data: string } | null>(null);
-  const [showAttachMenu, setShowAttachMenu] = useState(false);
+  const [showAttachSheet, setShowAttachSheet] = useState(false);
+  const [webSearchOn, setWebSearchOn] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -57,7 +58,7 @@ export default function Home() {
 
   const handleFilePicked = (file: File) => {
     if (!file.type.startsWith("image/")) {
-      alert("Cuma gambar yang didukung sekarang ya.");
+      alert("Cuma gambar yang didukung sekarang ya. Dukungan file lain (PDF, dokumen) segera menyusul.");
       return;
     }
     if (file.size > MAX_SIZE_MB * 1024 * 1024) {
@@ -73,7 +74,7 @@ export default function Home() {
       setPendingImage({ preview: result, mimeType, data: base64Data });
     };
     reader.readAsDataURL(file);
-    setShowAttachMenu(false);
+    setShowAttachSheet(false);
   };
 
   const kirimPesan = async () => {
@@ -114,6 +115,7 @@ export default function Home() {
           image: gambarUntukDikirim
             ? { mimeType: gambarUntukDikirim.mimeType, data: gambarUntukDikirim.data }
             : undefined,
+          webSearch: webSearchOn, // dikirim ke backend, siap dipakai kalau nanti Serper dipasang
           history: (activeConversation?.messages || []).slice(-10).map((m) => ({
             role: m.role,
             content: m.content,
@@ -158,33 +160,55 @@ export default function Home() {
     <div style={{ display: "flex", height: "100dvh", background: "#0a0a0a", color: "#f5f5f5", fontFamily: "system-ui, -apple-system, sans-serif", overflow: "hidden" }}>
       <style>{`
         .sidebar {
-          width: 260px;
-          background: #111111;
-          border-right: 1px solid #262626;
-          display: flex;
-          flex-direction: column;
-          padding: 12px;
-          flex-shrink: 0;
+          width: 260px; background: #111111; border-right: 1px solid #262626;
+          display: flex; flex-direction: column; padding: 12px; flex-shrink: 0;
           transition: transform 0.25s ease;
         }
         .overlay { display: none; }
+        .sheet-backdrop {
+          position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+          z-index: 200; display: flex; align-items: flex-end; justify-content: center;
+          opacity: 0; pointer-events: none; transition: opacity 0.2s ease;
+        }
+        .sheet-backdrop.open { opacity: 1; pointer-events: auto; }
+        .sheet {
+          background: #161616; width: 100%; max-width: 480px;
+          border-radius: 20px 20px 0 0; padding: 20px;
+          transform: translateY(100%); transition: transform 0.25s ease;
+          border: 1px solid #2a2a2a; border-bottom: none;
+        }
+        .sheet-backdrop.open .sheet { transform: translateY(0); }
+        .sheet-grid { display: flex; gap: 12px; margin-bottom: 16px; }
+        .sheet-grid-item {
+          flex: 1; background: #1f1f1f; border-radius: 16px; padding: 16px 8px;
+          display: flex; flex-direction: column; align-items: center; gap: 8px;
+          cursor: pointer; border: none; color: #f5f5f5;
+        }
+        .sheet-grid-item .icon-circle {
+          width: 44px; height: 44px; border-radius: 50%; background: #2a2a2a;
+          display: flex; align-items: center; justify-content: center; font-size: 20px;
+        }
+        .sheet-row {
+          display: flex; align-items: center; justify-content: space-between;
+          padding: 14px 4px; border-top: 1px solid #262626;
+        }
+        .sheet-row-left { display: flex; align-items: center; gap: 12px; }
+        .sheet-row .icon-circle-sm {
+          width: 36px; height: 36px; border-radius: 50%; background: #2a2a2a;
+          display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0;
+        }
+        .toggle {
+          width: 44px; height: 26px; border-radius: 13px; position: relative;
+          border: none; cursor: pointer; transition: background 0.2s;
+        }
+        .toggle .knob {
+          position: absolute; top: 3px; width: 20px; height: 20px; border-radius: 50%;
+          background: #fff; transition: left 0.2s;
+        }
         @media (max-width: 768px) {
-          .sidebar {
-            position: fixed;
-            top: 0;
-            left: 0;
-            height: 100dvh;
-            z-index: 100;
-            transform: translateX(-100%);
-          }
+          .sidebar { position: fixed; top: 0; left: 0; height: 100dvh; z-index: 100; transform: translateX(-100%); }
           .sidebar.open { transform: translateX(0); }
-          .overlay.show {
-            display: block;
-            position: fixed;
-            inset: 0;
-            background: rgba(0,0,0,0.5);
-            z-index: 99;
-          }
+          .overlay.show { display: block; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 99; }
           .hamburger { display: inline-flex !important; }
         }
         .hamburger { display: none; }
@@ -196,33 +220,20 @@ export default function Home() {
         <button
           onClick={buatObrolanBaru}
           style={{
-            background: "linear-gradient(135deg, #ff7a18, #ff9d4d)",
-            color: "#0a0a0a",
-            border: "none",
-            borderRadius: 8,
-            padding: "10px 14px",
-            fontWeight: 600,
-            cursor: "pointer",
-            marginBottom: 16,
+            background: "linear-gradient(135deg, #ff7a18, #ff9d4d)", color: "#0a0a0a", border: "none",
+            borderRadius: 8, padding: "10px 14px", fontWeight: 600, cursor: "pointer", marginBottom: 16,
           }}
         >
           + Obrolan Baru
         </button>
-
         <div style={{ overflowY: "auto", flex: 1 }}>
           {conversations.map((c) => (
             <div
               key={c.id}
               onClick={() => pilihObrolan(c.id)}
               style={{
-                padding: "10px 12px",
-                borderRadius: 8,
-                marginBottom: 4,
-                cursor: "pointer",
-                fontSize: 14,
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
+                padding: "10px 12px", borderRadius: 8, marginBottom: 4, cursor: "pointer", fontSize: 14,
+                whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
                 background: c.id === activeId ? "#1f1f1f" : "transparent",
                 borderLeft: c.id === activeId ? "3px solid #ff7a18" : "3px solid transparent",
                 color: c.id === activeId ? "#ff9d4d" : "#ccc",
@@ -239,20 +250,16 @@ export default function Home() {
           <button
             className="hamburger"
             onClick={() => setSidebarOpen(true)}
-            style={{
-              background: "none",
-              border: "1px solid #333",
-              borderRadius: 8,
-              color: "#f5f5f5",
-              width: 36,
-              height: 36,
-              fontSize: 18,
-              cursor: "pointer",
-            }}
+            style={{ background: "none", border: "1px solid #333", borderRadius: 8, color: "#f5f5f5", width: 36, height: 36, fontSize: 18, cursor: "pointer" }}
           >
             ☰
           </button>
           <span><span style={{ color: "#ff7a18" }}>My</span> AI</span>
+          {webSearchOn && (
+            <span style={{ fontSize: 11, background: "#1f1f1f", color: "#ff9d4d", padding: "3px 8px", borderRadius: 12, marginLeft: "auto" }}>
+              🌐 Pencarian web aktif
+            </span>
+          )}
         </header>
 
         <div style={{ flex: 1, overflowY: "auto", padding: "16px" }}>
@@ -261,34 +268,23 @@ export default function Home() {
               Mulai percakapan dengan mengetik pesan di bawah.
             </div>
           )}
-
           {activeConversation?.messages.map((m, i) => (
             <div key={i} style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start", marginBottom: 12 }}>
               <div
                 style={{
-                  maxWidth: "85%",
-                  padding: "10px 16px",
-                  borderRadius: 14,
-                  fontSize: 15,
-                  lineHeight: 1.5,
+                  maxWidth: "85%", padding: "10px 16px", borderRadius: 14, fontSize: 15, lineHeight: 1.5,
                   background: m.role === "user" ? "linear-gradient(135deg, #ff7a18, #ff9d4d)" : "#1a1a1a",
                   color: m.role === "user" ? "#0a0a0a" : "#f0f0f0",
-                  border: m.role === "user" ? "none" : "1px solid #2a2a2a",
-                  wordBreak: "break-word",
+                  border: m.role === "user" ? "none" : "1px solid #2a2a2a", wordBreak: "break-word",
                 }}
               >
                 {m.imagePreview && (
-                  <img
-                    src={m.imagePreview}
-                    alt="lampiran"
-                    style={{ maxWidth: "100%", borderRadius: 8, marginBottom: 6, display: "block" }}
-                  />
+                  <img src={m.imagePreview} alt="lampiran" style={{ maxWidth: "100%", borderRadius: 8, marginBottom: 6, display: "block" }} />
                 )}
                 {m.content}
               </div>
             </div>
           ))}
-
           {loading && <div style={{ color: "#ff9d4d", fontSize: 14, fontStyle: "italic" }}>Sedang mengetik...</div>}
           <div ref={bottomRef} />
         </div>
@@ -298,66 +294,23 @@ export default function Home() {
             <div style={{ maxWidth: 800, margin: "0 auto 10px", display: "flex", alignItems: "center", gap: 10 }}>
               <img src={pendingImage.preview} alt="preview" style={{ width: 40, height: 40, objectFit: "cover", borderRadius: 8 }} />
               <span style={{ fontSize: 13, color: "#aaa" }}>Gambar siap dikirim</span>
-              <button
-                onClick={() => setPendingImage(null)}
-                style={{ background: "none", border: "none", color: "#ff7a18", cursor: "pointer", fontSize: 13 }}
-              >
+              <button onClick={() => setPendingImage(null)} style={{ background: "none", border: "none", color: "#ff7a18", cursor: "pointer", fontSize: 13 }}>
                 Hapus
               </button>
             </div>
           )}
 
-          {showAttachMenu && (
-            <div
-              style={{
-                position: "absolute",
-                bottom: 64,
-                left: 16,
-                background: "#1a1a1a",
-                border: "1px solid #333",
-                borderRadius: 12,
-                overflow: "hidden",
-                zIndex: 10,
-              }}
-            >
-              <button onClick={() => fileInputRef.current?.click()} style={menuItemStyle}>
-                🖼️ Pilih dari Galeri
-              </button>
-              <button onClick={() => cameraInputRef.current?.click()} style={menuItemStyle}>
-                📷 Ambil Foto
-              </button>
-            </div>
-          )}
-
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            style={{ display: "none" }}
-            onChange={(e) => e.target.files?.[0] && handleFilePicked(e.target.files[0])}
-          />
-          <input
-            ref={cameraInputRef}
-            type="file"
-            accept="image/*"
-            capture="environment"
-            style={{ display: "none" }}
-            onChange={(e) => e.target.files?.[0] && handleFilePicked(e.target.files[0])}
-          />
+          <input ref={fileInputRef} type="file" accept="image/*" style={{ display: "none" }}
+            onChange={(e) => e.target.files?.[0] && handleFilePicked(e.target.files[0])} />
+          <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" style={{ display: "none" }}
+            onChange={(e) => e.target.files?.[0] && handleFilePicked(e.target.files[0])} />
 
           <div style={{ display: "flex", gap: 8, maxWidth: 800, margin: "0 auto" }}>
             <button
-              onClick={() => setShowAttachMenu((v) => !v)}
+              onClick={() => setShowAttachSheet(true)}
               style={{
-                width: 42,
-                height: 42,
-                borderRadius: "50%",
-                border: "1px solid #333",
-                background: "#161616",
-                color: "#ff9d4d",
-                fontSize: 20,
-                cursor: "pointer",
-                flexShrink: 0,
+                width: 42, height: 42, borderRadius: "50%", border: "1px solid #333", background: "#161616",
+                color: "#ff9d4d", fontSize: 20, cursor: "pointer", flexShrink: 0,
               }}
             >
               +
@@ -367,31 +320,15 @@ export default function Home() {
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && kirimPesan()}
               placeholder="Ketik pesan..."
-              style={{
-                flex: 1,
-                minWidth: 0,
-                padding: "10px 14px",
-                borderRadius: 24,
-                border: "1px solid #333",
-                background: "#161616",
-                color: "#f5f5f5",
-                outline: "none",
-                fontSize: 15,
-              }}
+              style={{ flex: 1, minWidth: 0, padding: "10px 14px", borderRadius: 24, border: "1px solid #333", background: "#161616", color: "#f5f5f5", outline: "none", fontSize: 15 }}
             />
             <button
               onClick={kirimPesan}
               disabled={loading}
               style={{
-                background: "linear-gradient(135deg, #ff7a18, #ff9d4d)",
-                color: "#0a0a0a",
-                border: "none",
-                borderRadius: 24,
-                padding: "0 18px",
-                fontWeight: 600,
-                cursor: loading ? "not-allowed" : "pointer",
-                opacity: loading ? 0.6 : 1,
-                flexShrink: 0,
+                background: "linear-gradient(135deg, #ff7a18, #ff9d4d)", color: "#0a0a0a", border: "none",
+                borderRadius: 24, padding: "0 18px", fontWeight: 600, cursor: loading ? "not-allowed" : "pointer",
+                opacity: loading ? 0.6 : 1, flexShrink: 0,
               }}
             >
               Kirim
@@ -399,18 +336,79 @@ export default function Home() {
           </div>
         </div>
       </main>
+
+      {/* Bottom Sheet Attach Menu */}
+      <div className={`sheet-backdrop ${showAttachSheet ? "open" : ""}`} onClick={() => setShowAttachSheet(false)}>
+        <div className="sheet" onClick={(e) => e.stopPropagation()}>
+          <div style={{ textAlign: "center", fontWeight: 700, fontSize: 17, marginBottom: 16 }}>
+            Tambahkan ke chat
+          </div>
+
+          <div className="sheet-grid">
+            <button className="sheet-grid-item" onClick={() => cameraInputRef.current?.click()}>
+              <div className="icon-circle">📷</div>
+              Kamera
+            </button>
+            <button className="sheet-grid-item" onClick={() => fileInputRef.current?.click()}>
+              <div className="icon-circle">🖼️</div>
+              Foto
+            </button>
+            <button
+              className="sheet-grid-item"
+              onClick={() => alert("Dukungan upload dokumen (PDF, Word) segera hadir!")}
+            >
+              <div className="icon-circle">📄</div>
+              File
+            </button>
+          </div>
+
+          <div className="sheet-row">
+            <div className="sheet-row-left">
+              <div className="icon-circle-sm">🗂️</div>
+              <div>
+                <div style={{ fontWeight: 500 }}>Tambahkan ke proyek</div>
+                <div style={{ fontSize: 12, color: "#888" }}>Segera hadir</div>
+              </div>
+            </div>
+            <span style={{ color: "#555" }}>›</span>
+          </div>
+
+          <div className="sheet-row">
+            <div className="sheet-row-left">
+              <div className="icon-circle-sm">🌐</div>
+              <div style={{ fontWeight: 500 }}>Pencarian web</div>
+            </div>
+            <button
+              className="toggle"
+              onClick={() => setWebSearchOn((v) => !v)}
+              style={{ background: webSearchOn ? "#ff7a18" : "#333" }}
+            >
+              <span className="knob" style={{ left: webSearchOn ? 21 : 3 }} />
+            </button>
+          </div>
+
+          <div className="sheet-row">
+            <div className="sheet-row-left">
+              <div className="icon-circle-sm">🔗</div>
+              <div style={{ fontWeight: 500 }}>Konektor</div>
+            </div>
+            <span style={{ color: "#555" }}>›</span>
+          </div>
+
+          <div className="sheet-row">
+            <div className="sheet-row-left">
+              <div className="icon-circle-sm">🧠</div>
+              <div>
+                <div style={{ fontWeight: 500 }}>Memori</div>
+                <div style={{ fontSize: 12, color: "#888" }}>Aktif untuk obrolan ini</div>
+              </div>
+            </div>
+            <button className="toggle" style={{ background: "#ff7a18" }}>
+              <span className="knob" style={{ left: 21 }} />
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
-
-const menuItemStyle: React.CSSProperties = {
-  display: "block",
-  width: "100%",
-  padding: "12px 20px",
-  background: "transparent",
-  border: "none",
-  color: "#f0f0f0",
-  fontSize: 14,
-  textAlign: "left",
-  cursor: "pointer",
-};
