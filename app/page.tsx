@@ -225,10 +225,18 @@ export default function Home() {
           width: 44px; height: 44px; border-radius: 50%; background: #2a2a2a;
           display: flex; align-items: center; justify-content: center; font-size: 20px;
         }
+        .sheet-handle {
+          width: 40px; height: 4px; background: #333; border-radius: 2px;
+          margin: 0 auto 14px auto;
+        }
         .sheet-row {
           display: flex; align-items: center; justify-content: space-between;
-          padding: 14px 4px; border-top: 1px solid #262626;
+          padding: 14px 6px; border-top: 1px solid #262626; border-radius: 10px;
+          transition: background 0.15s ease; cursor: pointer;
         }
+        .sheet-row:hover { background: #1c1c1c; }
+        .sheet-grid-item { transition: background 0.15s ease, transform 0.1s ease; }
+        .sheet-grid-item:active { transform: scale(0.96); }
         .sheet-row-left { display: flex; align-items: center; gap: 12px; }
         .sheet-row .icon-circle-sm {
           width: 36px; height: 36px; border-radius: 50%; background: #2a2a2a;
@@ -421,24 +429,49 @@ export default function Home() {
 
       <div className={`sheet-backdrop ${showAttachSheet ? "open" : ""}`} onClick={() => setShowAttachSheet(false)}>
         <div className="sheet" onClick={(e) => e.stopPropagation()}>
-          <div style={{ textAlign: "center", fontWeight: 700, fontSize: 17, marginBottom: 16 }}>
+          <div className="sheet-handle" />
+          <div style={{ textAlign: "center", fontWeight: 700, fontSize: 17, marginBottom: 18 }}>
             Tambahkan ke chat
           </div>
 
           <div className="sheet-grid">
             <button className="sheet-grid-item" onClick={() => cameraInputRef.current?.click()}>
-              <div className="icon-circle">📷</div>
+              <div className="icon-circle">
+                <IconCamera />
+              </div>
               Kamera
             </button>
             <button className="sheet-grid-item" onClick={() => fileInputRef.current?.click()}>
-              <div className="icon-circle">🖼️</div>
+              <div className="icon-circle">
+                <IconImage />
+              </div>
               Foto
             </button>
+            <button
+              className="sheet-grid-item"
+              onClick={() => alert("Dukungan upload dokumen (PDF, Word) segera hadir!")}
+            >
+              <div className="icon-circle">
+                <IconFile />
+              </div>
+              File
+            </button>
+          </div>
+
+          <div className="sheet-row" onClick={() => alert("Fitur proyek segera hadir!")}>
+            <div className="sheet-row-left">
+              <div className="icon-circle-sm"><IconFolder /></div>
+              <div>
+                <div style={{ fontWeight: 500 }}>Tambahkan ke proyek</div>
+                <div style={{ fontSize: 12, color: "#888" }}>Segera hadir</div>
+              </div>
+            </div>
+            <IconChevron />
           </div>
 
           <div className="sheet-row">
             <div className="sheet-row-left">
-              <div className="icon-circle-sm">🌐</div>
+              <div className="icon-circle-sm"><IconGlobe /></div>
               <div style={{ fontWeight: 500 }}>Pencarian web</div>
             </div>
             <button
@@ -449,8 +482,99 @@ export default function Home() {
               <span className="knob" style={{ left: webSearchOn ? 21 : 3 }} />
             </button>
           </div>
+
+          <div className="sheet-row" onClick={() => alert("Fitur konektor segera hadir!")}>
+            <div className="sheet-row-left">
+              <div className="icon-circle-sm"><IconLink /></div>
+              <div style={{ fontWeight: 500 }}>Konektor</div>
+            </div>
+            <IconChevron />
+          </div>
+
+          <div className="sheet-row">
+            <div className="sheet-row-left">
+              <div className="icon-circle-sm"><IconBrain /></div>
+              <div>
+                <div style={{ fontWeight: 500 }}>Memori</div>
+                <div style={{ fontSize: 12, color: "#888" }}>Aktif untuk obrolan ini</div>
+              </div>
+            </div>
+            <button className="toggle" style={{ background: "#ff7a18" }}>
+              <span className="knob" style={{ left: 21 }} />
+            </button>
+          </div>
         </div>
       </div>
     </div>
+  );
+}
+
+/* ---- Ikon SVG (biar lebih rapi daripada emoji) ---- */
+const iconProps = { width: 20, height: 20, viewBox: "0 0 24 24", fill: "none", stroke: "#ff9d4d", strokeWidth: 1.8, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
+
+function IconCamera() {
+  return (
+    <svg {...iconProps}>
+      <path d="M4 8h3l2-3h6l2 3h3a1 1 0 011 1v9a1 1 0 01-1 1H4a1 1 0 01-1-1V9a1 1 0 011-1z" />
+      <circle cx="12" cy="13" r="3.5" />
+    </svg>
+  );
+}
+function IconImage() {
+  return (
+    <svg {...iconProps}>
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <circle cx="8.5" cy="9.5" r="1.5" />
+      <path d="M21 16l-5-5-4 4-3-3-5 5" />
+    </svg>
+  );
+}
+function IconFile() {
+  return (
+    <svg {...iconProps}>
+      <path d="M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8z" />
+      <path d="M14 3v5h5" />
+      <path d="M12 12v5M9.5 14.5h5" />
+    </svg>
+  );
+}
+function IconFolder() {
+  return (
+    <svg {...iconProps}>
+      <path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+    </svg>
+  );
+}
+function IconGlobe() {
+  return (
+    <svg {...iconProps}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M3 12h18M12 3c2.5 2.5 4 6 4 9s-1.5 6.5-4 9c-2.5-2.5-4-6-4-9s1.5-6.5 4-9z" />
+    </svg>
+  );
+}
+function IconLink() {
+  return (
+    <svg {...iconProps}>
+      <path d="M9 15l6-6" />
+      <path d="M13 6l1-1a3.5 3.5 0 015 5l-1 1" />
+      <path d="M11 18l-1 1a3.5 3.5 0 01-5-5l1-1" />
+    </svg>
+  );
+}
+function IconBrain() {
+  return (
+    <svg {...iconProps}>
+      <path d="M9 3a3 3 0 00-3 3v1a3 3 0 00-2 2.8V13a3 3 0 002 2.8V17a3 3 0 003 3h1" />
+      <path d="M15 3a3 3 0 013 3v1a3 3 0 012 2.8V13a3 3 0 01-2 2.8V17a3 3 0 01-3 3h-1" />
+      <path d="M12 3v17" />
+    </svg>
+  );
+}
+function IconChevron() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#666" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 6l6 6-6 6" />
+    </svg>
   );
 }
