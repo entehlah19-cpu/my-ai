@@ -7,11 +7,6 @@ const reader = new FileReader();
     reader.readAsDataURL(file);
     setShowAttachSheet(false);
   };
-    };
-    reader.readAsDataURL(file);
-    setShowAttachSheet(false);
-  };
-
   const kirimPesan = async () => {
     if ((!input.trim() && !pendingImage) || !activeId) return;
 
