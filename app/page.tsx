@@ -14,11 +14,11 @@ export default function Home() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [pendingImage, setPendingImage] = useState<{ preview: string; mimeType: string; data: string } | null>(null);
+  const [pendingDoc, setPendingDoc] = useState<{ name: string; text: string } | null>(null);
   const [showAttachSheet, setShowAttachSheet] = useState(false);
   const [webSearchOn, setWebSearchOn] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
-  const [pendingDoc, setPendingDoc] = useState<{ name: string; mimeType: string; data: string } | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -61,7 +61,6 @@ export default function Home() {
   const hapusObrolan = (id: string) => {
     setConversations((prev) => {
       const sisa = prev.filter((c) => c.id !== id);
-      // Kalau yang dihapus itu yang lagi aktif, pindah ke obrolan lain (atau buat baru kalau kosong)
       if (id === activeId) {
         if (sisa.length > 0) {
           setActiveId(sisa[0].id);
@@ -77,16 +76,16 @@ export default function Home() {
     setConfirmDeleteId(null);
   };
 
+  // --- Untuk gambar (Kamera & Foto) ---
   const handleFilePicked = (file: File) => {
     if (!file.type.startsWith("image/")) {
-      alert("Cuma gambar yang didukung di sini ya. Gunakan tombol 'File' untuk dokumen.");
+      alert("Cuma gambar yang didukung di sini ya. Gunakan tombol 'File' untuk file teks.");
       return;
     }
     if (file.size > MAX_SIZE_MB * 1024 * 1024) {
       alert(`Ukuran gambar maksimal ${MAX_SIZE_MB}MB. File kamu terlalu besar.`);
       return;
     }
-
     const reader = new FileReader();
     reader.onload = () => {
       const result = reader.result as string;
@@ -98,30 +97,22 @@ export default function Home() {
     setShowAttachSheet(false);
   };
 
-  const ALLOWED_DOC_TYPES = [
-    "application/pdf",
-    "text/plain",
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document", // .docx
-  ];
-  const MAX_DOC_SIZE_MB = 5;
-
+  // --- Untuk file teks (.txt) ---
   const handleDocPicked = (file: File) => {
-    if (!ALLOWED_DOC_TYPES.includes(file.type)) {
-      alert("Format yang didukung: PDF, Word (.docx), atau teks (.txt).");
+    if (!file.name.toLowerCase().endsWith(".txt")) {
+      alert("Untuk sekarang, cuma file .txt yang didukung. Dukungan PDF/Word segera menyusul.");
       return;
     }
-    if (file.size > MAX_DOC_SIZE_MB * 1024 * 1024) {
-      alert(`Ukuran file maksimal ${MAX_DOC_SIZE_MB}MB. File kamu terlalu besar.`);
+    if (file.size > 2 * 1024 * 1024) {
+      alert("Ukuran file maksimal 2MB.");
       return;
     }
-
     const reader = new FileReader();
     reader.onload = () => {
-      const result = reader.result as string;
-      const [, base64Data] = result.split(",");
-      setPendingDoc({ name: file.name, mimeType: file.type, data: base64Data });
+      const text = reader.result as string;
+      setPendingDoc({ name: file.name, text });
     };
-    reader.readAsDataURL(file);
+    reader.readAsText(file);
     setShowAttachSheet(false);
   };
 
@@ -131,6 +122,11 @@ export default function Home() {
     const teksInput = input;
     const gambarUntukDikirim = pendingImage;
     const dokUntukDikirim = pendingDoc;
+
+    // Kalau ada file teks, gabungin isinya ke pesan yang dikirim ke AI
+    const pesanUntukAI = dokUntukDikirim
+      ? `${teksInput}\n\n[Isi file "${dokUntukDikirim.name}"]:\n${dokUntukDikirim.text.slice(0, 8000)}`
+      : teksInput;
 
     const pesanUser: Message = {
       role: "user",
@@ -161,7 +157,7 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userId: "user-1",
-          message: teksInput,
+          message: pesanUntukAI,
           image: gambarUntukDikirim
             ? { mimeType: gambarUntukDikirim.mimeType, data: gambarUntukDikirim.data }
             : undefined,
@@ -256,19 +252,21 @@ export default function Home() {
           border: 1px solid #2a2a2a; border-bottom: none;
         }
         .sheet-backdrop.open .sheet { transform: translateY(0); }
+        .sheet-handle {
+          width: 40px; height: 4px; background: #333; border-radius: 2px;
+          margin: 0 auto 14px auto;
+        }
         .sheet-grid { display: flex; gap: 12px; margin-bottom: 8px; }
         .sheet-grid-item {
           flex: 1; background: #1f1f1f; border-radius: 16px; padding: 16px 8px;
           display: flex; flex-direction: column; align-items: center; gap: 8px;
           cursor: pointer; border: none; color: #f5f5f5;
+          transition: background 0.15s ease, transform 0.1s ease;
         }
+        .sheet-grid-item:active { transform: scale(0.96); }
         .sheet-grid-item .icon-circle {
           width: 44px; height: 44px; border-radius: 50%; background: #2a2a2a;
           display: flex; align-items: center; justify-content: center; font-size: 20px;
-        }
-        .sheet-handle {
-          width: 40px; height: 4px; background: #333; border-radius: 2px;
-          margin: 0 auto 14px auto;
         }
         .sheet-row {
           display: flex; align-items: center; justify-content: space-between;
@@ -276,8 +274,6 @@ export default function Home() {
           transition: background 0.15s ease; cursor: pointer;
         }
         .sheet-row:hover { background: #1c1c1c; }
-        .sheet-grid-item { transition: background 0.15s ease, transform 0.1s ease; }
-        .sheet-grid-item:active { transform: scale(0.96); }
         .sheet-row-left { display: flex; align-items: center; gap: 12px; }
         .sheet-row .icon-circle-sm {
           width: 36px; height: 36px; border-radius: 50%; background: #2a2a2a;
@@ -430,11 +426,22 @@ export default function Home() {
               </button>
             </div>
           )}
+          {pendingDoc && (
+            <div style={{ maxWidth: 800, margin: "0 auto 10px", display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ fontSize: 20 }}>📄</span>
+              <span style={{ fontSize: 13, color: "#aaa" }}>{pendingDoc.name} siap dikirim</span>
+              <button onClick={() => setPendingDoc(null)} style={{ background: "none", border: "none", color: "#ff7a18", cursor: "pointer", fontSize: 13 }}>
+                Hapus
+              </button>
+            </div>
+          )}
 
           <input ref={fileInputRef} type="file" accept="image/*" style={{ display: "none" }}
             onChange={(e) => e.target.files?.[0] && handleFilePicked(e.target.files[0])} />
           <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" style={{ display: "none" }}
             onChange={(e) => e.target.files?.[0] && handleFilePicked(e.target.files[0])} />
+          <input ref={docInputRef} type="file" accept=".txt" style={{ display: "none" }}
+            onChange={(e) => e.target.files?.[0] && handleDocPicked(e.target.files[0])} />
 
           <div style={{ display: "flex", gap: 8, maxWidth: 800, margin: "0 auto" }}>
             <button
@@ -477,24 +484,15 @@ export default function Home() {
 
           <div className="sheet-grid">
             <button className="sheet-grid-item" onClick={() => cameraInputRef.current?.click()}>
-              <div className="icon-circle">
-                <IconCamera />
-              </div>
+              <div className="icon-circle"><IconCamera /></div>
               Kamera
             </button>
             <button className="sheet-grid-item" onClick={() => fileInputRef.current?.click()}>
-              <div className="icon-circle">
-                <IconImage />
-              </div>
+              <div className="icon-circle"><IconImage /></div>
               Foto
             </button>
-            <button
-              className="sheet-grid-item"
-              onClick={() => alert("Dukungan upload dokumen (PDF, Word) segera hadir!")}
-            >
-              <div className="icon-circle">
-                <IconFile />
-              </div>
+            <button className="sheet-grid-item" onClick={() => docInputRef.current?.click()}>
+              <div className="icon-circle"><IconFile /></div>
               File
             </button>
           </div>
@@ -550,7 +548,7 @@ export default function Home() {
   );
 }
 
-/* ---- Ikon SVG (biar lebih rapi daripada emoji) ---- */
+/* ---- Ikon SVG ---- */
 const iconProps = { width: 20, height: 20, viewBox: "0 0 24 24", fill: "none", stroke: "#ff9d4d", strokeWidth: 1.8, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
 
 function IconCamera() {
