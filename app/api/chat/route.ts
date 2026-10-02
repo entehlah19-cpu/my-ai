@@ -41,6 +41,7 @@ async function ekstrakDokumen(doc: DocumentPart): Promise<string> {
 
   try {
     if (doc.mimeType === "application/pdf") {
+      // @ts-ignore - pdf-parse tidak menyediakan tipe TypeScript resmi
       const pdfParse = (await import("pdf-parse")).default;
       const result = await pdfParse(buffer);
       return result.text;
