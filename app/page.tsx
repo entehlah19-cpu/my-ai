@@ -279,10 +279,10 @@ export default function Home() {
 
         .project-header {
           display: flex; align-items: center; justify-content: space-between;
-          padding: 8px 6px; cursor: pointer; border-radius: 6px; margin-top: 10px;
+          padding: 9px 8px; cursor: pointer; border-radius: 8px; margin-top: 6px;
         }
         .project-header:hover { background: #1a1a1a; }
-        .project-header-left { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: #ddd; }
+        .project-header-left { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; color: #eee; }
         .project-children { padding-left: 14px; border-left: 1px solid #262626; margin-left: 10px; }
         .project-delete-btn { background: none; border: none; color: #555; cursor: pointer; font-size: 12px; padding: 2px 4px; }
         .project-delete-btn:hover { color: #ff5555; }
@@ -372,9 +372,13 @@ export default function Home() {
 
       {/* ===== SIDEBAR ===== */}
       <aside className={`sidebar ${sidebarOpen ? "open" : ""}`}>
-        <button className="sidebar-btn" onClick={buatObrolanBaru} style={{ marginBottom: 10 }}>
-          + Obrolan Baru
-        </button>
+        <div style={{ padding: "4px 6px 16px 6px", fontSize: 22, fontWeight: 800 }}>
+          <span style={{ color: "#ff7a18" }}>My</span> AI
+        </div>
+
+        <div style={{ fontSize: 11, color: "#666", textTransform: "uppercase", letterSpacing: 0.5, padding: "4px 6px 8px 6px" }}>
+          Terbaru
+        </div>
 
         <div style={{ overflowY: "auto", flex: 1 }}>
           {/* Daftar proyek */}
@@ -468,6 +472,14 @@ export default function Home() {
             )
           )}
         </div>
+
+        <button
+          className="sidebar-btn"
+          onClick={buatObrolanBaru}
+          style={{ marginTop: 10, borderRadius: 24, padding: "12px 16px" }}
+        >
+          + Chat baru
+        </button>
       </aside>
 
       {/* ===== CHAT UTAMA ===== */}
