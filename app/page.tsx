@@ -14,7 +14,9 @@ export default function Home() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [pendingImage, setPendingImage] = useState<{ preview: string; mimeType: string; data: string } | null>(null);
-  const [pendingDoc, setPendingDoc] = useState<{ name: string; text: string } | null>(null);
+  const [pendingDoc, setPendingDoc] = useState<
+    { name: string; kind: "text"; text: string } | { name: string; kind: "binary"; mimeType: string; data: string } | null
+  >(null);
   const [showAttachSheet, setShowAttachSheet] = useState(false);
   const [webSearchOn, setWebSearchOn] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -97,22 +99,45 @@ export default function Home() {
     setShowAttachSheet(false);
   };
 
-  // --- Untuk file teks (.txt) ---
+  // --- Untuk file dokumen (.txt, .pdf, .docx) ---
+  const DOC_MIME_PDF = "application/pdf";
+  const DOC_MIME_DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+  const MAX_DOC_SIZE_MB = 5;
+
   const handleDocPicked = (file: File) => {
-    if (!file.name.toLowerCase().endsWith(".txt")) {
-      alert("Untuk sekarang, cuma file .txt yang didukung. Dukungan PDF/Word segera menyusul.");
+    const namaLower = file.name.toLowerCase();
+    const isTxt = namaLower.endsWith(".txt");
+    const isPdf = file.type === DOC_MIME_PDF || namaLower.endsWith(".pdf");
+    const isDocx = file.type === DOC_MIME_DOCX || namaLower.endsWith(".docx");
+
+    if (!isTxt && !isPdf && !isDocx) {
+      alert("Format yang didukung: .txt, .pdf, atau .docx (Word).");
       return;
     }
-    if (file.size > 2 * 1024 * 1024) {
-      alert("Ukuran file maksimal 2MB.");
+    if (file.size > MAX_DOC_SIZE_MB * 1024 * 1024) {
+      alert(`Ukuran file maksimal ${MAX_DOC_SIZE_MB}MB.`);
       return;
     }
-    const reader = new FileReader();
-    reader.onload = () => {
-      const text = reader.result as string;
-      setPendingDoc({ name: file.name, text });
-    };
-    reader.readAsText(file);
+
+    if (isTxt) {
+      // File teks biasa, dibaca langsung di browser, tidak perlu ke server dulu
+      const reader = new FileReader();
+      reader.onload = () => {
+        const text = reader.result as string;
+        setPendingDoc({ name: file.name, kind: "text", text });
+      };
+      reader.readAsText(file);
+    } else {
+      // PDF / Word: dikirim sebagai base64, isinya diekstrak di server
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        const [, base64Data] = result.split(",");
+        const mimeType = isPdf ? DOC_MIME_PDF : DOC_MIME_DOCX;
+        setPendingDoc({ name: file.name, kind: "binary", mimeType, data: base64Data });
+      };
+      reader.readAsDataURL(file);
+    }
     setShowAttachSheet(false);
   };
 
@@ -123,10 +148,12 @@ export default function Home() {
     const gambarUntukDikirim = pendingImage;
     const dokUntukDikirim = pendingDoc;
 
-    // Kalau ada file teks, gabungin isinya ke pesan yang dikirim ke AI
-    const pesanUntukAI = dokUntukDikirim
-      ? `${teksInput}\n\n[Isi file "${dokUntukDikirim.name}"]:\n${dokUntukDikirim.text.slice(0, 8000)}`
-      : teksInput;
+    // Kalau file teks (.txt), gabungin isinya langsung ke pesan (sudah berupa teks)
+    // Kalau PDF/Word, isinya belum diketahui di sini — nanti server yang mengekstrak
+    const pesanUntukAI =
+      dokUntukDikirim?.kind === "text"
+        ? `${teksInput}\n\n[Isi file "${dokUntukDikirim.name}"]:\n${dokUntukDikirim.text.slice(0, 8000)}`
+        : teksInput;
 
     const pesanUser: Message = {
       role: "user",
@@ -161,6 +188,10 @@ export default function Home() {
           image: gambarUntukDikirim
             ? { mimeType: gambarUntukDikirim.mimeType, data: gambarUntukDikirim.data }
             : undefined,
+          document:
+            dokUntukDikirim?.kind === "binary"
+              ? { name: dokUntukDikirim.name, mimeType: dokUntukDikirim.mimeType, data: dokUntukDikirim.data }
+              : undefined,
           webSearch: webSearchOn,
           history: (activeConversation?.messages || []).slice(-10).map((m) => ({
             role: m.role,
@@ -440,7 +471,7 @@ export default function Home() {
             onChange={(e) => e.target.files?.[0] && handleFilePicked(e.target.files[0])} />
           <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" style={{ display: "none" }}
             onChange={(e) => e.target.files?.[0] && handleFilePicked(e.target.files[0])} />
-          <input ref={docInputRef} type="file" accept=".txt" style={{ display: "none" }}
+          <input ref={docInputRef} type="file" accept=".txt,.pdf,.docx" style={{ display: "none" }}
             onChange={(e) => e.target.files?.[0] && handleDocPicked(e.target.files[0])} />
 
           <div style={{ display: "flex", gap: 8, maxWidth: 800, margin: "0 auto" }}>
