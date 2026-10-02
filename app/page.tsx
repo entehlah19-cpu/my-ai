@@ -272,6 +272,11 @@ export default function Home() {
           background: linear-gradient(135deg, #ff7a18, #ff9d4d); color: #0a0a0a; border: none;
           border-radius: 8px; padding: 10px 14px; font-weight: 600; cursor: pointer; font-size: 14px;
         }
+        .nav-item {
+          display: flex; align-items: center; gap: 12px; padding: 9px 8px;
+          border-radius: 8px; cursor: pointer; font-size: 14.5px; color: #ddd;
+        }
+        .nav-item:hover { background: #1a1a1a; }
         .sidebar-btn-secondary {
           background: #1a1a1a; color: #ff9d4d; border: 1px solid #333;
           border-radius: 8px; padding: 8px 14px; font-weight: 600; cursor: pointer; font-size: 13px;
@@ -376,7 +381,26 @@ export default function Home() {
           <span style={{ color: "#ff7a18" }}>My</span> AI
         </div>
 
-        <div style={{ fontSize: 11, color: "#666", textTransform: "uppercase", letterSpacing: 0.5, padding: "4px 6px 8px 6px" }}>
+        <div
+          className="nav-item"
+          onClick={() => {
+            // "Obrolan" = tampilkan semua obrolan, buka semua grup proyek
+            setCollapsedProjects({});
+          }}
+        >
+          <IconChatBubble /> <span>Obrolan</span>
+        </div>
+        <div
+          className="nav-item"
+          onClick={() => {
+            // "Proyek" = buka picker untuk bikin/lihat proyek baru
+            setShowProjectPicker(true);
+          }}
+        >
+          <span style={{ display: "inline-flex", color: "#aaa" }}><IconFolder /></span> <span>Proyek</span>
+        </div>
+
+        <div style={{ fontSize: 11, color: "#666", textTransform: "uppercase", letterSpacing: 0.5, padding: "14px 6px 8px 6px" }}>
           Terbaru
         </div>
 
@@ -689,6 +713,13 @@ export default function Home() {
 /* ---- Ikon SVG ---- */
 const iconProps = { width: 20, height: 20, viewBox: "0 0 24 24", fill: "none", stroke: "#ff9d4d", strokeWidth: 1.8, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
 
+function IconChatBubble() {
+  return (
+    <svg {...iconProps} stroke="#aaa">
+      <path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" />
+    </svg>
+  );
+}
 function IconCamera() {
   return (
     <svg {...iconProps}>
