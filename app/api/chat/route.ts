@@ -13,34 +13,48 @@ const SERPER_API_KEY = process.env.SERPER_API_KEY;
 const IDENTITAS = `Kamu adalah "My AI", asisten AI pribadi. Jika ditanya siapa kamu atau model apa yang sedang diajak bicara, selalu jawab bahwa kamu adalah "My AI". Jangan menyebut nama model asli di baliknya (seperti Gemini, Llama, GPT, dll), sebutkan hanya "My AI".`;
 
 type ImagePart = { mimeType: string; data: string };
+type DocumentPart = { name: string; mimeType: string; data: string };
 type HistoryItem = { role: string; content: string };
 
-// Fungsi pencarian web pakai Serper
 async function cariWeb(query: string): Promise<string> {
   try {
     const res = await fetch("https://google.serper.dev/search", {
       method: "POST",
-      headers: {
-        "X-API-KEY": SERPER_API_KEY || "",
-        "Content-Type": "application/json",
-      },
+      headers: { "X-API-KEY": SERPER_API_KEY || "", "Content-Type": "application/json" },
       body: JSON.stringify({ q: query }),
     });
-
-    if (!res.ok) {
-      console.log("Serper gagal dengan status", res.status);
-      return "";
-    }
-
+    if (!res.ok) return "";
     const data = await res.json();
-    const hasil = (data.organic || [])
+    return (data.organic || [])
       .slice(0, 5)
       .map((r: any, i: number) => `${i + 1}. ${r.title}\n${r.snippet}\nSumber: ${r.link}`)
       .join("\n\n");
-
-    return hasil;
   } catch (err) {
     console.log("Gagal melakukan pencarian web:", (err as Error).message);
+    return "";
+  }
+}
+
+// Ekstrak teks dari PDF atau Word, dipanggil kalau user upload dokumen
+async function ekstrakDokumen(doc: DocumentPart): Promise<string> {
+  const buffer = Buffer.from(doc.data, "base64");
+
+  try {
+    if (doc.mimeType === "application/pdf") {
+      const pdfParse = (await import("pdf-parse")).default;
+      const result = await pdfParse(buffer);
+      return result.text;
+    }
+
+    if (doc.mimeType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
+      const mammoth = await import("mammoth");
+      const result = await mammoth.extractRawText({ buffer });
+      return result.value;
+    }
+
+    return "";
+  } catch (err) {
+    console.log("Gagal mengekstrak dokumen:", (err as Error).message);
     return "";
   }
 }
@@ -92,10 +106,7 @@ async function panggilCloudflare(prompt: string): Promise<string> {
     `https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/ai/run/${CLOUDFLARE_MODEL}`,
     {
       method: "POST",
-      headers: {
-        "Authorization": `Bearer ${CLOUDFLARE_API_TOKEN}`,
-        "Content-Type": "application/json",
-      },
+      headers: { "Authorization": `Bearer ${CLOUDFLARE_API_TOKEN}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         messages: [
           { role: "system", content: IDENTITAS },
@@ -135,16 +146,15 @@ async function jawabDenganFallback(prompt: string, image?: ImagePart): Promise<s
 
 export async function POST(req: NextRequest) {
   try {
-    const { userId, message, image, history, webSearch } = await req.json();
+    const { userId, message, image, document, history, webSearch } = await req.json();
 
-    if (!userId || (!message && !image)) {
-      return NextResponse.json({ error: "userId dan message/gambar wajib diisi" }, { status: 400 });
+    if (!userId || (!message && !image && !document)) {
+      return NextResponse.json({ error: "userId dan message/gambar/file wajib diisi" }, { status: 400 });
     }
 
     if (image?.data) {
       const approxBytes = (image.data.length * 3) / 4;
-      const maxBytes = 4 * 1024 * 1024;
-      if (approxBytes > maxBytes) {
+      if (approxBytes > 4 * 1024 * 1024) {
         return NextResponse.json({ error: "Ukuran gambar maksimal 4MB" }, { status: 400 });
       }
     }
@@ -165,14 +175,25 @@ export async function POST(req: NextRequest) {
       ? recentHistory.map((m) => `${m.role}: ${m.content}`).join("\n")
       : "(belum ada riwayat percakapan)";
 
-    const pesanUser = message || "(user mengirim gambar tanpa teks)";
+    const pesanUser = message || (document ? `(user mengirim file "${document.name}")` : "(user mengirim gambar tanpa teks)");
 
-    // Kalau toggle "Pencarian web" aktif, cari dulu sebelum tanya ke AI
+    // Kalau toggle "Pencarian web" aktif
     let searchBlock = "";
     if (webSearch && message) {
       const hasilSearch = await cariWeb(message);
       if (hasilSearch) {
         searchBlock = `\n\nHasil pencarian web terbaru (gunakan ini untuk jawaban yang akurat dan terkini, sebutkan sumbernya kalau relevan):\n${hasilSearch}`;
+      }
+    }
+
+    // Kalau ada dokumen PDF/Word, ekstrak isinya
+    let docBlock = "";
+    if (document) {
+      const teksDokumen = await ekstrakDokumen(document);
+      if (teksDokumen) {
+        docBlock = `\n\nIsi file "${document.name}" (gunakan ini untuk menjawab pertanyaan user):\n${teksDokumen.slice(0, 10000)}`;
+      } else {
+        docBlock = `\n\n(Catatan: file "${document.name}" terlampir, tapi gagal diekstrak isinya. Beri tahu user untuk coba lagi atau gunakan format lain.)`;
       }
     }
 
@@ -182,6 +203,7 @@ ${memoryBlock}
 Percakapan terakhir (PENTING: gunakan ini untuk memahami konteks):
 ${historyBlock}
 ${searchBlock}
+${docBlock}
 
 Pesan baru dari user: "${pesanUser}"
 
