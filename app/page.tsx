@@ -4,37 +4,50 @@ import { useState, useEffect, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 
 type Message = { role: string; content: string; imagePreview?: string };
-type Conversation = { id: string; title: string; messages: Message[] };
+type Conversation = { id: string; title: string; messages: Message[]; projectId?: string };
+type ProjectT = { id: string; name: string };
 
-const MAX_SIZE_MB = 4;
+type PendingDoc =
+  | { name: string; kind: "text"; text: string }
+  | { name: string; kind: "binary"; mimeType: string; data: string };
+
+const MAX_IMAGE_SIZE_MB = 4;
+const MAX_DOC_SIZE_MB = 5;
+const DOC_MIME_PDF = "application/pdf";
+const DOC_MIME_DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
 export default function Home() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [projects, setProjects] = useState<ProjectT[]>([]);
   const [activeId, setActiveId] = useState<string>("");
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [pendingImage, setPendingImage] = useState<{ preview: string; mimeType: string; data: string } | null>(null);
-  const [pendingDoc, setPendingDoc] = useState<
-    { name: string; kind: "text"; text: string } | { name: string; kind: "binary"; mimeType: string; data: string } | null
-  >(null);
+  const [pendingDoc, setPendingDoc] = useState<PendingDoc | null>(null);
   const [showAttachSheet, setShowAttachSheet] = useState(false);
+  const [showProjectPicker, setShowProjectPicker] = useState(false);
+  const [newProjectName, setNewProjectName] = useState("");
   const [webSearchOn, setWebSearchOn] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [collapsedProjects, setCollapsedProjects] = useState<Record<string, boolean>>({});
   const bottomRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const docInputRef = useRef<HTMLInputElement>(null);
 
+  // --- Load & save data di localStorage ---
   useEffect(() => {
-    const saved = localStorage.getItem("myai-conversations");
-    if (saved) {
-      const parsed: Conversation[] = JSON.parse(saved);
+    const savedConv = localStorage.getItem("myai-conversations");
+    if (savedConv) {
+      const parsed: Conversation[] = JSON.parse(savedConv);
       setConversations(parsed);
       if (parsed.length > 0) setActiveId(parsed[0].id);
     } else {
       buatObrolanBaru();
     }
+    const savedProj = localStorage.getItem("myai-projects");
+    if (savedProj) setProjects(JSON.parse(savedProj));
   }, []);
 
   useEffect(() => {
@@ -42,11 +55,16 @@ export default function Home() {
   }, [conversations]);
 
   useEffect(() => {
+    localStorage.setItem("myai-projects", JSON.stringify(projects));
+  }, [projects]);
+
+  useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [conversations, activeId]);
 
   const activeConversation = conversations.find((c) => c.id === activeId);
 
+  // --- Obrolan ---
   const buatObrolanBaru = () => {
     const id = Date.now().toString();
     const baru: Conversation = { id, title: "Obrolan Baru", messages: [] };
@@ -78,14 +96,39 @@ export default function Home() {
     setConfirmDeleteId(null);
   };
 
-  // --- Untuk gambar (Kamera & Foto) ---
+  // --- Proyek ---
+  const buatProyekBaru = () => {
+    const nama = newProjectName.trim();
+    if (!nama) return;
+    const id = Date.now().toString();
+    setProjects((prev) => [...prev, { id, name: nama }]);
+    setConversations((prev) => prev.map((c) => (c.id === activeId ? { ...c, projectId: id } : c)));
+    setNewProjectName("");
+    setShowProjectPicker(false);
+  };
+
+  const pindahKeProyek = (projectId: string | undefined) => {
+    setConversations((prev) => prev.map((c) => (c.id === activeId ? { ...c, projectId } : c)));
+    setShowProjectPicker(false);
+  };
+
+  const hapusProyek = (id: string) => {
+    setProjects((prev) => prev.filter((p) => p.id !== id));
+    setConversations((prev) => prev.map((c) => (c.projectId === id ? { ...c, projectId: undefined } : c)));
+  };
+
+  const toggleCollapseProject = (id: string) => {
+    setCollapsedProjects((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  // --- Upload gambar ---
   const handleFilePicked = (file: File) => {
     if (!file.type.startsWith("image/")) {
-      alert("Cuma gambar yang didukung di sini ya. Gunakan tombol 'File' untuk file teks.");
+      alert("Cuma gambar yang didukung di sini ya. Gunakan tombol 'File' untuk dokumen.");
       return;
     }
-    if (file.size > MAX_SIZE_MB * 1024 * 1024) {
-      alert(`Ukuran gambar maksimal ${MAX_SIZE_MB}MB. File kamu terlalu besar.`);
+    if (file.size > MAX_IMAGE_SIZE_MB * 1024 * 1024) {
+      alert(`Ukuran gambar maksimal ${MAX_IMAGE_SIZE_MB}MB.`);
       return;
     }
     const reader = new FileReader();
@@ -99,11 +142,7 @@ export default function Home() {
     setShowAttachSheet(false);
   };
 
-  // --- Untuk file dokumen (.txt, .pdf, .docx) ---
-  const DOC_MIME_PDF = "application/pdf";
-  const DOC_MIME_DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-  const MAX_DOC_SIZE_MB = 5;
-
+  // --- Upload dokumen (.txt langsung dibaca, .pdf/.docx dikirim ke server) ---
   const handleDocPicked = (file: File) => {
     const namaLower = file.name.toLowerCase();
     const isTxt = namaLower.endsWith(".txt");
@@ -120,27 +159,24 @@ export default function Home() {
     }
 
     if (isTxt) {
-      // File teks biasa, dibaca langsung di browser, tidak perlu ke server dulu
       const reader = new FileReader();
       reader.onload = () => {
-        const text = reader.result as string;
-        setPendingDoc({ name: file.name, kind: "text", text });
+        setPendingDoc({ name: file.name, kind: "text", text: reader.result as string });
       };
       reader.readAsText(file);
     } else {
-      // PDF / Word: dikirim sebagai base64, isinya diekstrak di server
       const reader = new FileReader();
       reader.onload = () => {
         const result = reader.result as string;
         const [, base64Data] = result.split(",");
-        const mimeType = isPdf ? DOC_MIME_PDF : DOC_MIME_DOCX;
-        setPendingDoc({ name: file.name, kind: "binary", mimeType, data: base64Data });
+        setPendingDoc({ name: file.name, kind: "binary", mimeType: isPdf ? DOC_MIME_PDF : DOC_MIME_DOCX, data: base64Data });
       };
       reader.readAsDataURL(file);
     }
     setShowAttachSheet(false);
   };
 
+  // --- Kirim pesan ---
   const kirimPesan = async () => {
     if ((!input.trim() && !pendingImage && !pendingDoc) || !activeId) return;
 
@@ -148,8 +184,6 @@ export default function Home() {
     const gambarUntukDikirim = pendingImage;
     const dokUntukDikirim = pendingDoc;
 
-    // Kalau file teks (.txt), gabungin isinya langsung ke pesan (sudah berupa teks)
-    // Kalau PDF/Word, isinya belum diketahui di sini — nanti server yang mengekstrak
     const pesanUntukAI =
       dokUntukDikirim?.kind === "text"
         ? `${teksInput}\n\n[Isi file "${dokUntukDikirim.name}"]:\n${dokUntukDikirim.text.slice(0, 8000)}`
@@ -185,18 +219,13 @@ export default function Home() {
         body: JSON.stringify({
           userId: "user-1",
           message: pesanUntukAI,
-          image: gambarUntukDikirim
-            ? { mimeType: gambarUntukDikirim.mimeType, data: gambarUntukDikirim.data }
-            : undefined,
+          image: gambarUntukDikirim ? { mimeType: gambarUntukDikirim.mimeType, data: gambarUntukDikirim.data } : undefined,
           document:
             dokUntukDikirim?.kind === "binary"
               ? { name: dokUntukDikirim.name, mimeType: dokUntukDikirim.mimeType, data: dokUntukDikirim.data }
               : undefined,
           webSearch: webSearchOn,
-          history: (activeConversation?.messages || []).slice(-10).map((m) => ({
-            role: m.role,
-            content: m.content,
-          })),
+          history: (activeConversation?.messages || []).slice(-10).map((m) => ({ role: m.role, content: m.content })),
         }),
       });
       const data = await res.json();
@@ -204,13 +233,7 @@ export default function Home() {
       setConversations((prev) =>
         prev.map((c) =>
           c.id === activeId
-            ? {
-                ...c,
-                messages: [
-                  ...c.messages,
-                  { role: "assistant", content: data.reply || data.error || "Maaf, terjadi kesalahan." },
-                ],
-              }
+            ? { ...c, messages: [...c.messages, { role: "assistant", content: data.reply || data.error || "Maaf, terjadi kesalahan." }] }
             : c
         )
       );
@@ -218,13 +241,7 @@ export default function Home() {
       setConversations((prev) =>
         prev.map((c) =>
           c.id === activeId
-            ? {
-                ...c,
-                messages: [
-                  ...c.messages,
-                  { role: "assistant", content: "Maaf, terjadi kesalahan. Coba lagi ya." },
-                ],
-              }
+            ? { ...c, messages: [...c.messages, { role: "assistant", content: "Maaf, terjadi kesalahan. Coba lagi ya." }] }
             : c
         )
       );
@@ -233,43 +250,55 @@ export default function Home() {
     }
   };
 
+  // --- Kelompokkan obrolan: per proyek + tanpa proyek ---
+  const obrolanTanpaProyek = conversations.filter((c) => !c.projectId);
+
   return (
     <div style={{ display: "flex", height: "100dvh", background: "#0a0a0a", color: "#f5f5f5", fontFamily: "system-ui, -apple-system, sans-serif", overflow: "hidden" }}>
       <style>{`
         * { box-sizing: border-box; }
-        input, button, textarea {
-          outline: none;
-          -webkit-tap-highlight-color: transparent;
-        }
-        input:focus, button:focus, textarea:focus {
-          outline: none;
-          box-shadow: none;
-        }
+        input, button, textarea { outline: none; -webkit-tap-highlight-color: transparent; }
+        input:focus, button:focus, textarea:focus { outline: none; box-shadow: none; }
         html, body { background: #0a0a0a; margin: 0; padding: 0; }
+
         .sidebar {
           width: 260px; background: #111111; border-right: 1px solid #262626;
           display: flex; flex-direction: column; padding: 12px; flex-shrink: 0;
           transition: transform 0.25s ease;
         }
         .overlay { display: none; }
+
+        .sidebar-btn {
+          background: linear-gradient(135deg, #ff7a18, #ff9d4d); color: #0a0a0a; border: none;
+          border-radius: 8px; padding: 10px 14px; font-weight: 600; cursor: pointer; font-size: 14px;
+        }
+        .sidebar-btn-secondary {
+          background: #1a1a1a; color: #ff9d4d; border: 1px solid #333;
+          border-radius: 8px; padding: 8px 14px; font-weight: 600; cursor: pointer; font-size: 13px;
+        }
+
+        .project-header {
+          display: flex; align-items: center; justify-content: space-between;
+          padding: 8px 6px; cursor: pointer; border-radius: 6px; margin-top: 10px;
+        }
+        .project-header:hover { background: #1a1a1a; }
+        .project-header-left { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: #ddd; }
+        .project-children { padding-left: 14px; border-left: 1px solid #262626; margin-left: 10px; }
+        .project-delete-btn { background: none; border: none; color: #555; cursor: pointer; font-size: 12px; padding: 2px 4px; }
+        .project-delete-btn:hover { color: #ff5555; }
+
         .conv-item {
           display: flex; align-items: center; justify-content: space-between;
-          padding: 10px 12px; border-radius: 8px; margin-bottom: 4px; cursor: pointer; font-size: 14px;
+          padding: 9px 10px; border-radius: 8px; margin-bottom: 2px; cursor: pointer; font-size: 13.5px;
         }
         .conv-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
-        .conv-delete-btn {
-          background: none; border: none; color: #666; cursor: pointer; font-size: 15px;
-          padding: 4px 6px; flex-shrink: 0; border-radius: 6px;
-        }
+        .conv-delete-btn { background: none; border: none; color: #666; cursor: pointer; font-size: 14px; padding: 3px 5px; flex-shrink: 0; border-radius: 6px; }
         .conv-delete-btn:hover { color: #ff5555; background: #2a1515; }
-        .confirm-box {
-          background: #1f1f1f; border: 1px solid #ff5555; border-radius: 8px;
-          padding: 8px; margin-bottom: 4px; font-size: 13px;
-        }
+
+        .confirm-box { background: #1f1f1f; border: 1px solid #ff5555; border-radius: 8px; padding: 8px; margin-bottom: 4px; font-size: 13px; }
         .confirm-actions { display: flex; gap: 8px; margin-top: 6px; }
-        .confirm-actions button {
-          flex: 1; padding: 5px; border-radius: 6px; border: none; cursor: pointer; font-size: 12px; font-weight: 600;
-        }
+        .confirm-actions button { flex: 1; padding: 5px; border-radius: 6px; border: none; cursor: pointer; font-size: 12px; font-weight: 600; }
+
         .sheet-backdrop {
           position: fixed; inset: 0; background: rgba(0,0,0,0.6);
           z-index: 200; display: flex; align-items: flex-end; justify-content: center;
@@ -281,18 +310,15 @@ export default function Home() {
           border-radius: 20px 20px 0 0; padding: 20px;
           transform: translateY(100%); transition: transform 0.25s ease;
           border: 1px solid #2a2a2a; border-bottom: none;
+          max-height: 80dvh; overflow-y: auto;
         }
         .sheet-backdrop.open .sheet { transform: translateY(0); }
-        .sheet-handle {
-          width: 40px; height: 4px; background: #333; border-radius: 2px;
-          margin: 0 auto 14px auto;
-        }
+        .sheet-handle { width: 40px; height: 4px; background: #333; border-radius: 2px; margin: 0 auto 14px auto; }
         .sheet-grid { display: flex; gap: 12px; margin-bottom: 8px; }
         .sheet-grid-item {
           flex: 1; background: #1f1f1f; border-radius: 16px; padding: 16px 8px;
           display: flex; flex-direction: column; align-items: center; gap: 8px;
-          cursor: pointer; border: none; color: #f5f5f5;
-          transition: background 0.15s ease, transform 0.1s ease;
+          cursor: pointer; border: none; color: #f5f5f5; transition: background 0.15s ease, transform 0.1s ease;
         }
         .sheet-grid-item:active { transform: scale(0.96); }
         .sheet-grid-item .icon-circle {
@@ -310,27 +336,29 @@ export default function Home() {
           width: 36px; height: 36px; border-radius: 50%; background: #2a2a2a;
           display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0;
         }
-        .toggle {
-          width: 44px; height: 26px; border-radius: 13px; position: relative;
-          border: none; cursor: pointer; transition: background 0.2s;
+        .toggle { width: 44px; height: 26px; border-radius: 13px; position: relative; border: none; cursor: pointer; transition: background 0.2s; }
+        .toggle .knob { position: absolute; top: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; transition: left 0.2s; }
+
+        .project-picker-item {
+          display: flex; align-items: center; justify-content: space-between;
+          padding: 12px 10px; border-radius: 10px; cursor: pointer; margin-bottom: 4px; background: #1a1a1a;
         }
-        .toggle .knob {
-          position: absolute; top: 3px; width: 20px; height: 20px; border-radius: 50%;
-          background: #fff; transition: left 0.2s;
+        .project-picker-item:hover { background: #222; }
+        .project-picker-input {
+          flex: 1; padding: 10px 12px; border-radius: 10px; border: 1px solid #333;
+          background: #1a1a1a; color: #fff; font-size: 14px;
         }
+
         .msg-content p { margin: 0 0 8px 0; }
         .msg-content p:last-child { margin-bottom: 0; }
         .msg-content strong { color: inherit; font-weight: 700; }
         .msg-content ul, .msg-content ol { margin: 4px 0; padding-left: 20px; }
         .msg-content li { margin-bottom: 4px; }
-        .msg-content code {
-          background: rgba(255,255,255,0.1); padding: 2px 5px; border-radius: 4px; font-size: 0.9em;
-        }
-        .msg-content pre {
-          background: rgba(0,0,0,0.3); padding: 10px; border-radius: 8px; overflow-x: auto; margin: 8px 0;
-        }
+        .msg-content code { background: rgba(255,255,255,0.1); padding: 2px 5px; border-radius: 4px; font-size: 0.9em; }
+        .msg-content pre { background: rgba(0,0,0,0.3); padding: 10px; border-radius: 8px; overflow-x: auto; margin: 8px 0; }
         .msg-content pre code { background: none; padding: 0; }
         .msg-content h1, .msg-content h2, .msg-content h3 { margin: 8px 0 4px 0; }
+
         @media (max-width: 768px) {
           .sidebar { position: fixed; top: 0; left: 0; height: 100dvh; z-index: 100; transform: translateX(-100%); }
           .sidebar.open { transform: translateX(0); }
@@ -342,28 +370,83 @@ export default function Home() {
 
       <div className={`overlay ${sidebarOpen ? "show" : ""}`} onClick={() => setSidebarOpen(false)} />
 
+      {/* ===== SIDEBAR ===== */}
       <aside className={`sidebar ${sidebarOpen ? "open" : ""}`}>
-        <button
-          onClick={buatObrolanBaru}
-          style={{
-            background: "linear-gradient(135deg, #ff7a18, #ff9d4d)", color: "#0a0a0a", border: "none",
-            borderRadius: 8, padding: "10px 14px", fontWeight: 600, cursor: "pointer", marginBottom: 16,
-          }}
-        >
+        <button className="sidebar-btn" onClick={buatObrolanBaru} style={{ marginBottom: 10 }}>
           + Obrolan Baru
         </button>
+
         <div style={{ overflowY: "auto", flex: 1 }}>
-          {conversations.map((c) =>
+          {/* Daftar proyek */}
+          {projects.map((proj) => {
+            const obrolanProyek = conversations.filter((c) => c.projectId === proj.id);
+            const tertutup = collapsedProjects[proj.id];
+            return (
+              <div key={proj.id}>
+                <div className="project-header" onClick={() => toggleCollapseProject(proj.id)}>
+                  <div className="project-header-left">
+                    <span>{tertutup ? "▸" : "▾"}</span>
+                    <span>🗂️ {proj.name}</span>
+                  </div>
+                  <button
+                    className="project-delete-btn"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (confirm(`Hapus proyek "${proj.name}"? Obrolan di dalamnya tidak akan terhapus.`)) hapusProyek(proj.id);
+                    }}
+                  >
+                    🗑️
+                  </button>
+                </div>
+                {!tertutup && (
+                  <div className="project-children">
+                    {obrolanProyek.length === 0 && (
+                      <div style={{ fontSize: 12, color: "#555", padding: "6px 10px" }}>Belum ada obrolan</div>
+                    )}
+                    {obrolanProyek.map((c) =>
+                      confirmDeleteId === c.id ? (
+                        <div key={c.id} className="confirm-box">
+                          <div>Hapus obrolan ini?</div>
+                          <div className="confirm-actions">
+                            <button onClick={() => hapusObrolan(c.id)} style={{ background: "#ff5555", color: "#fff" }}>Hapus</button>
+                            <button onClick={() => setConfirmDeleteId(null)} style={{ background: "#333", color: "#fff" }}>Batal</button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div
+                          key={c.id}
+                          className="conv-item"
+                          style={{
+                            background: c.id === activeId ? "#1f1f1f" : "transparent",
+                            borderLeft: c.id === activeId ? "3px solid #ff7a18" : "3px solid transparent",
+                          }}
+                        >
+                          <span className="conv-title" onClick={() => pilihObrolan(c.id)} style={{ color: c.id === activeId ? "#ff9d4d" : "#ccc" }}>
+                            {c.title || "Obrolan Baru"}
+                          </span>
+                          <button className="conv-delete-btn" onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(c.id); }}>
+                            🗑️
+                          </button>
+                        </div>
+                      )
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+
+          {/* Obrolan tanpa proyek */}
+          {projects.length > 0 && obrolanTanpaProyek.length > 0 && (
+            <div style={{ fontSize: 12, color: "#555", margin: "14px 0 6px 6px" }}>Obrolan lainnya</div>
+          )}
+          {obrolanTanpaProyek.map((c) =>
             confirmDeleteId === c.id ? (
               <div key={c.id} className="confirm-box">
                 <div>Hapus obrolan ini?</div>
                 <div className="confirm-actions">
-                  <button onClick={() => hapusObrolan(c.id)} style={{ background: "#ff5555", color: "#fff" }}>
-                    Hapus
-                  </button>
-                  <button onClick={() => setConfirmDeleteId(null)} style={{ background: "#333", color: "#fff" }}>
-                    Batal
-                  </button>
+                  <button onClick={() => hapusObrolan(c.id)} style={{ background: "#ff5555", color: "#fff" }}>Hapus</button>
+                  <button onClick={() => setConfirmDeleteId(null)} style={{ background: "#333", color: "#fff" }}>Batal</button>
                 </div>
               </div>
             ) : (
@@ -375,21 +458,10 @@ export default function Home() {
                   borderLeft: c.id === activeId ? "3px solid #ff7a18" : "3px solid transparent",
                 }}
               >
-                <span
-                  className="conv-title"
-                  onClick={() => pilihObrolan(c.id)}
-                  style={{ color: c.id === activeId ? "#ff9d4d" : "#ccc" }}
-                >
+                <span className="conv-title" onClick={() => pilihObrolan(c.id)} style={{ color: c.id === activeId ? "#ff9d4d" : "#ccc" }}>
                   {c.title || "Obrolan Baru"}
                 </span>
-                <button
-                  className="conv-delete-btn"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setConfirmDeleteId(c.id);
-                  }}
-                  title="Hapus obrolan"
-                >
+                <button className="conv-delete-btn" onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(c.id); }}>
                   🗑️
                 </button>
               </div>
@@ -398,6 +470,7 @@ export default function Home() {
         </div>
       </aside>
 
+      {/* ===== CHAT UTAMA ===== */}
       <main style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
         <header style={{ padding: "16px 20px", borderBottom: "1px solid #262626", fontWeight: 700, fontSize: 18, display: "flex", alignItems: "center", gap: 12 }}>
           <button
@@ -408,6 +481,11 @@ export default function Home() {
             ☰
           </button>
           <span><span style={{ color: "#ff7a18" }}>My</span> AI</span>
+          {activeConversation?.projectId && (
+            <span style={{ fontSize: 11, background: "#1f1f1f", color: "#aaa", padding: "3px 8px", borderRadius: 12 }}>
+              🗂️ {projects.find((p) => p.id === activeConversation.projectId)?.name}
+            </span>
+          )}
           {webSearchOn && (
             <span style={{ fontSize: 11, background: "#1f1f1f", color: "#ff9d4d", padding: "3px 8px", borderRadius: 12, marginLeft: "auto" }}>
               🌐 Pencarian web aktif
@@ -417,9 +495,7 @@ export default function Home() {
 
         <div style={{ flex: 1, overflowY: "auto", padding: "16px" }}>
           {(activeConversation?.messages.length ?? 0) === 0 && (
-            <div style={{ color: "#666", textAlign: "center", marginTop: 60 }}>
-              Mulai percakapan dengan mengetik pesan di bawah.
-            </div>
+            <div style={{ color: "#666", textAlign: "center", marginTop: 60 }}>Mulai percakapan dengan mengetik pesan di bawah.</div>
           )}
           {activeConversation?.messages.map((m, i) => (
             <div key={i} style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start", marginBottom: 12 }}>
@@ -432,14 +508,8 @@ export default function Home() {
                   border: m.role === "user" ? "none" : "1px solid #2a2a2a", wordBreak: "break-word",
                 }}
               >
-                {m.imagePreview && (
-                  <img src={m.imagePreview} alt="lampiran" style={{ maxWidth: "100%", borderRadius: 8, marginBottom: 6, display: "block" }} />
-                )}
-                {m.role === "assistant" ? (
-                  <ReactMarkdown>{m.content}</ReactMarkdown>
-                ) : (
-                  m.content
-                )}
+                {m.imagePreview && <img src={m.imagePreview} alt="lampiran" style={{ maxWidth: "100%", borderRadius: 8, marginBottom: 6, display: "block" }} />}
+                {m.role === "assistant" ? <ReactMarkdown>{m.content}</ReactMarkdown> : m.content}
               </div>
             </div>
           ))}
@@ -452,35 +522,25 @@ export default function Home() {
             <div style={{ maxWidth: 800, margin: "0 auto 10px", display: "flex", alignItems: "center", gap: 10 }}>
               <img src={pendingImage.preview} alt="preview" style={{ width: 40, height: 40, objectFit: "cover", borderRadius: 8 }} />
               <span style={{ fontSize: 13, color: "#aaa" }}>Gambar siap dikirim</span>
-              <button onClick={() => setPendingImage(null)} style={{ background: "none", border: "none", color: "#ff7a18", cursor: "pointer", fontSize: 13 }}>
-                Hapus
-              </button>
+              <button onClick={() => setPendingImage(null)} style={{ background: "none", border: "none", color: "#ff7a18", cursor: "pointer", fontSize: 13 }}>Hapus</button>
             </div>
           )}
           {pendingDoc && (
             <div style={{ maxWidth: 800, margin: "0 auto 10px", display: "flex", alignItems: "center", gap: 10 }}>
               <span style={{ fontSize: 20 }}>📄</span>
               <span style={{ fontSize: 13, color: "#aaa" }}>{pendingDoc.name} siap dikirim</span>
-              <button onClick={() => setPendingDoc(null)} style={{ background: "none", border: "none", color: "#ff7a18", cursor: "pointer", fontSize: 13 }}>
-                Hapus
-              </button>
+              <button onClick={() => setPendingDoc(null)} style={{ background: "none", border: "none", color: "#ff7a18", cursor: "pointer", fontSize: 13 }}>Hapus</button>
             </div>
           )}
 
-          <input ref={fileInputRef} type="file" accept="image/*" style={{ display: "none" }}
-            onChange={(e) => e.target.files?.[0] && handleFilePicked(e.target.files[0])} />
-          <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" style={{ display: "none" }}
-            onChange={(e) => e.target.files?.[0] && handleFilePicked(e.target.files[0])} />
-          <input ref={docInputRef} type="file" accept=".txt,.pdf,.docx" style={{ display: "none" }}
-            onChange={(e) => e.target.files?.[0] && handleDocPicked(e.target.files[0])} />
+          <input ref={fileInputRef} type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => e.target.files?.[0] && handleFilePicked(e.target.files[0])} />
+          <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" style={{ display: "none" }} onChange={(e) => e.target.files?.[0] && handleFilePicked(e.target.files[0])} />
+          <input ref={docInputRef} type="file" accept=".txt,.pdf,.docx" style={{ display: "none" }} onChange={(e) => e.target.files?.[0] && handleDocPicked(e.target.files[0])} />
 
           <div style={{ display: "flex", gap: 8, maxWidth: 800, margin: "0 auto" }}>
             <button
               onClick={() => setShowAttachSheet(true)}
-              style={{
-                width: 42, height: 42, borderRadius: "50%", border: "1px solid #333", background: "#161616",
-                color: "#ff9d4d", fontSize: 20, cursor: "pointer", flexShrink: 0,
-              }}
+              style={{ width: 42, height: 42, borderRadius: "50%", border: "1px solid #333", background: "#161616", color: "#ff9d4d", fontSize: 20, cursor: "pointer", flexShrink: 0 }}
             >
               +
             </button>
@@ -506,12 +566,11 @@ export default function Home() {
         </div>
       </main>
 
+      {/* ===== BOTTOM SHEET: Tambahkan ke chat ===== */}
       <div className={`sheet-backdrop ${showAttachSheet ? "open" : ""}`} onClick={() => setShowAttachSheet(false)}>
         <div className="sheet" onClick={(e) => e.stopPropagation()}>
           <div className="sheet-handle" />
-          <div style={{ textAlign: "center", fontWeight: 700, fontSize: 17, marginBottom: 18 }}>
-            Tambahkan ke chat
-          </div>
+          <div style={{ textAlign: "center", fontWeight: 700, fontSize: 17, marginBottom: 18 }}>Tambahkan ke chat</div>
 
           <div className="sheet-grid">
             <button className="sheet-grid-item" onClick={() => cameraInputRef.current?.click()}>
@@ -528,12 +587,20 @@ export default function Home() {
             </button>
           </div>
 
-          <div className="sheet-row" onClick={() => alert("Fitur proyek segera hadir!")}>
+          <div
+            className="sheet-row"
+            onClick={() => {
+              setShowAttachSheet(false);
+              setShowProjectPicker(true);
+            }}
+          >
             <div className="sheet-row-left">
               <div className="icon-circle-sm"><IconFolder /></div>
               <div>
                 <div style={{ fontWeight: 500 }}>Tambahkan ke proyek</div>
-                <div style={{ fontSize: 12, color: "#888" }}>Segera hadir</div>
+                <div style={{ fontSize: 12, color: "#888" }}>
+                  {activeConversation?.projectId ? projects.find((p) => p.id === activeConversation.projectId)?.name : "Tidak ada"}
+                </div>
               </div>
             </div>
             <IconChevron />
@@ -544,11 +611,7 @@ export default function Home() {
               <div className="icon-circle-sm"><IconGlobe /></div>
               <div style={{ fontWeight: 500 }}>Pencarian web</div>
             </div>
-            <button
-              className="toggle"
-              onClick={() => setWebSearchOn((v) => !v)}
-              style={{ background: webSearchOn ? "#ff7a18" : "#333" }}
-            >
+            <button className="toggle" onClick={() => setWebSearchOn((v) => !v)} style={{ background: webSearchOn ? "#ff7a18" : "#333" }}>
               <span className="knob" style={{ left: webSearchOn ? 21 : 3 }} />
             </button>
           </div>
@@ -572,6 +635,38 @@ export default function Home() {
             <button className="toggle" style={{ background: "#ff7a18" }}>
               <span className="knob" style={{ left: 21 }} />
             </button>
+          </div>
+        </div>
+      </div>
+
+      {/* ===== BOTTOM SHEET: Pilih / Buat Proyek ===== */}
+      <div className={`sheet-backdrop ${showProjectPicker ? "open" : ""}`} onClick={() => setShowProjectPicker(false)}>
+        <div className="sheet" onClick={(e) => e.stopPropagation()}>
+          <div className="sheet-handle" />
+          <div style={{ textAlign: "center", fontWeight: 700, fontSize: 17, marginBottom: 18 }}>Tambahkan ke proyek</div>
+
+          {activeConversation?.projectId && (
+            <div className="project-picker-item" onClick={() => pindahKeProyek(undefined)}>
+              <span>❌ Keluarkan dari proyek</span>
+            </div>
+          )}
+
+          {projects.map((p) => (
+            <div key={p.id} className="project-picker-item" onClick={() => pindahKeProyek(p.id)}>
+              <span>🗂️ {p.name}</span>
+              {activeConversation?.projectId === p.id && <span style={{ color: "#ff9d4d" }}>✓</span>}
+            </div>
+          ))}
+
+          <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+            <input
+              className="project-picker-input"
+              placeholder="Nama proyek baru..."
+              value={newProjectName}
+              onChange={(e) => setNewProjectName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && buatProyekBaru()}
+            />
+            <button className="sidebar-btn" onClick={buatProyekBaru}>Buat</button>
           </div>
         </div>
       </div>
