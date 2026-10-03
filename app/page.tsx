@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 
 type Message = { role: string; content: string; imagePreview?: string };
-type Conversation = { id: string; title: string; messages: Message[]; projectId?: string };
+type Conversation = { id: string; title: string; messages: Message[]; projectId?: string; pinned?: boolean };
 type ProjectT = { id: string; name: string };
 
 type PendingDoc =
@@ -31,6 +31,8 @@ export default function Home() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [collapsedProjects, setCollapsedProjects] = useState<Record<string, boolean>>({});
+  const [searchQuery, setSearchQuery] = useState("");
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -76,6 +78,26 @@ export default function Home() {
   const pilihObrolan = (id: string) => {
     setActiveId(id);
     setSidebarOpen(false);
+  };
+
+  const gantiNamaObrolan = (id: string) => {
+    const current = conversations.find((c) => c.id === id);
+    const nama = prompt("Nama baru untuk obrolan ini:", current?.title || "");
+    if (nama && nama.trim()) {
+      setConversations((prev) => prev.map((c) => (c.id === id ? { ...c, title: nama.trim() } : c)));
+    }
+    setOpenMenuId(null);
+  };
+
+  const toggleSematkan = (id: string) => {
+    setConversations((prev) => prev.map((c) => (c.id === id ? { ...c, pinned: !c.pinned } : c)));
+    setOpenMenuId(null);
+  };
+
+  const tambahKeProyekDari = (id: string) => {
+    setActiveId(id);
+    setOpenMenuId(null);
+    setShowProjectPicker(true);
   };
 
   const hapusObrolan = (id: string) => {
@@ -250,8 +272,13 @@ export default function Home() {
     }
   };
 
-  // --- Kelompokkan obrolan: per proyek + tanpa proyek ---
-  const obrolanTanpaProyek = conversations.filter((c) => !c.projectId);
+  // --- Filter berdasarkan pencarian, lalu urutkan: yang disematkan dulu ---
+  const cocokPencarian = (c: Conversation) => c.title.toLowerCase().includes(searchQuery.toLowerCase());
+  const urutkanPinned = (list: Conversation[]) =>
+    [...list].sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0));
+
+  const conversationsTerfilter = conversations.filter(cocokPencarian);
+  const obrolanTanpaProyek = urutkanPinned(conversationsTerfilter.filter((c) => !c.projectId));
 
   return (
     <div style={{ display: "flex", height: "100dvh", background: "#0a0a0a", color: "#f5f5f5", fontFamily: "system-ui, -apple-system, sans-serif", overflow: "hidden" }}>
@@ -344,6 +371,19 @@ export default function Home() {
         .toggle { width: 44px; height: 26px; border-radius: 13px; position: relative; border: none; cursor: pointer; transition: background 0.2s; }
         .toggle .knob { position: absolute; top: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; transition: left 0.2s; }
 
+        .conv-menu-wrap { position: relative; }
+        .conv-menu-dropdown {
+          position: absolute; right: 0; top: 28px; z-index: 50;
+          background: #1f1f1f; border: 1px solid #333; border-radius: 10px;
+          min-width: 170px; overflow: hidden; box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+        }
+        .conv-menu-item {
+          display: flex; align-items: center; gap: 8px; width: 100%; padding: 10px 12px;
+          background: none; border: none; color: #eee; font-size: 13px; cursor: pointer; text-align: left;
+        }
+        .conv-menu-item:hover { background: #2a2a2a; }
+        .conv-menu-item.danger { color: #ff6b6b; }
+
         .project-picker-item {
           display: flex; align-items: center; justify-content: space-between;
           padding: 12px 10px; border-radius: 10px; cursor: pointer; margin-bottom: 4px; background: #1a1a1a;
@@ -400,6 +440,16 @@ export default function Home() {
           <span style={{ display: "inline-flex", color: "#aaa" }}><IconFolder /></span> <span>Proyek</span>
         </div>
 
+        <input
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="🔍 Cari obrolan..."
+          style={{
+            margin: "6px 2px 4px 2px", padding: "8px 10px", borderRadius: 8, border: "1px solid #262626",
+            background: "#161616", color: "#f5f5f5", fontSize: 13, outline: "none",
+          }}
+        />
+
         <div style={{ fontSize: 11, color: "#666", textTransform: "uppercase", letterSpacing: 0.5, padding: "14px 6px 8px 6px" }}>
           Terbaru
         </div>
@@ -407,7 +457,7 @@ export default function Home() {
         <div style={{ overflowY: "auto", flex: 1 }}>
           {/* Daftar proyek */}
           {projects.map((proj) => {
-            const obrolanProyek = conversations.filter((c) => c.projectId === proj.id);
+            const obrolanProyek = urutkanPinned(conversationsTerfilter.filter((c) => c.projectId === proj.id));
             const tertutup = collapsedProjects[proj.id];
             return (
               <div key={proj.id}>
@@ -450,11 +500,21 @@ export default function Home() {
                           }}
                         >
                           <span className="conv-title" onClick={() => pilihObrolan(c.id)} style={{ color: c.id === activeId ? "#ff9d4d" : "#ccc" }}>
-                            {c.title || "Obrolan Baru"}
+                            {c.pinned && "📌 "}{c.title || "Obrolan Baru"}
                           </span>
-                          <button className="conv-delete-btn" onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(c.id); }}>
-                            🗑️
-                          </button>
+                          <div className="conv-menu-wrap">
+                            <button className="conv-delete-btn" onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === c.id ? null : c.id); }}>
+                              ⋯
+                            </button>
+                            {openMenuId === c.id && (
+                              <div className="conv-menu-dropdown" onClick={(e) => e.stopPropagation()}>
+                                <button className="conv-menu-item" onClick={() => gantiNamaObrolan(c.id)}>✏️ Ganti nama</button>
+                                <button className="conv-menu-item" onClick={() => toggleSematkan(c.id)}>📌 {c.pinned ? "Lepas sematan" : "Sematkan"}</button>
+                                <button className="conv-menu-item" onClick={() => tambahKeProyekDari(c.id)}>🗂️ Tambahkan ke proyek</button>
+                                <button className="conv-menu-item danger" onClick={() => { setOpenMenuId(null); setConfirmDeleteId(c.id); }}>🗑️ Hapus</button>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       )
                     )}
@@ -487,11 +547,21 @@ export default function Home() {
                 }}
               >
                 <span className="conv-title" onClick={() => pilihObrolan(c.id)} style={{ color: c.id === activeId ? "#ff9d4d" : "#ccc" }}>
-                  {c.title || "Obrolan Baru"}
+                  {c.pinned && "📌 "}{c.title || "Obrolan Baru"}
                 </span>
-                <button className="conv-delete-btn" onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(c.id); }}>
-                  🗑️
-                </button>
+                <div className="conv-menu-wrap">
+                  <button className="conv-delete-btn" onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === c.id ? null : c.id); }}>
+                    ⋯
+                  </button>
+                  {openMenuId === c.id && (
+                    <div className="conv-menu-dropdown" onClick={(e) => e.stopPropagation()}>
+                      <button className="conv-menu-item" onClick={() => gantiNamaObrolan(c.id)}>✏️ Ganti nama</button>
+                      <button className="conv-menu-item" onClick={() => toggleSematkan(c.id)}>📌 {c.pinned ? "Lepas sematan" : "Sematkan"}</button>
+                      <button className="conv-menu-item" onClick={() => tambahKeProyekDari(c.id)}>🗂️ Tambahkan ke proyek</button>
+                      <button className="conv-menu-item danger" onClick={() => { setOpenMenuId(null); setConfirmDeleteId(c.id); }}>🗑️ Hapus</button>
+                    </div>
+                  )}
+                </div>
               </div>
             )
           )}
