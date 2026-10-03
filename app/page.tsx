@@ -570,10 +570,10 @@ export default function Home() {
                             </button>
                             {openMenuId === c.id && (
                               <div className="conv-menu-dropdown" onClick={(e) => e.stopPropagation()}>
-                                <button className="conv-menu-item" onClick={() => gantiNamaObrolan(c.id)}>✏️ Ganti nama</button>
-                                <button className="conv-menu-item" onClick={() => toggleSematkan(c.id)}>📌 {c.pinned ? "Lepas sematan" : "Sematkan"}</button>
-                                <button className="conv-menu-item" onClick={() => tambahKeProyekDari(c.id)}>🗂️ Tambahkan ke proyek</button>
-                                <button className="conv-menu-item danger" onClick={() => { setOpenMenuId(null); setConfirmDeleteId(c.id); }}>🗑️ Hapus</button>
+                                <button className="conv-menu-item" onClick={() => gantiNamaObrolan(c.id)}><IconEdit /> Ganti nama</button>
+                                <button className="conv-menu-item" onClick={() => toggleSematkan(c.id)}><IconPin /> {c.pinned ? "Lepas sematan" : "Sematkan"}</button>
+                                <button className="conv-menu-item" onClick={() => tambahKeProyekDari(c.id)}><IconFolder /> Tambahkan ke proyek</button>
+                                <button className="conv-menu-item danger" onClick={() => { setOpenMenuId(null); setConfirmDeleteId(c.id); }}><IconTrash /> Hapus</button>
                               </div>
                             )}
                           </div>
@@ -617,10 +617,10 @@ export default function Home() {
                   </button>
                   {openMenuId === c.id && (
                     <div className="conv-menu-dropdown" onClick={(e) => e.stopPropagation()}>
-                      <button className="conv-menu-item" onClick={() => gantiNamaObrolan(c.id)}>✏️ Ganti nama</button>
-                      <button className="conv-menu-item" onClick={() => toggleSematkan(c.id)}>📌 {c.pinned ? "Lepas sematan" : "Sematkan"}</button>
-                      <button className="conv-menu-item" onClick={() => tambahKeProyekDari(c.id)}>🗂️ Tambahkan ke proyek</button>
-                      <button className="conv-menu-item danger" onClick={() => { setOpenMenuId(null); setConfirmDeleteId(c.id); }}>🗑️ Hapus</button>
+                      <button className="conv-menu-item" onClick={() => gantiNamaObrolan(c.id)}><IconEdit /> Ganti nama</button>
+                      <button className="conv-menu-item" onClick={() => toggleSematkan(c.id)}><IconPin /> {c.pinned ? "Lepas sematan" : "Sematkan"}</button>
+                      <button className="conv-menu-item" onClick={() => tambahKeProyekDari(c.id)}><IconFolder /> Tambahkan ke proyek</button>
+                      <button className="conv-menu-item danger" onClick={() => { setOpenMenuId(null); setConfirmDeleteId(c.id); }}><IconTrash /> Hapus</button>
                     </div>
                   )}
                 </div>
@@ -665,22 +665,28 @@ export default function Home() {
           {(activeConversation?.messages.length ?? 0) === 0 && (
             <div style={{ color: "#666", textAlign: "center", marginTop: 60 }}>Mulai percakapan dengan mengetik pesan di bawah.</div>
           )}
-          {activeConversation?.messages.map((m, i) => (
-            <div key={i} style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start", marginBottom: 12 }}>
-              <div
-                className="msg-content"
-                style={{
-                  maxWidth: "85%", padding: "10px 16px", borderRadius: 14, fontSize: 15, lineHeight: 1.5,
-                  background: m.role === "user" ? "linear-gradient(135deg, #ff7a18, #ff9d4d)" : "#1a1a1a",
-                  color: m.role === "user" ? "#0a0a0a" : "#f0f0f0",
-                  border: m.role === "user" ? "none" : "1px solid #2a2a2a", wordBreak: "break-word",
-                }}
-              >
-                {m.imagePreview && <img src={m.imagePreview} alt="lampiran" style={{ maxWidth: "100%", borderRadius: 8, marginBottom: 6, display: "block" }} />}
-                {m.role === "assistant" ? <ReactMarkdown>{m.content}</ReactMarkdown> : m.content}
+          {activeConversation?.messages.map((m, i) =>
+            m.role === "user" ? (
+              <div key={i} style={{ display: "flex", justifyContent: "flex-end", marginBottom: 16 }}>
+                <div
+                  className="msg-content"
+                  style={{
+                    maxWidth: "92%", padding: "12px 18px", borderRadius: 16, fontSize: 16.5, lineHeight: 1.6,
+                    background: "linear-gradient(135deg, #ff7a18, #ff9d4d)", color: "#0a0a0a", wordBreak: "break-word",
+                  }}
+                >
+                  {m.imagePreview && <img src={m.imagePreview} alt="lampiran" style={{ maxWidth: "100%", borderRadius: 8, marginBottom: 6, display: "block" }} />}
+                  {m.content}
+                </div>
               </div>
-            </div>
-          ))}
+            ) : (
+              <div key={i} style={{ marginBottom: 20 }}>
+                <div className="msg-content" style={{ fontSize: 16.5, lineHeight: 1.65, color: "#f0f0f0", wordBreak: "break-word" }}>
+                  <ReactMarkdown>{m.content}</ReactMarkdown>
+                </div>
+              </div>
+            )
+          )}
           {loading && <div style={{ color: "#ff9d4d", fontSize: 14, fontStyle: "italic" }}>Sedang mengetik...</div>}
           <div ref={bottomRef} />
         </div>
@@ -717,16 +723,16 @@ export default function Home() {
 
           <div style={{ display: "flex", gap: 6, maxWidth: 800, margin: "0 auto" }}>
             <button
-              onClick={() => setShowAttachSheet(true)}
-              style={{ width: 42, height: 42, borderRadius: "50%", border: "1px solid #333", background: "#161616", color: "#ff9d4d", fontSize: 20, cursor: "pointer", flexShrink: 0 }}
-            >
-              +
-            </button>
-            <button
               onClick={() => setShowEmojiPicker((v) => !v)}
               style={{ width: 42, height: 42, borderRadius: "50%", border: "1px solid #333", background: showEmojiPicker ? "#2a2015" : "#161616", color: "#ff9d4d", fontSize: 18, cursor: "pointer", flexShrink: 0 }}
             >
               😊
+            </button>
+            <button
+              onClick={() => setShowAttachSheet(true)}
+              style={{ width: 42, height: 42, borderRadius: "50%", border: "1px solid #333", background: "#161616", color: "#ff9d4d", fontSize: 20, cursor: "pointer", flexShrink: 0 }}
+            >
+              +
             </button>
             <input
               value={input}
@@ -739,13 +745,14 @@ export default function Home() {
               onClick={mulaiRekamSuara}
               style={{
                 width: 42, height: 42, borderRadius: "50%", border: "1px solid #333",
-                background: isListening ? "#ff3b3b" : "#161616", color: isListening ? "#fff" : "#ff9d4d",
-                fontSize: 18, cursor: "pointer", flexShrink: 0,
+                background: isListening ? "#ff3b3b" : "#161616",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                cursor: "pointer", flexShrink: 0,
                 animation: isListening ? "pulse 1s infinite" : "none",
               }}
               title="Input suara"
             >
-              🎤
+              <IconMic active={isListening} />
             </button>
             <button
               onClick={kirimPesan}
@@ -877,6 +884,42 @@ function IconChatBubble() {
   return (
     <svg {...iconProps} stroke="#aaa">
       <path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" />
+    </svg>
+  );
+}
+function IconMic({ active }: { active?: boolean }) {
+  const color = active ? "#fff" : "#ff9d4d";
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="9" y="2" width="6" height="12" rx="3" />
+      <path d="M5 11a7 7 0 0014 0" />
+      <path d="M12 18v3" />
+      <path d="M9 21h6" />
+    </svg>
+  );
+}
+function IconEdit() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#ccc" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z" />
+    </svg>
+  );
+}
+function IconPin() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#ccc" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 2l1.5 5.5L19 9l-4 3 1 6-4-3-4 3 1-6-4-3 5.5-1.5z" />
+    </svg>
+  );
+}
+function IconTrash() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#ff6b6b" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 6h18" />
+      <path d="M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+      <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
+      <path d="M10 11v6M14 11v6" />
     </svg>
   );
 }
