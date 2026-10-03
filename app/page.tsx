@@ -33,6 +33,9 @@ export default function Home() {
   const [collapsedProjects, setCollapsedProjects] = useState<Record<string, boolean>>({});
   const [searchQuery, setSearchQuery] = useState("");
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef<any>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -196,6 +199,47 @@ export default function Home() {
       reader.readAsDataURL(file);
     }
     setShowAttachSheet(false);
+  };
+
+  const EMOJI_LIST = [
+    "😀", "😃", "😄", "😁", "😆", "😅", "🤣", "😂", "🙂", "😉",
+    "😊", "😇", "🥰", "😍", "😘", "😋", "😜", "🤗", "🤔", "😎",
+    "🥳", "😭", "😢", "😤", "😡", "🥺", "😴", "🤯", "👍", "👎",
+    "🙏", "👏", "🔥", "✨", "🎉", "❤️", "💡", "✅", "❌", "🤖",
+  ];
+
+  const tambahEmoji = (emoji: string) => {
+    setInput((prev) => prev + emoji);
+  };
+
+  const mulaiRekamSuara = () => {
+    const SpeechRecognitionAPI = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognitionAPI) {
+      alert("Browser kamu belum mendukung input suara. Coba pakai Chrome ya.");
+      return;
+    }
+
+    if (isListening) {
+      recognitionRef.current?.stop();
+      setIsListening(false);
+      return;
+    }
+
+    const recognition = new SpeechRecognitionAPI();
+    recognition.lang = "id-ID";
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.onresult = (event: any) => {
+      const teks = event.results[0][0].transcript;
+      setInput((prev) => (prev ? prev + " " + teks : teks));
+    };
+    recognition.onerror = () => setIsListening(false);
+    recognition.onend = () => setIsListening(false);
+
+    recognitionRef.current = recognition;
+    recognition.start();
+    setIsListening(true);
   };
 
   // --- Kirim pesan ---
@@ -411,6 +455,24 @@ export default function Home() {
           .hamburger { display: inline-flex !important; }
         }
         .hamburger { display: none; }
+
+        .emoji-picker {
+          max-width: 800px; margin: 0 auto 8px auto; background: #161616;
+          border: 1px solid #333; border-radius: 14px; padding: 10px;
+          display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px;
+          max-height: 160px; overflow-y: auto;
+        }
+        .emoji-item {
+          background: none; border: none; font-size: 20px; padding: 6px;
+          cursor: pointer; border-radius: 8px;
+        }
+        .emoji-item:hover { background: #262626; }
+
+        @keyframes pulse {
+          0% { box-shadow: 0 0 0 0 rgba(255,59,59,0.5); }
+          70% { box-shadow: 0 0 0 8px rgba(255,59,59,0); }
+          100% { box-shadow: 0 0 0 0 rgba(255,59,59,0); }
+        }
       `}</style>
 
       <div className={`overlay ${sidebarOpen ? "show" : ""}`} onClick={() => setSidebarOpen(false)} />
@@ -643,12 +705,28 @@ export default function Home() {
           <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" style={{ display: "none" }} onChange={(e) => e.target.files?.[0] && handleFilePicked(e.target.files[0])} />
           <input ref={docInputRef} type="file" accept=".txt,.pdf,.docx" style={{ display: "none" }} onChange={(e) => e.target.files?.[0] && handleDocPicked(e.target.files[0])} />
 
-          <div style={{ display: "flex", gap: 8, maxWidth: 800, margin: "0 auto" }}>
+          {showEmojiPicker && (
+            <div className="emoji-picker">
+              {EMOJI_LIST.map((em) => (
+                <button key={em} className="emoji-item" onClick={() => tambahEmoji(em)}>
+                  {em}
+                </button>
+              ))}
+            </div>
+          )}
+
+          <div style={{ display: "flex", gap: 6, maxWidth: 800, margin: "0 auto" }}>
             <button
               onClick={() => setShowAttachSheet(true)}
               style={{ width: 42, height: 42, borderRadius: "50%", border: "1px solid #333", background: "#161616", color: "#ff9d4d", fontSize: 20, cursor: "pointer", flexShrink: 0 }}
             >
               +
+            </button>
+            <button
+              onClick={() => setShowEmojiPicker((v) => !v)}
+              style={{ width: 42, height: 42, borderRadius: "50%", border: "1px solid #333", background: showEmojiPicker ? "#2a2015" : "#161616", color: "#ff9d4d", fontSize: 18, cursor: "pointer", flexShrink: 0 }}
+            >
+              😊
             </button>
             <input
               value={input}
@@ -657,6 +735,18 @@ export default function Home() {
               placeholder="Ketik pesan..."
               style={{ flex: 1, minWidth: 0, padding: "10px 14px", borderRadius: 24, border: "1px solid #333", background: "#161616", color: "#f5f5f5", outline: "none", fontSize: 15 }}
             />
+            <button
+              onClick={mulaiRekamSuara}
+              style={{
+                width: 42, height: 42, borderRadius: "50%", border: "1px solid #333",
+                background: isListening ? "#ff3b3b" : "#161616", color: isListening ? "#fff" : "#ff9d4d",
+                fontSize: 18, cursor: "pointer", flexShrink: 0,
+                animation: isListening ? "pulse 1s infinite" : "none",
+              }}
+              title="Input suara"
+            >
+              🎤
+            </button>
             <button
               onClick={kirimPesan}
               disabled={loading}
