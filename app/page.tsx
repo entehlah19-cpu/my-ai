@@ -34,6 +34,7 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState("");
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showHeaderMenu, setShowHeaderMenu] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const recognitionRef = useRef<any>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -95,6 +96,20 @@ export default function Home() {
   const toggleSematkan = (id: string) => {
     setConversations((prev) => prev.map((c) => (c.id === id ? { ...c, pinned: !c.pinned } : c)));
     setOpenMenuId(null);
+  };
+
+  const eksporObrolan = () => {
+    if (!activeConversation) return;
+    const isi = activeConversation.messages
+      .map((m) => `${m.role === "user" ? "Kamu" : "My AI"}: ${m.content}`)
+      .join("\n\n");
+    const blob = new Blob([isi], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${activeConversation.title || "obrolan"}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const tambahKeProyekDari = (id: string) => {
@@ -343,6 +358,11 @@ export default function Home() {
           background: linear-gradient(135deg, #ff7a18, #ff9d4d); color: #0a0a0a; border: none;
           border-radius: 8px; padding: 10px 14px; font-weight: 600; cursor: pointer; font-size: 14px;
         }
+        .header-icon-btn {
+          width: 34px; height: 34px; border-radius: 8px; border: none; background: transparent;
+          color: #aaa; display: flex; align-items: center; justify-content: center; cursor: pointer;
+        }
+        .header-icon-btn:hover { background: #1a1a1a; color: #ff9d4d; }
         .nav-item {
           display: flex; align-items: center; gap: 12px; padding: 9px 8px;
           border-radius: 8px; cursor: pointer; font-size: 14.5px; color: #ddd;
@@ -659,6 +679,28 @@ export default function Home() {
               🌐 Pencarian web aktif
             </span>
           )}
+
+          <div style={{ display: "flex", gap: 4, marginLeft: webSearchOn ? 8 : "auto" }}>
+            <button className="header-icon-btn" onClick={eksporObrolan} title="Ekspor obrolan">
+              <IconDocument />
+            </button>
+            <button className="header-icon-btn" onClick={buatObrolanBaru} title="Obrolan baru">
+              <IconChatPlus />
+            </button>
+            <div style={{ position: "relative" }}>
+              <button className="header-icon-btn" onClick={() => setShowHeaderMenu((v) => !v)} title="Opsi">
+                <IconDots />
+              </button>
+              {showHeaderMenu && activeConversation && (
+                <div className="conv-menu-dropdown" style={{ top: 38 }} onClick={(e) => e.stopPropagation()}>
+                  <button className="conv-menu-item" onClick={() => { gantiNamaObrolan(activeConversation.id); setShowHeaderMenu(false); }}><IconEdit /> Ganti nama</button>
+                  <button className="conv-menu-item" onClick={() => { toggleSematkan(activeConversation.id); setShowHeaderMenu(false); }}><IconPin /> {activeConversation.pinned ? "Lepas sematan" : "Sematkan"}</button>
+                  <button className="conv-menu-item" onClick={() => { setShowHeaderMenu(false); tambahKeProyekDari(activeConversation.id); }}><IconFolder /> Tambahkan ke proyek</button>
+                  <button className="conv-menu-item danger" onClick={() => { setShowHeaderMenu(false); setConfirmDeleteId(activeConversation.id); }}><IconTrash /> Hapus</button>
+                </div>
+              )}
+            </div>
+          </div>
         </header>
 
         <div style={{ flex: 1, overflowY: "auto", padding: "16px" }}>
@@ -884,6 +926,32 @@ function IconChatBubble() {
   return (
     <svg {...iconProps} stroke="#aaa">
       <path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" />
+    </svg>
+  );
+}
+function IconDocument() {
+  return (
+    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8z" />
+      <path d="M14 3v5h5" />
+      <path d="M9 13h6M9 17h6" />
+    </svg>
+  );
+}
+function IconChatPlus() {
+  return (
+    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" />
+      <path d="M12 8v5M9.5 10.5h5" />
+    </svg>
+  );
+}
+function IconDots() {
+  return (
+    <svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor">
+      <circle cx="5" cy="12" r="1.8" />
+      <circle cx="12" cy="12" r="1.8" />
+      <circle cx="19" cy="12" r="1.8" />
     </svg>
   );
 }
