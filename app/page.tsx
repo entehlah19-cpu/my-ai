@@ -35,6 +35,7 @@ export default function Home() {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showHeaderMenu, setShowHeaderMenu] = useState(false);
+  const [activeNav, setActiveNav] = useState<"obrolan" | "proyek">("obrolan");
   const [isListening, setIsListening] = useState(false);
   const recognitionRef = useRef<any>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -476,6 +477,17 @@ export default function Home() {
         }
         .hamburger { display: none; }
 
+        .input-card {
+          max-width: 800px; margin: 0 auto; background: #161616;
+          border: 1px solid #333; border-radius: 20px; padding: 10px 12px 8px 12px;
+        }
+        .input-icon-btn {
+          width: 34px; height: 34px; border-radius: "50%"; border: none;
+          color: #ff9d4d; font-size: 16px; cursor: pointer; display: flex;
+          align-items: center; justify-content: center; border-radius: 50%;
+        }
+        .input-icon-btn:hover { background: #222 !important; }
+
         .emoji-picker {
           max-width: 800px; margin: 0 auto 8px auto; background: #161616;
           border: 1px solid #333; border-radius: 14px; padding: 10px;
@@ -505,32 +517,42 @@ export default function Home() {
 
         <div
           className="nav-item"
+          style={{ background: activeNav === "obrolan" ? "#1f1f1f" : "transparent" }}
           onClick={() => {
-            // "Obrolan" = tampilkan semua obrolan, buka semua grup proyek
+            setActiveNav("obrolan");
             setCollapsedProjects({});
+            setSearchQuery("");
           }}
         >
-          <IconChatBubble /> <span>Obrolan</span>
+          <span style={{ color: activeNav === "obrolan" ? "#ff9d4d" : "#aaa", display: "inline-flex" }}><IconChatBubble /></span>
+          <span style={{ color: activeNav === "obrolan" ? "#ff9d4d" : "#ddd" }}>Obrolan</span>
         </div>
         <div
           className="nav-item"
+          style={{ background: activeNav === "proyek" ? "#1f1f1f" : "transparent" }}
           onClick={() => {
-            // "Proyek" = buka picker untuk bikin/lihat proyek baru
+            setActiveNav("proyek");
             setShowProjectPicker(true);
           }}
         >
-          <span style={{ display: "inline-flex", color: "#aaa" }}><IconFolder /></span> <span>Proyek</span>
+          <span style={{ color: activeNav === "proyek" ? "#ff9d4d" : "#aaa", display: "inline-flex" }}><IconFolder /></span>
+          <span style={{ color: activeNav === "proyek" ? "#ff9d4d" : "#ddd" }}>Proyek</span>
         </div>
 
-        <input
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="🔍 Cari obrolan..."
-          style={{
-            margin: "6px 2px 4px 2px", padding: "8px 10px", borderRadius: 8, border: "1px solid #262626",
-            background: "#161616", color: "#f5f5f5", fontSize: 13, outline: "none",
-          }}
-        />
+        <div style={{ position: "relative", margin: "6px 2px 4px 2px" }}>
+          <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "#777" }}>
+            <IconSearch />
+          </span>
+          <input
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Cari obrolan..."
+            style={{
+              width: "100%", padding: "8px 10px 8px 32px", borderRadius: 8, border: "1px solid #262626",
+              background: "#161616", color: "#f5f5f5", fontSize: 13, outline: "none",
+            }}
+          />
+        </div>
 
         <div style={{ fontSize: 11, color: "#666", textTransform: "uppercase", letterSpacing: 0.5, padding: "14px 6px 8px 6px" }}>
           Terbaru
@@ -555,7 +577,7 @@ export default function Home() {
                       if (confirm(`Hapus proyek "${proj.name}"? Obrolan di dalamnya tidak akan terhapus.`)) hapusProyek(proj.id);
                     }}
                   >
-                    🗑️
+                    <IconTrash />
                   </button>
                 </div>
                 {!tertutup && (
@@ -763,50 +785,42 @@ export default function Home() {
             </div>
           )}
 
-          <div style={{ display: "flex", gap: 6, maxWidth: 800, margin: "0 auto" }}>
-            <button
-              onClick={() => setShowEmojiPicker((v) => !v)}
-              style={{ width: 42, height: 42, borderRadius: "50%", border: "1px solid #333", background: showEmojiPicker ? "#2a2015" : "#161616", color: "#ff9d4d", fontSize: 18, cursor: "pointer", flexShrink: 0 }}
-            >
-              😊
-            </button>
-            <button
-              onClick={() => setShowAttachSheet(true)}
-              style={{ width: 42, height: 42, borderRadius: "50%", border: "1px solid #333", background: "#161616", color: "#ff9d4d", fontSize: 20, cursor: "pointer", flexShrink: 0 }}
-            >
-              +
-            </button>
+          <div className="input-card">
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && kirimPesan()}
               placeholder="Ketik pesan..."
-              style={{ flex: 1, minWidth: 0, padding: "10px 14px", borderRadius: 24, border: "1px solid #333", background: "#161616", color: "#f5f5f5", outline: "none", fontSize: 15 }}
+              style={{ width: "100%", padding: "4px 4px 10px 4px", border: "none", background: "transparent", color: "#f5f5f5", outline: "none", fontSize: 16 }}
             />
-            <button
-              onClick={mulaiRekamSuara}
-              style={{
-                width: 42, height: 42, borderRadius: "50%", border: "1px solid #333",
-                background: isListening ? "#ff3b3b" : "#161616",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                cursor: "pointer", flexShrink: 0,
-                animation: isListening ? "pulse 1s infinite" : "none",
-              }}
-              title="Input suara"
-            >
-              <IconMic active={isListening} />
-            </button>
-            <button
-              onClick={kirimPesan}
-              disabled={loading}
-              style={{
-                background: "linear-gradient(135deg, #ff7a18, #ff9d4d)", color: "#0a0a0a", border: "none",
-                borderRadius: 24, padding: "0 18px", fontWeight: 600, cursor: loading ? "not-allowed" : "pointer",
-                opacity: loading ? 0.6 : 1, flexShrink: 0,
-              }}
-            >
-              Kirim
-            </button>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <button onClick={() => setShowEmojiPicker((v) => !v)} className="input-icon-btn" style={{ background: showEmojiPicker ? "#2a2015" : "transparent" }}>
+                😊
+              </button>
+              <button onClick={() => setShowAttachSheet(true)} className="input-icon-btn" style={{ fontSize: 20 }}>
+                +
+              </button>
+              <div style={{ flex: 1 }} />
+              <button
+                onClick={mulaiRekamSuara}
+                className="input-icon-btn"
+                style={{ background: isListening ? "#ff3b3b" : "transparent", animation: isListening ? "pulse 1s infinite" : "none" }}
+              >
+                <IconMic active={isListening} />
+              </button>
+              <button
+                onClick={kirimPesan}
+                disabled={loading}
+                style={{
+                  width: 38, height: 38, borderRadius: "50%",
+                  background: "linear-gradient(135deg, #ff7a18, #ff9d4d)", color: "#0a0a0a", border: "none",
+                  cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.6 : 1,
+                  display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                }}
+              >
+                <IconSend />
+              </button>
+            </div>
           </div>
         </div>
       </main>
@@ -926,6 +940,22 @@ function IconChatBubble() {
   return (
     <svg {...iconProps} stroke="#aaa">
       <path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" />
+    </svg>
+  );
+}
+function IconSearch() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="11" cy="11" r="7" />
+      <path d="M21 21l-4.3-4.3" />
+    </svg>
+  );
+}
+function IconSend() {
+  return (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#0a0a0a" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 19V5" />
+      <path d="M5 12l7-7 7 7" />
     </svg>
   );
 }
