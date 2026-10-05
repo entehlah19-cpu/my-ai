@@ -42,6 +42,8 @@ export default function Home() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const docInputRef = useRef<HTMLInputElement>(null);
+  const emojiWrapRef = useRef<HTMLDivElement>(null);
+  const headerMenuWrapRef = useRef<HTMLDivElement>(null);
 
   // --- Load & save data di localStorage ---
   useEffect(() => {
@@ -68,6 +70,25 @@ export default function Home() {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [conversations, activeId]);
+
+  // Tutup popup (emoji, menu titik-tiga, menu header) otomatis kalau klik di luar area-nya
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+
+      if (showEmojiPicker && emojiWrapRef.current && !emojiWrapRef.current.contains(target)) {
+        setShowEmojiPicker(false);
+      }
+      if (showHeaderMenu && headerMenuWrapRef.current && !headerMenuWrapRef.current.contains(target)) {
+        setShowHeaderMenu(false);
+      }
+      if (openMenuId && !target.closest(".conv-menu-wrap")) {
+        setOpenMenuId(null);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showEmojiPicker, showHeaderMenu, openMenuId]);
 
   const activeConversation = conversations.find((c) => c.id === activeId);
 
@@ -692,8 +713,8 @@ export default function Home() {
           </button>
           <span><span style={{ color: "#ff7a18" }}>My</span> AI</span>
           {activeConversation?.projectId && (
-            <span style={{ fontSize: 11, background: "#1f1f1f", color: "#aaa", padding: "3px 8px", borderRadius: 12 }}>
-              🗂️ {projects.find((p) => p.id === activeConversation.projectId)?.name}
+            <span style={{ fontSize: 11, background: "#1f1f1f", color: "#aaa", padding: "3px 10px", borderRadius: 12, display: "inline-flex", alignItems: "center", gap: 5 }}>
+              <IconFolderMini /> {projects.find((p) => p.id === activeConversation.projectId)?.name}
             </span>
           )}
           {webSearchOn && (
@@ -709,7 +730,7 @@ export default function Home() {
             <button className="header-icon-btn" onClick={buatObrolanBaru} title="Obrolan baru">
               <IconChatPlus />
             </button>
-            <div style={{ position: "relative" }}>
+            <div style={{ position: "relative" }} ref={headerMenuWrapRef}>
               <button className="header-icon-btn" onClick={() => setShowHeaderMenu((v) => !v)} title="Opsi">
                 <IconDots />
               </button>
@@ -775,30 +796,31 @@ export default function Home() {
           <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" style={{ display: "none" }} onChange={(e) => e.target.files?.[0] && handleFilePicked(e.target.files[0])} />
           <input ref={docInputRef} type="file" accept=".txt,.pdf,.docx" style={{ display: "none" }} onChange={(e) => e.target.files?.[0] && handleDocPicked(e.target.files[0])} />
 
-          {showEmojiPicker && (
-            <div className="emoji-picker">
-              {EMOJI_LIST.map((em) => (
-                <button key={em} className="emoji-item" onClick={() => tambahEmoji(em)}>
-                  {em}
-                </button>
-              ))}
-            </div>
-          )}
+          <div ref={emojiWrapRef}>
+            {showEmojiPicker && (
+              <div className="emoji-picker">
+                {EMOJI_LIST.map((em) => (
+                  <button key={em} className="emoji-item" onClick={() => tambahEmoji(em)}>
+                    {em}
+                  </button>
+                ))}
+              </div>
+            )}
 
-          <div className="input-card">
-            <input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && kirimPesan()}
-              placeholder="Ketik pesan..."
-              style={{ width: "100%", padding: "4px 4px 10px 4px", border: "none", background: "transparent", color: "#f5f5f5", outline: "none", fontSize: 16 }}
-            />
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <button onClick={() => setShowEmojiPicker((v) => !v)} className="input-icon-btn" style={{ background: showEmojiPicker ? "#2a2015" : "transparent" }}>
-                😊
-              </button>
-              <button onClick={() => setShowAttachSheet(true)} className="input-icon-btn" style={{ fontSize: 20 }}>
-                +
+            <div className="input-card">
+              <input
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && kirimPesan()}
+                placeholder="Ketik pesan..."
+                style={{ width: "100%", padding: "4px 4px 10px 4px", border: "none", background: "transparent", color: "#f5f5f5", outline: "none", fontSize: 16 }}
+              />
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <button onClick={() => setShowEmojiPicker((v) => !v)} className="input-icon-btn" style={{ background: showEmojiPicker ? "#2a2015" : "transparent" }}>
+                  😊
+                </button>
+                <button onClick={() => setShowAttachSheet(true)} className="input-icon-btn" style={{ fontSize: 20 }}>
+                  +
               </button>
               <div style={{ flex: 1 }} />
               <button
@@ -821,6 +843,7 @@ export default function Home() {
                 <IconSend />
               </button>
             </div>
+          </div>
           </div>
         </div>
       </main>
@@ -936,6 +959,13 @@ export default function Home() {
 /* ---- Ikon SVG ---- */
 const iconProps = { width: 20, height: 20, viewBox: "0 0 24 24", fill: "none", stroke: "#ff9d4d", strokeWidth: 1.8, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
 
+function IconFolderMini() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#aaa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+    </svg>
+  );
+}
 function IconChatBubble() {
   return (
     <svg {...iconProps} stroke="#aaa">
