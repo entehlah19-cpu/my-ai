@@ -321,7 +321,7 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userId: "user-1",
-          message: pesanUnTukAI,
+          message: pesanUntukAI,
           image: gambarUntukDikirim ? { mimeType: gambarUntukDikirim.mimeType, data: gambarUntukDikirim.data } : undefined,
           document:
             dokUntukDikirim?.kind === "binary"
