@@ -11,8 +11,8 @@ type PendingDoc =
   | { name: string; kind: "text"; text: string }
   | { name: string; kind: "binary"; mimeType: string; data: string };
 
-const MAX_IMAGE_SIZE_MB = 12;
-const MAX_DOC_SIZE_MB = 12;
+const MAX_IMAGE_SIZE_MB = 6;
+const MAX_DOC_SIZE_MB = 6;
 const DOC_MIME_PDF = "application/pdf";
 const DOC_MIME_DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
@@ -321,7 +321,7 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userId: "user-1",
-          message: pesanUntukAI,
+          message: pesanKeAI,
           image: gambarUntukDikirim ? { mimeType: gambarUntukDikirim.mimeType, data: gambarUntukDikirim.data } : undefined,
           document:
             dokUntukDikirim?.kind === "binary"
