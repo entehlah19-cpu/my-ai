@@ -60,10 +60,10 @@ async function ekstrakDokumen(doc: DocumentPart): Promise<string> {
   }
 }
 
-async function panggilGemini(prompt: string, image?: ImagePart): Promise<string> {
+async function panggilGemini(prompt: string, images: ImagePart[] = []): Promise<string> {
   const parts: any[] = [{ text: `${IDENTITAS}\n\n${prompt}` }];
-  if (image) {
-    parts.push({ inline_data: { mime_type: image.mimeType, data: image.data } });
+  for (const img of images) {
+    parts.push({ inline_data: { mime_type: img.mimeType, data: img.data } });
   }
 
   const res = await fetch(
@@ -123,13 +123,13 @@ async function panggilCloudflare(prompt: string): Promise<string> {
   return reply;
 }
 
-async function jawabDenganFallback(prompt: string, image?: ImagePart): Promise<string> {
+async function jawabDenganFallback(prompt: string, images: ImagePart[] = []): Promise<string> {
   try {
-    return await panggilGemini(prompt, image);
+    return await panggilGemini(prompt, images);
   } catch (err) {
     console.log("Gemini gagal, pindah ke Ollama:", (err as Error).message);
     try {
-      const promptFallback = image
+      const promptFallback = images.length > 0
         ? `${prompt}\n\n(Catatan: ada gambar terlampir, tapi model cadangan ini tidak bisa membaca gambar.)`
         : prompt;
       return await panggilOllama(promptFallback);
@@ -147,16 +147,23 @@ async function jawabDenganFallback(prompt: string, image?: ImagePart): Promise<s
 
 export async function POST(req: NextRequest) {
   try {
-    const { userId, message, image, document, history, webSearch } = await req.json();
+    const { userId, message, image, images, document, history, webSearch } = await req.json();
 
-    if (!userId || (!message && !image && !document)) {
+    // Kumpulkan gambar: dukung array "images" (maks 3) atau "image" tunggal versi lama
+    const daftarGambar: ImagePart[] = Array.isArray(images)
+      ? images.slice(0, 3)
+      : image
+      ? [image]
+      : [];
+
+    if (!userId || (!message && daftarGambar.length === 0 && !document)) {
       return NextResponse.json({ error: "userId dan message/gambar/file wajib diisi" }, { status: 400 });
     }
 
-    if (image?.data) {
-      const approxBytes = (image.data.length * 3) / 4;
+    for (const img of daftarGambar) {
+      const approxBytes = ((img.data?.length || 0) * 3) / 4;
       if (approxBytes > 4 * 1024 * 1024) {
-        return NextResponse.json({ error: "Ukuran gambar maksimal 4MB" }, { status: 400 });
+        return NextResponse.json({ error: "Ukuran tiap gambar maksimal 4MB" }, { status: 400 });
       }
     }
 
@@ -210,7 +217,7 @@ Pesan baru dari user: "${pesanUser}"
 
 Jawab secara natural, ringkas, dan langsung ke inti, sesuai konteks percakapan di atas.`;
 
-    const reply = await jawabDenganFallback(prompt, image);
+    const reply = await jawabDenganFallback(prompt, daftarGambar);
 
     extractFacts(pesanUser, reply, API_KEY)
       .then((facts) => {
