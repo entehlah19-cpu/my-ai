@@ -11,8 +11,8 @@ type PendingDoc =
   | { name: string; kind: "text"; text: string }
   | { name: string; kind: "binary"; mimeType: string; data: string };
 
-const MAX_IMAGE_SIZE_MB = 8;
-const MAX_DOC_SIZE_MB = 8;
+const MAX_IMAGE_SIZE_MB = 12;
+const MAX_DOC_SIZE_MB = 12;
 const DOC_MIME_PDF = "application/pdf";
 const DOC_MIME_DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
