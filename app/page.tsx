@@ -3,7 +3,9 @@
 import { useState, useEffect, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 
-type Message = { role: string; content: string; imagePreview?: string };
+type Message = { role: string; content: string; imagePreviews?: string[] };
+type PendingImg = { preview: string; mimeType: string; data: string };
+const MAX_IMAGES = 3;
 type Conversation = { id: string; title: string; messages: Message[]; projectId?: string; pinned?: boolean };
 type ProjectT = { id: string; name: string };
 
@@ -21,8 +23,9 @@ export default function Home() {
   const [projects, setProjects] = useState<ProjectT[]>([]);
   const [activeId, setActiveId] = useState<string>("");
   const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [pendingImage, setPendingImage] = useState<{ preview: string; mimeType: string; data: string } | null>(null);
+  const [loadingConvId, setLoadingConvId] = useState<string | null>(null);
+  const loading = loadingConvId === activeId;
+  const [pendingImages, setPendingImages] = useState<PendingImg[]>([]);
   const [pendingDoc, setPendingDoc] = useState<PendingDoc | null>(null);
   const [showAttachSheet, setShowAttachSheet] = useState(false);
   const [showProjectPicker, setShowProjectPicker] = useState(false);
@@ -184,24 +187,43 @@ export default function Home() {
   };
 
   // --- Upload gambar ---
-  const handleFilePicked = (file: File) => {
-    if (!file.type.startsWith("image/")) {
-      alert("Cuma gambar yang didukung di sini ya. Gunakan tombol 'File' untuk dokumen.");
+  const handleFilesPicked = (fileList: FileList) => {
+    const files = Array.from(fileList);
+    const sisaSlot = MAX_IMAGES - pendingImages.length;
+
+    if (sisaSlot <= 0) {
+      alert(`Maksimal ${MAX_IMAGES} gambar per pesan.`);
       return;
     }
-    if (file.size > MAX_IMAGE_SIZE_MB * 1024 * 1024) {
-      alert(`Ukuran gambar maksimal ${MAX_IMAGE_SIZE_MB}MB.`);
-      return;
+    if (files.length > sisaSlot) {
+      alert(`Maksimal ${MAX_IMAGES} gambar per pesan. Hanya ${sisaSlot} gambar pertama yang diambil.`);
     }
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result as string;
-      const [header, base64Data] = result.split(",");
-      const mimeType = header.match(/data:(.*);base64/)?.[1] || file.type;
-      setPendingImage({ preview: result, mimeType, data: base64Data });
-    };
-    reader.readAsDataURL(file);
+
+    files.slice(0, sisaSlot).forEach((file) => {
+      if (!file.type.startsWith("image/")) {
+        alert(`"${file.name}" bukan gambar. Gunakan tombol 'File' untuk dokumen.`);
+        return;
+      }
+      if (file.size > MAX_IMAGE_SIZE_MB * 1024 * 1024) {
+        alert(`"${file.name}" terlalu besar. Maksimal ${MAX_IMAGE_SIZE_MB}MB per gambar.`);
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        const [header, base64Data] = result.split(",");
+        const mimeType = header.match(/data:(.*);base64/)?.[1] || file.type;
+        setPendingImages((prev) =>
+          prev.length >= MAX_IMAGES ? prev : [...prev, { preview: result, mimeType, data: base64Data }]
+        );
+      };
+      reader.readAsDataURL(file);
+    });
     setShowAttachSheet(false);
+  };
+
+  const hapusGambarPending = (index: number) => {
+    setPendingImages((prev) => prev.filter((_, i) => i !== index));
   };
 
   // --- Upload dokumen (.txt langsung dibaca, .pdf/.docx dikirim ke server) ---
@@ -281,10 +303,19 @@ export default function Home() {
 
   // --- Kirim pesan ---
   const kirimPesan = async () => {
-    if ((!input.trim() && !pendingImage && !pendingDoc) || !activeId) return;
+    if ((!input.trim() && pendingImages.length === 0 && !pendingDoc) || !activeId) return;
+    // Jangan kirim lagi kalau obrolan ini masih menunggu jawaban
+    if (loadingConvId === activeId) return;
+
+    // Simpan ID obrolan SAAT pesan dikirim, supaya jawaban masuk ke obrolan yang benar
+    // walaupun user pindah ke obrolan lain selagi menunggu
+    const convId = activeId;
+    const riwayatUntukAI = (conversations.find((c) => c.id === convId)?.messages || [])
+      .slice(-10)
+      .map((m) => ({ role: m.role, content: m.content }));
 
     const teksInput = input;
-    const gambarUntukDikirim = pendingImage;
+    const gambarUntukDikirim = pendingImages;
     const dokUntukDikirim = pendingDoc;
 
     const pesanUntukAI =
@@ -294,18 +325,22 @@ export default function Home() {
 
     const pesanUser: Message = {
       role: "user",
-      content: teksInput || (gambarUntukDikirim ? "(gambar)" : `📄 ${dokUntukDikirim?.name}`),
-      imagePreview: gambarUntukDikirim?.preview,
+      content:
+        teksInput ||
+        (gambarUntukDikirim.length > 0
+          ? `(${gambarUntukDikirim.length} gambar)`
+          : `📄 ${dokUntukDikirim?.name}`),
+      imagePreviews: gambarUntukDikirim.length > 0 ? gambarUntukDikirim.map((g) => g.preview) : undefined,
     };
 
     setInput("");
-    setPendingImage(null);
+    setPendingImages([]);
     setPendingDoc(null);
-    setLoading(true);
+    setLoadingConvId(convId);
 
     setConversations((prev) =>
       prev.map((c) =>
-        c.id === activeId
+        c.id === convId
           ? {
               ...c,
               title: c.messages.length === 0 ? (teksInput || dokUntukDikirim?.name || "Gambar").slice(0, 30) : c.title,
@@ -322,20 +357,22 @@ export default function Home() {
         body: JSON.stringify({
           userId: "user-1",
           message: pesanUntukAI,
-          image: gambarUntukDikirim ? { mimeType: gambarUntukDikirim.mimeType, data: gambarUntukDikirim.data } : undefined,
+          images: gambarUntukDikirim.length > 0
+            ? gambarUntukDikirim.map((g) => ({ mimeType: g.mimeType, data: g.data }))
+            : undefined,
           document:
             dokUntukDikirim?.kind === "binary"
               ? { name: dokUntukDikirim.name, mimeType: dokUntukDikirim.mimeType, data: dokUntukDikirim.data }
               : undefined,
           webSearch: webSearchOn,
-          history: (activeConversation?.messages || []).slice(-10).map((m) => ({ role: m.role, content: m.content })),
+          history: riwayatUntukAI,
         }),
       });
       const data = await res.json();
 
       setConversations((prev) =>
         prev.map((c) =>
-          c.id === activeId
+          c.id === convId
             ? { ...c, messages: [...c.messages, { role: "assistant", content: data.reply || data.error || "Maaf, terjadi kesalahan." }] }
             : c
         )
@@ -343,13 +380,13 @@ export default function Home() {
     } catch (err) {
       setConversations((prev) =>
         prev.map((c) =>
-          c.id === activeId
+          c.id === convId
             ? { ...c, messages: [...c.messages, { role: "assistant", content: "Maaf, terjadi kesalahan. Coba lagi ya." }] }
             : c
         )
       );
     } finally {
-      setLoading(false);
+      setLoadingConvId((cur) => (cur === convId ? null : cur));
     }
   };
 
@@ -589,7 +626,7 @@ export default function Home() {
                 <div className="project-header" onClick={() => toggleCollapseProject(proj.id)}>
                   <div className="project-header-left">
                     <span>{tertutup ? "▸" : "▾"}</span>
-                    <span>🗂️ {proj.name}</span>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><IconFolderMini /> {proj.name}</span>
                   </div>
                   <button
                     className="project-delete-btn"
@@ -760,7 +797,25 @@ export default function Home() {
                     background: "linear-gradient(135deg, #ff7a18, #ff9d4d)", color: "#0a0a0a", wordBreak: "break-word",
                   }}
                 >
-                  {m.imagePreview && <img src={m.imagePreview} alt="lampiran" style={{ maxWidth: "100%", borderRadius: 8, marginBottom: 6, display: "block" }} />}
+                  {m.imagePreviews && m.imagePreviews.length > 0 && (
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
+                      {m.imagePreviews.map((src, idx) => (
+                        <img
+                          key={idx}
+                          src={src}
+                          alt={`lampiran ${idx + 1}`}
+                          style={{
+                            width: m.imagePreviews!.length === 1 ? "min(220px, 100%)" : "calc(33% - 4px)",
+                            maxHeight: m.imagePreviews!.length === 1 ? 220 : 110,
+                            minWidth: 70,
+                            objectFit: "cover",
+                            borderRadius: 10,
+                            display: "block",
+                          }}
+                        />
+                      ))}
+                    </div>
+                  )}
                   {m.content}
                 </div>
               </div>
@@ -777,11 +832,25 @@ export default function Home() {
         </div>
 
         <div style={{ padding: "12px 16px", borderTop: "1px solid #262626", position: "relative", paddingBottom: "calc(12px + env(safe-area-inset-bottom, 0px))" }}>
-          {pendingImage && (
-            <div style={{ maxWidth: 800, margin: "0 auto 10px", display: "flex", alignItems: "center", gap: 10 }}>
-              <img src={pendingImage.preview} alt="preview" style={{ width: 40, height: 40, objectFit: "cover", borderRadius: 8 }} />
-              <span style={{ fontSize: 13, color: "#aaa" }}>Gambar siap dikirim</span>
-              <button onClick={() => setPendingImage(null)} style={{ background: "none", border: "none", color: "#ff7a18", cursor: "pointer", fontSize: 13 }}>Hapus</button>
+          {pendingImages.length > 0 && (
+            <div style={{ maxWidth: 800, margin: "0 auto 10px", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              {pendingImages.map((img, idx) => (
+                <div key={idx} style={{ position: "relative" }}>
+                  <img src={img.preview} alt={`preview ${idx + 1}`} style={{ width: 52, height: 52, objectFit: "cover", borderRadius: 10, display: "block" }} />
+                  <button
+                    onClick={() => hapusGambarPending(idx)}
+                    style={{
+                      position: "absolute", top: -6, right: -6, width: 20, height: 20, borderRadius: "50%",
+                      background: "#333", color: "#fff", border: "1px solid #555", fontSize: 11, lineHeight: 1,
+                      cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0,
+                    }}
+                    title="Hapus gambar"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+              <span style={{ fontSize: 12, color: "#888" }}>{pendingImages.length}/{MAX_IMAGES} gambar</span>
             </div>
           )}
           {pendingDoc && (
@@ -792,8 +861,8 @@ export default function Home() {
             </div>
           )}
 
-          <input ref={fileInputRef} type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => e.target.files?.[0] && handleFilePicked(e.target.files[0])} />
-          <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" style={{ display: "none" }} onChange={(e) => e.target.files?.[0] && handleFilePicked(e.target.files[0])} />
+          <input ref={fileInputRef} type="file" accept="image/*" multiple style={{ display: "none" }} onChange={(e) => { if (e.target.files && e.target.files.length > 0) handleFilesPicked(e.target.files); e.target.value = ""; }} />
+          <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" style={{ display: "none" }} onChange={(e) => { if (e.target.files && e.target.files.length > 0) handleFilesPicked(e.target.files); e.target.value = ""; }} />
           <input ref={docInputRef} type="file" accept=".txt,.pdf,.docx" style={{ display: "none" }} onChange={(e) => e.target.files?.[0] && handleDocPicked(e.target.files[0])} />
 
           <div ref={emojiWrapRef}>
@@ -935,7 +1004,7 @@ export default function Home() {
 
           {projects.map((p) => (
             <div key={p.id} className="project-picker-item" onClick={() => pindahKeProyek(p.id)}>
-              <span>🗂️ {p.name}</span>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><IconFolderMini /> {p.name}</span>
               {activeConversation?.projectId === p.id && <span style={{ color: "#ff9d4d" }}>✓</span>}
             </div>
           ))}
