@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 
-type Message = { role: string; content: string; imagePreviews?: string[] };
+type Message = { role: string; content: string; imagePreviews?: string[]; imagePreview?: string };
 type PendingImg = { preview: string; mimeType: string; data: string };
 const MAX_IMAGES = 3;
 type Conversation = { id: string; title: string; messages: Message[]; projectId?: string; pinned?: boolean };
@@ -23,8 +23,8 @@ export default function Home() {
   const [projects, setProjects] = useState<ProjectT[]>([]);
   const [activeId, setActiveId] = useState<string>("");
   const [input, setInput] = useState("");
-  const [loadingConvId, setLoadingConvId] = useState<string | null>(null);
-  const loading = loadingConvId === activeId;
+  const [loadingIds, setLoadingIds] = useState<string[]>([]);
+  const loading = loadingIds.includes(activeId);
   const [pendingImages, setPendingImages] = useState<PendingImg[]>([]);
   const [pendingDoc, setPendingDoc] = useState<PendingDoc | null>(null);
   const [showAttachSheet, setShowAttachSheet] = useState(false);
@@ -305,14 +305,14 @@ export default function Home() {
   const kirimPesan = async () => {
     if ((!input.trim() && pendingImages.length === 0 && !pendingDoc) || !activeId) return;
     // Jangan kirim lagi kalau obrolan ini masih menunggu jawaban
-    if (loadingConvId === activeId) return;
+    if (loadingIds.includes(activeId)) return;
 
     // Simpan ID obrolan SAAT pesan dikirim, supaya jawaban masuk ke obrolan yang benar
     // walaupun user pindah ke obrolan lain selagi menunggu
     const convId = activeId;
     const riwayatUntukAI = (conversations.find((c) => c.id === convId)?.messages || [])
       .slice(-10)
-      .map((m) => ({ role: m.role, content: m.content }));
+      .map((m) => ({ role: m.role, content: m.content || "(user mengirim gambar)" }));
 
     const teksInput = input;
     const gambarUntukDikirim = pendingImages;
@@ -325,18 +325,14 @@ export default function Home() {
 
     const pesanUser: Message = {
       role: "user",
-      content:
-        teksInput ||
-        (gambarUntukDikirim.length > 0
-          ? `(${gambarUntukDikirim.length} gambar)`
-          : `📄 ${dokUntukDikirim?.name}`),
+      content: teksInput || (gambarUntukDikirim.length > 0 ? "" : `📄 ${dokUntukDikirim?.name}`),
       imagePreviews: gambarUntukDikirim.length > 0 ? gambarUntukDikirim.map((g) => g.preview) : undefined,
     };
 
     setInput("");
     setPendingImages([]);
     setPendingDoc(null);
-    setLoadingConvId(convId);
+    setLoadingIds((prev) => [...prev, convId]);
 
     setConversations((prev) =>
       prev.map((c) =>
@@ -386,7 +382,7 @@ export default function Home() {
         )
       );
     } finally {
-      setLoadingConvId((cur) => (cur === convId ? null : cur));
+      setLoadingIds((prev) => prev.filter((id) => id !== convId));
     }
   };
 
@@ -789,35 +785,43 @@ export default function Home() {
           )}
           {activeConversation?.messages.map((m, i) =>
             m.role === "user" ? (
-              <div key={i} style={{ display: "flex", justifyContent: "flex-end", marginBottom: 16 }}>
-                <div
-                  className="msg-content"
-                  style={{
-                    maxWidth: "92%", padding: "12px 18px", borderRadius: 16, fontSize: 16.5, lineHeight: 1.6,
-                    background: "linear-gradient(135deg, #ff7a18, #ff9d4d)", color: "#0a0a0a", wordBreak: "break-word",
-                  }}
-                >
-                  {m.imagePreviews && m.imagePreviews.length > 0 && (
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
-                      {m.imagePreviews.map((src, idx) => (
+              <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8, marginBottom: 16 }}>
+                {(() => {
+                  const daftar = m.imagePreviews ?? (m.imagePreview ? [m.imagePreview] : []);
+                  if (daftar.length === 0) return null;
+                  const tunggal = daftar.length === 1;
+                  return (
+                    <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "flex-end", gap: 6, maxWidth: "92%" }}>
+                      {daftar.map((src, idx) => (
                         <img
                           key={idx}
                           src={src}
                           alt={`lampiran ${idx + 1}`}
                           style={{
-                            width: m.imagePreviews!.length === 1 ? "min(220px, 100%)" : "calc(33% - 4px)",
-                            maxHeight: m.imagePreviews!.length === 1 ? 220 : 110,
-                            minWidth: 70,
+                            width: tunggal ? 220 : 100,
+                            height: tunggal ? 220 : 100,
+                            maxWidth: "100%",
                             objectFit: "cover",
-                            borderRadius: 10,
+                            borderRadius: 14,
+                            border: "1px solid #2a2a2a",
                             display: "block",
                           }}
                         />
                       ))}
                     </div>
-                  )}
-                  {m.content}
-                </div>
+                  );
+                })()}
+                {m.content && !/^\(\d*\s*gambar\)$/.test(m.content) && (
+                  <div
+                    className="msg-content"
+                    style={{
+                      maxWidth: "92%", padding: "12px 18px", borderRadius: 16, fontSize: 16.5, lineHeight: 1.6,
+                      background: "linear-gradient(135deg, #ff7a18, #ff9d4d)", color: "#0a0a0a", wordBreak: "break-word",
+                    }}
+                  >
+                    {m.content}
+                  </div>
+                )}
               </div>
             ) : (
               <div key={i} style={{ marginBottom: 20 }}>
