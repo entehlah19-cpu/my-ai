@@ -27,6 +27,9 @@ export default function Home() {
   const loading = loadingIds.includes(activeId);
   const [pendingImages, setPendingImages] = useState<PendingImg[]>([]);
   const [pendingDoc, setPendingDoc] = useState<PendingDoc | null>(null);
+  const [pendingLink, setPendingLink] = useState<string | null>(null);
+  const [showLinkSheet, setShowLinkSheet] = useState(false);
+  const [linkInput, setLinkInput] = useState("");
   const [showAttachSheet, setShowAttachSheet] = useState(false);
   const [showProjectPicker, setShowProjectPicker] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
@@ -301,9 +304,24 @@ export default function Home() {
     setIsListening(true);
   };
 
+  const simpanLink = () => {
+    let url = linkInput.trim();
+    if (!url) return;
+    if (!/^https?:\/\//i.test(url)) url = "https://" + url;
+    try {
+      new URL(url);
+    } catch {
+      alert("Link tidak valid. Contoh: https://contoh.com/artikel");
+      return;
+    }
+    setPendingLink(url);
+    setLinkInput("");
+    setShowLinkSheet(false);
+  };
+
   // --- Kirim pesan ---
   const kirimPesan = async () => {
-    if ((!input.trim() && pendingImages.length === 0 && !pendingDoc) || !activeId) return;
+    if ((!input.trim() && pendingImages.length === 0 && !pendingDoc && !pendingLink) || !activeId) return;
     // Jangan kirim lagi kalau obrolan ini masih menunggu jawaban
     if (loadingIds.includes(activeId)) return;
 
@@ -317,6 +335,7 @@ export default function Home() {
     const teksInput = input;
     const gambarUntukDikirim = pendingImages;
     const dokUntukDikirim = pendingDoc;
+    const linkUntukDikirim = pendingLink;
 
     const pesanUntukAI =
       dokUntukDikirim?.kind === "text"
@@ -325,13 +344,16 @@ export default function Home() {
 
     const pesanUser: Message = {
       role: "user",
-      content: teksInput || (gambarUntukDikirim.length > 0 ? "" : `📄 ${dokUntukDikirim?.name}`),
+      content:
+        [teksInput, linkUntukDikirim ? `🔗 ${linkUntukDikirim}` : ""].filter(Boolean).join("\n") ||
+        (gambarUntukDikirim.length > 0 ? "" : `📄 ${dokUntukDikirim?.name}`),
       imagePreviews: gambarUntukDikirim.length > 0 ? gambarUntukDikirim.map((g) => g.preview) : undefined,
     };
 
     setInput("");
     setPendingImages([]);
     setPendingDoc(null);
+    setPendingLink(null);
     setLoadingIds((prev) => [...prev, convId]);
 
     setConversations((prev) =>
@@ -339,7 +361,7 @@ export default function Home() {
         c.id === convId
           ? {
               ...c,
-              title: c.messages.length === 0 ? (teksInput || dokUntukDikirim?.name || "Gambar").slice(0, 30) : c.title,
+              title: c.messages.length === 0 ? (teksInput || dokUntukDikirim?.name || linkUntukDikirim || "Gambar").slice(0, 30) : c.title,
               messages: [...c.messages, pesanUser],
             }
           : c
@@ -360,6 +382,7 @@ export default function Home() {
             dokUntukDikirim?.kind === "binary"
               ? { name: dokUntukDikirim.name, mimeType: dokUntukDikirim.mimeType, data: dokUntukDikirim.data }
               : undefined,
+          link: linkUntukDikirim || undefined,
           webSearch: webSearchOn,
           history: riwayatUntukAI,
         }),
@@ -816,7 +839,7 @@ export default function Home() {
                     className="msg-content"
                     style={{
                       maxWidth: "92%", padding: "12px 18px", borderRadius: 16, fontSize: 16.5, lineHeight: 1.6,
-                      background: "linear-gradient(135deg, #ff7a18, #ff9d4d)", color: "#0a0a0a", wordBreak: "break-word",
+                      background: "linear-gradient(135deg, #ff7a18, #ff9d4d)", color: "#0a0a0a", wordBreak: "break-word", whiteSpace: "pre-wrap",
                     }}
                   >
                     {m.content}
@@ -855,6 +878,13 @@ export default function Home() {
                 </div>
               ))}
               <span style={{ fontSize: 12, color: "#888" }}>{pendingImages.length}/{MAX_IMAGES} gambar</span>
+            </div>
+          )}
+          {pendingLink && (
+            <div style={{ maxWidth: 800, margin: "0 auto 10px", display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ display: "inline-flex", color: "#ff9d4d" }}><IconLink /></span>
+              <span style={{ fontSize: 13, color: "#aaa", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "70%" }}>{pendingLink}</span>
+              <button onClick={() => setPendingLink(null)} style={{ background: "none", border: "none", color: "#ff7a18", cursor: "pointer", fontSize: 13 }}>Hapus</button>
             </div>
           )}
           {pendingDoc && (
@@ -971,10 +1001,13 @@ export default function Home() {
             </button>
           </div>
 
-          <div className="sheet-row" onClick={() => alert("Fitur konektor segera hadir!")}>
+          <div className="sheet-row" onClick={() => { setShowAttachSheet(false); setShowLinkSheet(true); }}>
             <div className="sheet-row-left">
               <div className="icon-circle-sm"><IconLink /></div>
-              <div style={{ fontWeight: 500 }}>Konektor</div>
+              <div>
+                <div style={{ fontWeight: 500 }}>Konektor</div>
+                <div style={{ fontSize: 12, color: "#888" }}>Baca isi halaman dari link</div>
+              </div>
             </div>
             <IconChevron />
           </div>
@@ -995,6 +1028,26 @@ export default function Home() {
       </div>
 
       {/* ===== BOTTOM SHEET: Pilih / Buat Proyek ===== */}
+      <div className={`sheet-backdrop ${showLinkSheet ? "open" : ""}`} onClick={() => setShowLinkSheet(false)}>
+        <div className="sheet" onClick={(e) => e.stopPropagation()}>
+          <div className="sheet-handle" />
+          <div style={{ textAlign: "center", fontWeight: 700, fontSize: 17, marginBottom: 6 }}>Konektor link</div>
+          <div style={{ textAlign: "center", fontSize: 13, color: "#888", marginBottom: 16 }}>
+            Tempel link artikel atau halaman web, lalu tanya apa saja soal isinya.
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <input
+              className="project-picker-input"
+              placeholder="https://..."
+              value={linkInput}
+              onChange={(e) => setLinkInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && simpanLink()}
+            />
+            <button className="sidebar-btn" onClick={simpanLink}>Tambah</button>
+          </div>
+        </div>
+      </div>
+
       <div className={`sheet-backdrop ${showProjectPicker ? "open" : ""}`} onClick={() => setShowProjectPicker(false)}>
         <div className="sheet" onClick={(e) => e.stopPropagation()}>
           <div className="sheet-handle" />
