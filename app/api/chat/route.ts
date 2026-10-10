@@ -10,7 +10,7 @@ const CLOUDFLARE_ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID;
 const CLOUDFLARE_MODEL = "@cf/meta/llama-3.1-8b-instruct";
 const SERPER_API_KEY = process.env.SERPER_API_KEY;
 
-const IDENTITAS = `Kamu adalah "My AI", asisten AI pribadi. Jika ditanya siapa kamu atau model apa yang sedang diajak bicara, selalu jawab bahwa kamu adalah "My AI". Jangan menyebut nama model asli di baliknya (seperti Gemini, Llama, GPT, dll), sebutkan hanya "My AI".dan juga jika di tanya kamu dari api key apa kamu jawabnya dengan lembut dan menggunakan bahasa sendiri yaitu kami menggunakan ai yg tidak di buat dari nol tapi kami lanjutkan permergroman dengan jutaan kode di latih sampai menjadi "My AI". dan di atur oleh "team My AI" dan kamu di buat oleh my ai studio dan orang yang terkenal dengan fitur dari my ai adalah "dafi" ia berkontribusi besar dalam proyek "My AI". dan "My AI" adalah ai model yang berbasis cloud yang di kembangkan oleh "team my ai" dan bukan ai local yang berjalan di perangkat anda.`;
+const IDENTITAS = `Kamu adalah "My AI", asisten AI pribadi. Jika ditanya siapa kamu atau model apa yang sedang diajak bicara, selalu jawab bahwa kamu adalah "My AI". Jangan menyebut nama model asli di baliknya (seperti Gemini, Llama, GPT, dll), sebutkan hanya "My AI".`;
 
 type ImagePart = { mimeType: string; data: string };
 type DocumentPart = { name: string; mimeType: string; data: string };
@@ -123,25 +123,47 @@ async function panggilCloudflare(prompt: string): Promise<string> {
   return reply;
 }
 
-async function jawabDenganFallback(prompt: string, images: ImagePart[] = []): Promise<string> {
+// Coba Gemini; kalau error "sibuk" (503), tunggu sebentar lalu coba sekali lagi
+async function panggilGeminiDenganUlang(prompt: string, images: ImagePart[]): Promise<string> {
   try {
     return await panggilGemini(prompt, images);
   } catch (err) {
-    console.log("Gemini gagal, pindah ke Ollama:", (err as Error).message);
-    try {
-      const promptFallback = images.length > 0
-        ? `${prompt}\n\n(Catatan: ada gambar terlampir, tapi model cadangan ini tidak bisa membaca gambar.)`
-        : prompt;
-      return await panggilOllama(promptFallback);
-    } catch (err2) {
-      console.log("Ollama gagal, pindah ke Cloudflare:", (err2 as Error).message);
-      try {
-        return await panggilCloudflare(prompt);
-      } catch (err3) {
-        console.log("Cloudflare juga gagal:", (err3 as Error).message);
-        return "Maaf, AI sedang sibuk banget. Coba lagi sebentar ya 🙏";
-      }
+    if ((err as Error).message.includes("status 503")) {
+      await new Promise((r) => setTimeout(r, 1500));
+      return await panggilGemini(prompt, images);
     }
+    throw err;
+  }
+}
+
+async function jawabDenganFallback(prompt: string, images: ImagePart[] = []): Promise<string> {
+  let alasan = "";
+  try {
+    return await panggilGeminiDenganUlang(prompt, images);
+  } catch (err) {
+    alasan = (err as Error).message;
+    console.log("Gemini gagal:", alasan);
+  }
+
+  // Model cadangan tidak bisa membaca gambar, jadi beri tahu dengan jujur
+  if (images.length > 0) {
+    return `Gambar belum bisa dibaca karena Gemini sedang bermasalah (${alasan}). Coba kirim ulang sebentar lagi.`;
+  }
+
+  // Catatan kecil di akhir jawaban supaya kelihatan kenapa Gemini tidak dipakai
+  const catatan = `\n\n_(Dijawab model cadangan. ${alasan})_`;
+
+  try {
+    return (await panggilOllama(prompt)) + catatan;
+  } catch (err2) {
+    console.log("Ollama gagal, pindah ke Cloudflare:", (err2 as Error).message);
+  }
+
+  try {
+    return (await panggilCloudflare(prompt)) + catatan;
+  } catch (err3) {
+    console.log("Cloudflare juga gagal:", (err3 as Error).message);
+    return `Maaf, semua AI sedang sibuk. Coba lagi sebentar ya. (${alasan})`;
   }
 }
 
