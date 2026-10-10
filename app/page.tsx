@@ -406,7 +406,7 @@ export default function Home() {
       setConversations((prev) =>
         prev.map((c) =>
           c.id === convId
-            ? { ...c, messages: [...c.messages, { role: "assistant", content: "Maaf, terjadi kesalahan. Coba lagi ya." }] }
+            ? { ...c, messages: [...c.messages, { role: "assistant", content: "Maaf, terjadi kesalahan. Coba lagi ya, pastikan tunggu sampai my ai menjawab." }] }
             : c
         )
       );
@@ -781,7 +781,7 @@ export default function Home() {
           )}
           {webSearchOn && (
             <span style={{ fontSize: 11, background: "#1f1f1f", color: "#ff9d4d", padding: "3px 8px", borderRadius: 12, marginLeft: "auto" }}>
-              🌐 Pencarian web aktif
+               Pencarian web aktif
             </span>
           )}
 
