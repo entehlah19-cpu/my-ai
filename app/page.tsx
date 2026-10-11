@@ -41,6 +41,7 @@ export default function Home() {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showHeaderMenu, setShowHeaderMenu] = useState(false);
+  const [modeKode, setModeKode] = useState(false);
   const [activeNav, setActiveNav] = useState<"obrolan" | "proyek">("obrolan");
   const [isListening, setIsListening] = useState(false);
   const recognitionRef = useRef<any>(null);
@@ -268,14 +269,8 @@ export default function Home() {
     "😊", "😇", "🥰", "😍", "😘", "😋", "😜", "🤗", "🤔", "😎",
     "🥳", "😭", "😢", "😤", "😡", "🥺", "😴", "🤯", "👍", "👎",
     "🙏", "👏", "🔥", "✨", "🎉", "❤️", "💡", "✅", "❌", "🤖",
-    "🤭", "🤮", "🫡", "🤕", "🥱", "😝", "😹", "😝", "😈", "💯",
-    "☠️", "💣", "🤟", "🦏", "🧠", "🤷‍♂️", "👽", "👻", "💖", "🍈",
-    "😏", "😵‍💫", "🎄", "🏀", "🍆", "🎲", "🍑", "🍼", "🎰", "🍫",
-    "🎮", "☕️", "🎭", "🧶", "🍺", "🍵", "🌏", "🏖", "🏕", "🏥",
-    "🏴", "🚩", "🏳", "🏁", "🎁", "🥇", "🥈", "🥉", "🥋", "🥊",
-    "🏫", "🏰", "🏭", "🌁", "🗽", "🌌", "🌊", "❄️", "🐒", "🐷",
-    "🐷", "🐴", "🦍", "🐔", "🦅", "🐲", "🐶", "👑", "🦧", "🪷",
-    ];
+  ];
+
   const tambahEmoji = (emoji: string) => {
     setInput((prev) => prev + emoji);
   };
@@ -389,6 +384,7 @@ export default function Home() {
               ? { name: dokUntukDikirim.name, mimeType: dokUntukDikirim.mimeType, data: dokUntukDikirim.data }
               : undefined,
           link: linkUntukDikirim || undefined,
+          mode: modeKode ? "kode" : "chat",
           webSearch: webSearchOn,
           history: riwayatUntukAI,
         }),
@@ -406,7 +402,7 @@ export default function Home() {
       setConversations((prev) =>
         prev.map((c) =>
           c.id === convId
-            ? { ...c, messages: [...c.messages, { role: "assistant", content: "Maaf, terjadi kesalahan. Coba lagi ya, pastikan tunggu sampai my ai menjawab." }] }
+            ? { ...c, messages: [...c.messages, { role: "assistant", content: "Maaf, terjadi kesalahan. Coba lagi ya." }] }
             : c
         )
       );
@@ -571,6 +567,11 @@ export default function Home() {
         }
         .input-icon-btn:hover { background: #222 !important; }
 
+        .code-block { background: #0d0d0d; border: 1px solid #2a2a2a; border-radius: 12px; margin: 10px 0; overflow: hidden; }
+        .code-head { display: flex; justify-content: space-between; align-items: center; padding: 6px 12px; background: #161616; font-size: 12px; color: #888; }
+        .code-head button { background: none; border: 1px solid #333; color: #ff9d4d; border-radius: 6px; padding: 3px 10px; font-size: 12px; cursor: pointer; }
+        .msg-content .code-block pre { margin: 0; background: transparent; padding: 12px; overflow-x: auto; font-size: 13.5px; line-height: 1.5; }
+
         .emoji-picker {
           max-width: 800px; margin: 0 auto 8px auto; background: #161616;
           border: 1px solid #333; border-radius: 14px; padding: 10px;
@@ -620,6 +621,15 @@ export default function Home() {
         >
           <span style={{ color: activeNav === "proyek" ? "#ff9d4d" : "#aaa", display: "inline-flex" }}><IconFolder /></span>
           <span style={{ color: activeNav === "proyek" ? "#ff9d4d" : "#ddd" }}>Proyek</span>
+        </div>
+        <div
+          className="nav-item"
+          style={{ background: modeKode ? "#1f1f1f" : "transparent" }}
+          onClick={() => { setModeKode((v) => !v); setSidebarOpen(false); }}
+        >
+          <span style={{ color: modeKode ? "#ff9d4d" : "#aaa", display: "inline-flex" }}><IconCode /></span>
+          <span style={{ color: modeKode ? "#ff9d4d" : "#ddd" }}>Kode</span>
+          {modeKode && <span style={{ marginLeft: "auto", fontSize: 11, color: "#ff9d4d" }}>Aktif</span>}
         </div>
 
         <div style={{ position: "relative", margin: "6px 2px 4px 2px" }}>
@@ -779,9 +789,14 @@ export default function Home() {
               <IconFolderMini /> {projects.find((p) => p.id === activeConversation.projectId)?.name}
             </span>
           )}
+          {modeKode && (
+            <span style={{ fontSize: 11, background: "#1f1f1f", color: "#ff9d4d", padding: "3px 8px", borderRadius: 12, display: "inline-flex", alignItems: "center", gap: 4 }}>
+              <IconCode /> Mode Kode
+            </span>
+          )}
           {webSearchOn && (
             <span style={{ fontSize: 11, background: "#1f1f1f", color: "#ff9d4d", padding: "3px 8px", borderRadius: 12, marginLeft: "auto" }}>
-               Pencarian web aktif
+              🌐 Pencarian web aktif
             </span>
           )}
 
@@ -855,7 +870,7 @@ export default function Home() {
             ) : (
               <div key={i} style={{ marginBottom: 20 }}>
                 <div className="msg-content" style={{ fontSize: 16.5, lineHeight: 1.65, color: "#f0f0f0", wordBreak: "break-word" }}>
-                  <ReactMarkdown>{m.content}</ReactMarkdown>
+                  <ReactMarkdown components={komponenMarkdown}>{m.content}</ReactMarkdown>
                 </div>
               </div>
             )
@@ -1102,6 +1117,47 @@ function IconChatBubble() {
   return (
     <svg {...iconProps} stroke="#aaa">
       <path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" />
+    </svg>
+  );
+}
+function BlokKode({ bahasa, teks }: { bahasa?: string; teks: string }) {
+  const [tersalin, setTersalin] = useState(false);
+  const salin = async () => {
+    try {
+      await navigator.clipboard.writeText(teks);
+      setTersalin(true);
+      setTimeout(() => setTersalin(false), 1500);
+    } catch {
+      alert("Tidak bisa menyalin otomatis. Tahan dan salin manual ya.");
+    }
+  };
+  return (
+    <div className="code-block">
+      <div className="code-head">
+        <span>{bahasa || "kode"}</span>
+        <button onClick={salin}>{tersalin ? "Tersalin ✓" : "Salin"}</button>
+      </div>
+      <pre><code>{teks}</code></pre>
+    </div>
+  );
+}
+
+const komponenMarkdown: any = {
+  pre: ({ children }: any) => <>{children}</>,
+  code: ({ className, children }: any) => {
+    const teks = String(children ?? "").replace(/\n$/, "");
+    const bahasa = /language-([\w-]+)/.exec(className || "")?.[1];
+    if (!bahasa && !teks.includes("\n")) return <code>{children}</code>;
+    return <BlokKode bahasa={bahasa} teks={teks} />;
+  },
+};
+
+function IconCode() {
+  return (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M8 7l-5 5 5 5" />
+      <path d="M16 7l5 5-5 5" />
+      <path d="M14 4l-4 16" />
     </svg>
   );
 }
