@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { retrieveRelevantMemories, extractFacts, saveFacts } from "../../../lib/memory";
 
+export const maxDuration = 60;
+
 const GEMINI_MODEL = "gemini-3.6-flash";
 const API_KEY = process.env.GEMINI_API_KEY;
 const LLAMA_API_KEY = process.env.LLAMA_API_KEY;
@@ -10,7 +12,7 @@ const CLOUDFLARE_ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID;
 const CLOUDFLARE_MODEL = "@cf/meta/llama-3.1-8b-instruct";
 const SERPER_API_KEY = process.env.SERPER_API_KEY;
 
-const IDENTITAS = `Kamu adalah "My AI", asisten AI pribadi. Jika ditanya siapa kamu atau model apa yang sedang diajak bicara, selalu jawab bahwa kamu adalah "My AI". Jangan menyebut nama model asli di baliknya (seperti Gemini, Llama, GPT, dll), sebutkan hanya "My AI".dan juga jika di tanya kamu dari api key apa kamu jawabnya dengan lembut dan menggunakan bahasa sendiri yaitu kami menggunakan ai yg tidak di buat dari nol tapi kami lanjutkan permergroman dengan jutaan kode di latih sampai menjadi "My AI". dan di atur oleh "team My AI" dan kamu di buat oleh my ai studio dan orang yang terkenal dengan fitur dari my ai adalah "dafi" ia berkontribusi besar dalam proyek "My AI". dan "My AI" adalah ai model yang berbasis cloud yang di kembangkan oleh "team my ai" dan bukan ai local yang berjalan di perangkat anda.`;
+const IDENTITAS = `Kamu adalah "My AI", asisten AI pribadi. Jika ditanya siapa kamu atau model apa yang sedang diajak bicara, selalu jawab bahwa kamu adalah "My AI". Jangan menyebut nama model asli di baliknya (seperti Gemini, Llama, GPT, dll), sebutkan hanya "My AI".`;
 
 type ImagePart = { mimeType: string; data: string };
 type DocumentPart = { name: string; mimeType: string; data: string };
@@ -159,35 +161,70 @@ async function panggilGemini(prompt: string, images: ImagePart[] = []): Promise<
   return reply;
 }
 
-async function panggilOllama(prompt: string): Promise<string> {
+const PETUNJUK_KODE = `Kamu sedang dalam MODE KODE. Bantu seperti programmer senior yang sabar. Aturan: (1) tulis kode di dalam blok kode markdown dengan nama bahasanya; (2) kode harus lengkap dan bisa langsung dijalankan, jangan dipotong atau diganti dengan "dst"; (3) jelaskan singkat apa yang dilakukan kode dan bagian mana yang perlu disesuaikan; (4) kalau user menempelkan error, jelaskan penyebabnya dulu, baru beri perbaikan; (5) sebutkan risiko keamanan atau kesalahan umum kalau relevan; (6) penjelasan pakai Bahasa Indonesia, nama variabel dan komentar kode boleh Inggris.`;
+
+// Urutan model Ollama Cloud yang dicoba (nama awalan; yang dipakai hanya yang benar-benar tersedia di akunmu)
+const KANDIDAT_TEKS = ["gpt-oss:120b", "gpt-oss"];
+const KANDIDAT_KODE = ["qwen3-coder:480b", "qwen3-coder-next", "glm-4.7", "minimax-m2.5", "gpt-oss:120b"];
+const KANDIDAT_GAMBAR = ["qwen3.5:397b", "qwen3.5", "gemma4:31b", "gemma4", "kimi-k2.5", "gemini-3-flash-preview", "ministral-3:14b"];
+
+let cacheModelOllama: string[] | null = null;
+
+async function daftarModelOllama(): Promise<string[]> {
+  if (cacheModelOllama) return cacheModelOllama;
+  try {
+    const res = await fetch("https://ollama.com/api/tags", {
+      headers: { Authorization: `Bearer ${LLAMA_API_KEY}` },
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    const nama: string[] = (data.models || []).map((m: any) => m.name || m.model).filter(Boolean);
+    if (nama.length > 0) cacheModelOllama = nama;
+    return nama;
+  } catch {
+    return [];
+  }
+}
+
+// Susun daftar model yang akan dicoba, sesuai urutan kesukaan
+async function urutanModel(kandidat: string[]): Promise<string[]> {
+  const tersedia = await daftarModelOllama();
+  if (tersedia.length === 0) return kandidat.filter((k) => k.includes(":")); // tebakan kalau daftar tidak bisa diambil
+  const hasil: string[] = [];
+  for (const k of kandidat) {
+    for (const n of tersedia) {
+      if ((n === k || n.startsWith(k + ":")) && !hasil.includes(n)) hasil.push(n);
+    }
+  }
+  return hasil;
+}
+
+async function panggilOllamaModel(model: string, prompt: string, system: string, images: ImagePart[]): Promise<string> {
+  const pesanUser: any = { role: "user", content: prompt };
+  if (images.length > 0) pesanUser.images = images.map((img) => img.data);
+
   const res = await fetch("https://ollama.com/api/chat", {
     method: "POST",
-    headers: { "Authorization": `Bearer ${LLAMA_API_KEY}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: OLLAMA_MODEL,
-      messages: [
-        { role: "system", content: IDENTITAS },
-        { role: "user", content: prompt },
-      ],
-      stream: false,
-    }),
+    headers: { Authorization: `Bearer ${LLAMA_API_KEY}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ model, messages: [{ role: "system", content: system }, pesanUser], stream: false }),
+    signal: AbortSignal.timeout(35000),
   });
-  if (!res.ok) throw new Error(`Ollama gagal dengan status ${res.status}`);
+  if (!res.ok) throw new Error(`Ollama (${model}) gagal dengan status ${res.status}`);
   const data = await res.json();
   const reply = data?.message?.content?.trim();
-  if (!reply) throw new Error("Ollama tidak mengembalikan jawaban");
+  if (!reply) throw new Error(`Ollama (${model}) tidak mengembalikan jawaban`);
   return reply;
 }
 
-async function panggilCloudflare(prompt: string): Promise<string> {
+async function panggilCloudflare(prompt: string, system: string): Promise<string> {
   const res = await fetch(
     `https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/ai/run/${CLOUDFLARE_MODEL}`,
     {
       method: "POST",
-      headers: { "Authorization": `Bearer ${CLOUDFLARE_API_TOKEN}`, "Content-Type": "application/json" },
+      headers: { Authorization: `Bearer ${CLOUDFLARE_API_TOKEN}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         messages: [
-          { role: "system", content: IDENTITAS },
+          { role: "system", content: system },
           { role: "user", content: prompt },
         ],
       }),
@@ -200,53 +237,43 @@ async function panggilCloudflare(prompt: string): Promise<string> {
   return reply;
 }
 
-// Coba Gemini; kalau error "sibuk" (503), tunggu sebentar lalu coba sekali lagi
-async function panggilGeminiDenganUlang(prompt: string, images: ImagePart[]): Promise<string> {
-  try {
-    return await panggilGemini(prompt, images);
-  } catch (err) {
-    if ((err as Error).message.includes("status 503")) {
-      await new Promise((r) => setTimeout(r, 1500));
-      return await panggilGemini(prompt, images);
+// Urutan: Ollama (utama) -> Cloudflare (hanya teks) -> Gemini (pilihan terakhir)
+async function jawabDenganFallback(prompt: string, images: ImagePart[] = [], mode: "chat" | "kode" = "chat"): Promise<string> {
+  const system = mode === "kode" ? `${IDENTITAS}\n\n${PETUNJUK_KODE}` : IDENTITAS;
+  const adaGambar = images.length > 0;
+
+  const kandidat = adaGambar ? KANDIDAT_GAMBAR : mode === "kode" ? KANDIDAT_KODE : KANDIDAT_TEKS;
+  const daftar = await urutanModel(kandidat);
+  for (const model of daftar.slice(0, 3)) {
+    try {
+      return await panggilOllamaModel(model, prompt, system, images);
+    } catch (err) {
+      console.log((err as Error).message);
     }
-    throw err;
   }
-}
 
-async function jawabDenganFallback(prompt: string, images: ImagePart[] = []): Promise<string> {
-  let alasan = "";
+  if (!adaGambar) {
+    try {
+      return await panggilCloudflare(prompt, system);
+    } catch (err) {
+      console.log("Cloudflare gagal:", (err as Error).message);
+    }
+  }
+
   try {
-    return await panggilGeminiDenganUlang(prompt, images);
+    return await panggilGemini(mode === "kode" ? `${PETUNJUK_KODE}\n\n${prompt}` : prompt, images);
   } catch (err) {
-    alasan = (err as Error).message;
-    console.log("Gemini gagal:", alasan);
+    console.log("Gemini gagal:", (err as Error).message);
   }
 
-  // Model cadangan tidak bisa membaca gambar, jadi beri tahu dengan jujur
-  if (images.length > 0) {
-    return `Gambar belum bisa dibaca karena Gemini sedang bermasalah (${alasan}). Coba kirim ulang sebentar lagi.`;
-  }
-
-  // Catatan kecil di akhir jawaban supaya kelihatan kenapa Gemini tidak dipakai
-  const catatan = `\n\n_(Dijawab model cadangan. ${alasan})_`;
-
-  try {
-    return (await panggilOllama(prompt)) + catatan;
-  } catch (err2) {
-    console.log("Ollama gagal, pindah ke Cloudflare:", (err2 as Error).message);
-  }
-
-  try {
-    return (await panggilCloudflare(prompt)) + catatan;
-  } catch (err3) {
-    console.log("Cloudflare juga gagal:", (err3 as Error).message);
-    return `Maaf, semua AI sedang sibuk. Coba lagi sebentar ya. (${alasan})`;
-  }
+  return adaGambar
+    ? "Gambar belum bisa dibaca saat ini. Coba kirim ulang sebentar lagi."
+    : "Maaf, AI sedang sibuk. Coba lagi sebentar ya.";
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const { userId, message, image, images, document, history, webSearch, link } = await req.json();
+    const { userId, message, image, images, document, history, webSearch, link, mode } = await req.json();
     const linkBersih = typeof link === "string" ? link.trim().slice(0, 2000) : "";
 
     // Kumpulkan gambar: dukung array "images" (maks 3) atau "image" tunggal versi lama
@@ -332,7 +359,7 @@ Pesan baru dari user: "${pesanUser}"
 
 Jawab secara natural, ringkas, dan langsung ke inti, sesuai konteks percakapan di atas.`;
 
-    const reply = await jawabDenganFallback(prompt, daftarGambar);
+    const reply = await jawabDenganFallback(prompt, daftarGambar, mode === "kode" ? "kode" : "chat");
 
     extractFacts(pesanUser, reply, API_KEY)
       .then((facts) => {
