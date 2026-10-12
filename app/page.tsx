@@ -13,7 +13,7 @@ type PendingDoc =
   | { name: string; kind: "text"; text: string }
   | { name: string; kind: "binary"; mimeType: string; data: string };
 
-const MAX_IMAGE_SIZE_MB = 4;
+const MAX_IMAGE_SIZE_MB = 15;
 const MAX_DOC_SIZE_MB = 5;
 const DOC_MIME_PDF = "application/pdf";
 const DOC_MIME_DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
@@ -54,24 +54,46 @@ export default function Home() {
 
   // --- Load & save data di localStorage ---
   useEffect(() => {
-    const savedConv = localStorage.getItem("myai-conversations");
-    if (savedConv) {
-      const parsed: Conversation[] = JSON.parse(savedConv);
-      setConversations(parsed);
-      if (parsed.length > 0) setActiveId(parsed[0].id);
-    } else {
-      buatObrolanBaru();
+    let berhasilMuat = false;
+    try {
+      const savedConv = localStorage.getItem("myai-conversations");
+      if (savedConv) {
+        const parsed: Conversation[] = JSON.parse(savedConv);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setConversations(parsed);
+          setActiveId(parsed[0].id);
+          berhasilMuat = true;
+        }
+      }
+    } catch {
+      // data rusak: mulai dari obrolan kosong
     }
-    const savedProj = localStorage.getItem("myai-projects");
-    if (savedProj) setProjects(JSON.parse(savedProj));
+    if (!berhasilMuat) buatObrolanBaru();
+    try {
+      const savedProj = localStorage.getItem("myai-projects");
+      if (savedProj) setProjects(JSON.parse(savedProj));
+    } catch {}
   }, []);
 
   useEffect(() => {
-    localStorage.setItem("myai-conversations", JSON.stringify(conversations));
+    try {
+      localStorage.setItem("myai-conversations", JSON.stringify(conversations));
+    } catch {
+      // Penyimpanan browser penuh: simpan tanpa gambar supaya aplikasi tidak crash
+      try {
+        const tanpaGambar = conversations.map((c) => ({
+          ...c,
+          messages: c.messages.map((m) => ({ ...m, imagePreviews: undefined, imagePreview: undefined })),
+        }));
+        localStorage.setItem("myai-conversations", JSON.stringify(tanpaGambar));
+      } catch {}
+    }
   }, [conversations]);
 
   useEffect(() => {
-    localStorage.setItem("myai-projects", JSON.stringify(projects));
+    try {
+      localStorage.setItem("myai-projects", JSON.stringify(projects));
+    } catch {}
   }, [projects]);
 
   useEffect(() => {
@@ -212,16 +234,17 @@ export default function Home() {
         alert(`"${file.name}" terlalu besar. Maksimal ${MAX_IMAGE_SIZE_MB}MB per gambar.`);
         return;
       }
-      const reader = new FileReader();
-      reader.onload = () => {
-        const result = reader.result as string;
-        const [header, base64Data] = result.split(",");
-        const mimeType = header.match(/data:(.*);base64/)?.[1] || file.type;
-        setPendingImages((prev) =>
-          prev.length >= MAX_IMAGES ? prev : [...prev, { preview: result, mimeType, data: base64Data }]
-        );
-      };
-      reader.readAsDataURL(file);
+      muatGambar(file)
+        .then((img) => {
+          const kirim = gambarKeJpeg(img, 1600, 0.85); // dikirim ke AI (sekitar 300-600KB)
+          const mini = gambarKeJpeg(img, 240, 0.7); // disimpan di riwayat (sekitar 10-20KB)
+          setPendingImages((prev) =>
+            prev.length >= MAX_IMAGES
+              ? prev
+              : [...prev, { preview: mini, mimeType: "image/jpeg", data: kirim.split(",")[1] }]
+          );
+        })
+        .catch(() => alert(`"${file.name}" tidak bisa dibaca sebagai gambar. Coba foto lain.`));
     });
     setShowAttachSheet(false);
   };
@@ -269,11 +292,6 @@ export default function Home() {
     "😊", "😇", "🥰", "😍", "😘", "😋", "😜", "🤗", "🤔", "😎",
     "🥳", "😭", "😢", "😤", "😡", "🥺", "😴", "🤯", "👍", "👎",
     "🙏", "👏", "🔥", "✨", "🎉", "❤️", "💡", "✅", "❌", "🤖",
-    "🐶", "🫡", "🤭", "🤮", "🤕", "😹", "💯", "🧠", "🦧", "🐒",
-    "😈", "🤓", "🫣", "🍈", "🍓", "🍑", "🎖", "🥊", "🥋", "⚽️",
-    "🍉", "🍺", "🌏", "🍆", "🏖", "🌊", "🌌", "❄️", "🎇", "🏀",
-    "🎲", "🎰", "🎯", "🎮", "🎶", "💰", "📈", "📉", "📊", "⚛️",
-    "🏳️‍🌈", "🚩", "🏴", "🏳", "🚻", "🐲", "🪱", "🐷", "🦊", "🌠",
   ];
 
   const tambahEmoji = (emoji: string) => {
@@ -1125,6 +1143,38 @@ function IconChatBubble() {
     </svg>
   );
 }
+// Perkecil gambar di browser: versi kirim (ringan) dan versi mini untuk riwayat chat
+function muatGambar(file: File): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(img);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("gambar tidak bisa dibaca"));
+    };
+    img.src = url;
+  });
+}
+
+function gambarKeJpeg(img: HTMLImageElement, sisiMaks: number, kualitas: number): string {
+  const skala = Math.min(1, sisiMaks / Math.max(img.width, img.height));
+  const lebar = Math.max(1, Math.round(img.width * skala));
+  const tinggi = Math.max(1, Math.round(img.height * skala));
+  const canvas = document.createElement("canvas");
+  canvas.width = lebar;
+  canvas.height = tinggi;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("canvas tidak tersedia");
+  ctx.fillStyle = "#ffffff"; // latar putih supaya PNG transparan tidak jadi hitam
+  ctx.fillRect(0, 0, lebar, tinggi);
+  ctx.drawImage(img, 0, 0, lebar, tinggi);
+  return canvas.toDataURL("image/jpeg", kualitas);
+}
+
 function BlokKode({ bahasa, teks }: { bahasa?: string; teks: string }) {
   const [tersalin, setTersalin] = useState(false);
   const salin = async () => {
