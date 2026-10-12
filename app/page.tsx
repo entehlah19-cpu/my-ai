@@ -1,4 +1,4 @@
-"use client";
+\"use client";
 
 import { useState, useEffect, useRef } from "react";
 import ReactMarkdown from "react-markdown";
@@ -287,6 +287,7 @@ export default function Home() {
     setShowAttachSheet(false);
   };
 
+  const EMOJI_LIST = [
   "😀", "😃", "😄", "😁", "😆", "😅", "🤣", "😂", "🙂", "😉",
     "😊", "😇", "🥰", "😍", "😘", "😋", "😜", "🤗", "🤔", "😎",
     "🥳", "😭", "😢", "😤", "😡", "🥺", "😴", "🤯", "👍", "👎",
@@ -295,7 +296,7 @@ export default function Home() {
     "😈", "🤓", "🫣", "🍈", "🍓", "🍑", "🎖", "🥊", "🥋", "⚽️",
     "🍉", "🍺", "🌏", "🍆", "🏖", "🌊", "🌌", "❄️", "🎇", "🏀",
     "🎲", "🎰", "🎯", "🎮", "🎶", "💰", "📈", "📉", "📊", "⚛️",
-    "🏳️‍🌈", "🚩", "🏴", "🏳", "🚻", "🐲", "🐷", "🦊", "🌠",
+    "🏳️‍🌈", "🚩", "🏴", "🏳", "🚻", "🐲", "🪱", "🐷", "🦊", "🌠",
   ];
 
   const tambahEmoji = (emoji: string) => {
