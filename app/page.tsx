@@ -287,8 +287,7 @@ export default function Home() {
     setShowAttachSheet(false);
   };
 
-  const EMOJI_LIST = [
-    "😀", "😃", "😄", "😁", "😆", "😅", "🤣", "😂", "🙂", "😉",
+  "😀", "😃", "😄", "😁", "😆", "😅", "🤣", "😂", "🙂", "😉",
     "😊", "😇", "🥰", "😍", "😘", "😋", "😜", "🤗", "🤔", "😎",
     "🥳", "😭", "😢", "😤", "😡", "🥺", "😴", "🤯", "👍", "👎",
     "🙏", "👏", "🔥", "✨", "🎉", "❤️", "💡", "✅", "❌", "🤖",
@@ -438,6 +437,19 @@ export default function Home() {
       setLoadingIds((prev) => prev.filter((id) => id !== convId));
     }
   };
+
+  // --- Tulisan status AI sesuai yang sedang dikerjakan ---
+  const pesanTerakhirUser = [...(activeConversation?.messages || [])].reverse().find((m) => m.role === "user");
+  const frasaStatus: string[] = [
+    ...(pesanTerakhirUser && ((pesanTerakhirUser.imagePreviews?.length ?? 0) > 0 || pesanTerakhirUser.imagePreview) ? ["Melihat gambar"] : []),
+    ...(pesanTerakhirUser?.content.includes("🔗") ? ["Membuka link"] : []),
+    ...(pesanTerakhirUser?.content.startsWith("📄") ? ["Membaca file"] : []),
+    ...(webSearchOn ? ["Mencari di web"] : []),
+    ...(modeKode ? ["Menyusun kode"] : []),
+    "Berpikir",
+    "Merangkai jawaban",
+    "Menulis",
+  ];
 
   // --- Filter berdasarkan pencarian, lalu urutkan: yang disematkan dulu ---
   const cocokPencarian = (c: Conversation) => c.title.toLowerCase().includes(searchQuery.toLowerCase());
@@ -599,6 +611,18 @@ export default function Home() {
         .code-head { display: flex; justify-content: space-between; align-items: center; padding: 6px 12px; background: #161616; font-size: 12px; color: #888; }
         .code-head button { background: none; border: 1px solid #333; color: #ff9d4d; border-radius: 6px; padding: 3px 10px; font-size: 12px; cursor: pointer; }
         .msg-content .code-block pre { margin: 0; background: transparent; padding: 12px; overflow-x: auto; font-size: 13.5px; line-height: 1.5; }
+
+        .myai-typing { display: flex; align-items: center; gap: 10px; color: #ff9d4d; font-size: 15px; margin: 4px 0 16px 0; }
+        .myai-typing .icon { display: inline-flex; animation: myai-spin 2.4s ease-in-out infinite; }
+        .myai-typing .teks { animation: myai-fade 0.4s ease; }
+        .myai-typing .dots::after { content: ""; animation: myai-dots 1.2s steps(1) infinite; }
+        @keyframes myai-spin {
+          0% { transform: rotate(0deg) scale(1); }
+          50% { transform: rotate(180deg) scale(1.2); }
+          100% { transform: rotate(360deg) scale(1); }
+        }
+        @keyframes myai-fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+        @keyframes myai-dots { 0% { content: ""; } 25% { content: "."; } 50% { content: ".."; } 75% { content: "..."; } }
 
         .emoji-picker {
           max-width: 800px; margin: 0 auto 8px auto; background: #161616;
@@ -903,7 +927,7 @@ export default function Home() {
               </div>
             )
           )}
-          {loading && <div style={{ color: "#ff9d4d", fontSize: 14, fontStyle: "italic" }}>Sedang mengetik...</div>}
+          {loading && <IndikatorMengetik frasa={frasaStatus} />}
           <div ref={bottomRef} />
         </div>
 
@@ -1178,6 +1202,32 @@ function gambarKeJpeg(img: HTMLImageElement, sisiMaks: number, kualitas: number)
   ctx.fillRect(0, 0, lebar, tinggi);
   ctx.drawImage(img, 0, 0, lebar, tinggi);
   return canvas.toDataURL("image/jpeg", kualitas);
+}
+
+function IconSpark() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="#ff9d4d">
+      <path d="M12 2l2.2 6.8L21 11l-6.8 2.2L12 20l-2.2-6.8L3 11l6.8-2.2z" />
+    </svg>
+  );
+}
+
+// Animasi saat AI bekerja: ikon bergerak + tulisan yang berganti sesuai pekerjaan
+function IndikatorMengetik({ frasa }: { frasa: string[] }) {
+  const [idx, setIdx] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setIdx((i) => i + 1), 2200);
+    return () => clearInterval(t);
+  }, []);
+  return (
+    <div className="myai-typing">
+      <span className="icon"><IconSpark /></span>
+      <span key={idx} className="teks">
+        {frasa[idx % frasa.length]}
+        <span className="dots" />
+      </span>
+    </div>
+  );
 }
 
 function BlokKode({ bahasa, teks }: { bahasa?: string; teks: string }) {
