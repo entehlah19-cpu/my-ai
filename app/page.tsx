@@ -14,6 +14,8 @@ type PendingDoc =
   | { name: string; kind: "binary"; mimeType: string; data: string };
 
 const MAX_IMAGE_SIZE_MB = 15;
+// Kalau sudah punya logo sendiri: taruh di folder public/logo.png lalu isi "/logo.png"
+const LOGO_SRC = "";
 const MAX_DOC_SIZE_MB = 5;
 const DOC_MIME_PDF = "application/pdf";
 const DOC_MIME_DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
@@ -613,9 +615,9 @@ export default function Home() {
         .myai-typing .teks { animation: myai-fade 0.4s ease; }
         .myai-typing .dots::after { content: ""; animation: myai-dots 1.2s steps(1) infinite; }
         @keyframes myai-spin {
-          0% { transform: rotate(0deg) scale(1); }
-          50% { transform: rotate(180deg) scale(1.2); }
-          100% { transform: rotate(360deg) scale(1); }
+          0%, 100% { transform: translateY(0) scale(1); }
+          50% { transform: translateY(-3px) scale(1.12); }
+          
         }
         @keyframes myai-fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
         @keyframes myai-dots { 0% { content: ""; } 25% { content: "."; } 50% { content: ".."; } 75% { content: "..."; } }
@@ -643,8 +645,9 @@ export default function Home() {
 
       {/* ===== SIDEBAR ===== */}
       <aside className={`sidebar ${sidebarOpen ? "open" : ""}`}>
-        <div style={{ padding: "4px 6px 16px 6px", fontSize: 22, fontWeight: 800 }}>
-          <span style={{ color: "#ff7a18" }}>My</span> AI
+        <div style={{ padding: "4px 6px 16px 6px", fontSize: 22, fontWeight: 800, display: "flex", alignItems: "center", gap: 10 }}>
+          <LogoMyAI size={30} />
+          <span><span style={{ color: "#ff7a18" }}>My</span> AI</span>
         </div>
 
         <div
@@ -873,7 +876,11 @@ export default function Home() {
 
         <div style={{ flex: 1, overflowY: "auto", padding: "16px" }}>
           {(activeConversation?.messages.length ?? 0) === 0 && (
-            <div style={{ color: "#666", textAlign: "center", marginTop: 60 }}>Mulai percakapan dengan mengetik pesan di bawah.</div>
+            <div style={{ textAlign: "center", marginTop: 70, color: "#777" }}>
+              <div style={{ display: "flex", justifyContent: "center", marginBottom: 14 }}><LogoMyAI size={56} /></div>
+              <div style={{ fontSize: 18, color: "#ddd", fontWeight: 600 }}>Halo, ada yang bisa kubantu?</div>
+              <div style={{ fontSize: 13, marginTop: 6 }}>Ketik pesan, kirim foto, atau tempel link.</div>
+            </div>
           )}
           {activeConversation?.messages.map((m, i) =>
             m.role === "user" ? (
@@ -1200,6 +1207,26 @@ function gambarKeJpeg(img: HTMLImageElement, sisiMaks: number, kualitas: number)
   return canvas.toDataURL("image/jpeg", kualitas);
 }
 
+function LogoMyAI({ size = 28 }: { size?: number }) {
+  if (LOGO_SRC) {
+    return (
+      <img src={LOGO_SRC} alt="My AI" width={size} height={size} style={{ borderRadius: size * 0.28, objectFit: "cover", display: "block" }} />
+    );
+  }
+  return (
+    <svg width={size} height={size} viewBox="0 0 32 32" style={{ display: "block" }}>
+      <defs>
+        <linearGradient id="gradMyAI" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#ff7a18" />
+          <stop offset="1" stopColor="#ff9d4d" />
+        </linearGradient>
+      </defs>
+      <rect width="32" height="32" rx="9" fill="url(#gradMyAI)" />
+      <path d="M16 6l2.4 7.1L25.5 16l-7.1 2.4L16 26l-2.4-7.6L6.5 16l7.1-2.9z" fill="#0a0a0a" />
+    </svg>
+  );
+}
+
 function IconSpark() {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="#ff9d4d">
@@ -1217,7 +1244,7 @@ function IndikatorMengetik({ frasa }: { frasa: string[] }) {
   }, []);
   return (
     <div className="myai-typing">
-      <span className="icon"><IconSpark /></span>
+      <span className="icon"><LogoMyAI size={22} /></span>
       <span key={idx} className="teks">
         {frasa[idx % frasa.length]}
         <span className="dots" />
