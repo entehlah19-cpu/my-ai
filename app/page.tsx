@@ -51,6 +51,7 @@ export default function Home() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const docInputRef = useRef<HTMLInputElement>(null);
+  const importRef = useRef<HTMLInputElement>(null);
   const emojiWrapRef = useRef<HTMLDivElement>(null);
   const headerMenuWrapRef = useRef<HTMLDivElement>(null);
 
@@ -343,6 +344,52 @@ export default function Home() {
     setPendingLink(url);
     setLinkInput("");
     setShowLinkSheet(false);
+  };
+
+  // --- Cadangkan & pulihkan riwayat (tanpa akun) ---
+  const eksporRiwayat = () => {
+    const isi = JSON.stringify({ versi: 1, dibuat: new Date().toISOString(), conversations, projects }, null, 2);
+    const blob = new Blob([isi], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `cadangan-my-ai-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    setShowHeaderMenu(false);
+  };
+
+  const imporRiwayat = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const data = JSON.parse(reader.result as string);
+        const convBaru: Conversation[] = Array.isArray(data?.conversations) ? data.conversations : [];
+        const projBaru: ProjectT[] = Array.isArray(data?.projects) ? data.projects : [];
+        const valid = convBaru
+          .filter((c) => c && typeof c.id === "string" && typeof c.title === "string" && Array.isArray(c.messages))
+          .map((c) => ({
+            ...c,
+            messages: c.messages.filter((m) => m && typeof m.role === "string" && typeof m.content === "string"),
+          }));
+        const projValid = projBaru.filter((p) => p && typeof p.id === "string" && typeof p.name === "string");
+        if (valid.length === 0 && projValid.length === 0) {
+          alert("File ini bukan cadangan My AI yang valid.");
+          return;
+        }
+        const idAda = new Set(conversations.map((c) => c.id));
+        const projAda = new Set(projects.map((p) => p.id));
+        const tambahan = valid.filter((c) => !idAda.has(c.id));
+        const projTambahan = projValid.filter((p) => !projAda.has(p.id));
+        setConversations((prev) => [...prev, ...tambahan]);
+        setProjects((prev) => [...prev, ...projTambahan]);
+        alert(`Berhasil memulihkan ${tambahan.length} obrolan dan ${projTambahan.length} proyek.`);
+      } catch {
+        alert("File cadangan tidak bisa dibaca.");
+      }
+    };
+    reader.readAsText(file);
+    setShowHeaderMenu(false);
   };
 
   // --- Kirim pesan ---
@@ -867,6 +914,8 @@ export default function Home() {
                   <button className="conv-menu-item" onClick={() => { gantiNamaObrolan(activeConversation.id); setShowHeaderMenu(false); }}><IconEdit /> Ganti nama</button>
                   <button className="conv-menu-item" onClick={() => { toggleSematkan(activeConversation.id); setShowHeaderMenu(false); }}><IconPin /> {activeConversation.pinned ? "Lepas sematan" : "Sematkan"}</button>
                   <button className="conv-menu-item" onClick={() => { setShowHeaderMenu(false); tambahKeProyekDari(activeConversation.id); }}><IconFolder /> Tambahkan ke proyek</button>
+                  <button className="conv-menu-item" onClick={eksporRiwayat}><IconDownload /> Cadangkan semua obrolan</button>
+                  <button className="conv-menu-item" onClick={() => importRef.current?.click()}><IconUpload /> Pulihkan dari cadangan</button>
                   <button className="conv-menu-item danger" onClick={() => { setShowHeaderMenu(false); setConfirmDeleteId(activeConversation.id); }}><IconTrash /> Hapus</button>
                 </div>
               )}
@@ -973,6 +1022,17 @@ export default function Home() {
 
           <input ref={fileInputRef} type="file" accept="image/*" multiple style={{ display: "none" }} onChange={(e) => { if (e.target.files && e.target.files.length > 0) handleFilesPicked(e.target.files); e.target.value = ""; }} />
           <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" style={{ display: "none" }} onChange={(e) => { if (e.target.files && e.target.files.length > 0) handleFilesPicked(e.target.files); e.target.value = ""; }} />
+          <input
+            ref={importRef}
+            type="file"
+            accept=".json,application/json"
+            style={{ display: "none" }}
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) imporRiwayat(f);
+              e.target.value = "";
+            }}
+          />
           <input ref={docInputRef} type="file" accept=".txt,.pdf,.docx" style={{ display: "none" }} onChange={(e) => e.target.files?.[0] && handleDocPicked(e.target.files[0])} />
 
           <div ref={emojiWrapRef}>
@@ -1344,6 +1404,24 @@ function IconMic({ active }: { active?: boolean }) {
       <path d="M5 11a7 7 0 0014 0" />
       <path d="M12 18v3" />
       <path d="M9 21h6" />
+    </svg>
+  );
+}
+function IconDownload() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#ccc" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 3v12" />
+      <path d="M7 11l5 5 5-5" />
+      <path d="M5 21h14" />
+    </svg>
+  );
+}
+function IconUpload() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#ccc" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 16V4" />
+      <path d="M7 8l5-5 5 5" />
+      <path d="M5 21h14" />
     </svg>
   );
 }
