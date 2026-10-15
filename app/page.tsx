@@ -424,42 +424,29 @@ export default function Home() {
         .code-head button { background: none; border: 1px solid #333; color: #ff9d4d; border-radius: 6px; padding: 3px 10px; font-size: 12px; cursor: pointer; }
         .msg-content .code-block pre { margin: 0; background: transparent; padding: 12px; overflow-x: auto; font-size: 13.5px; line-height: 1.5; }
 
-        /* ===== THINKING ALA CLAUDE: sinar maju-mundur ===== */
-        .myai-typing { display: flex; align-items: center; gap: 10px; color: #ff9d4d; font-size: 15px; margin: 4px 0 16px 0; }
+        /* ===== THINKING QUANTUM ORBITAL ===== */
+        .myai-typing { display: flex; align-items: center; gap: 12px; color: #ff9d4d; font-size: 15px; margin: 4px 0 16px 0; }
         .myai-typing .icon { display: inline-flex; }
         .myai-typing .teks { animation: myai-fade 0.4s ease; }
         .myai-typing .dots::after { content: ""; animation: myai-dots 1.2s steps(1) infinite; }
 
-        .think-svg { display: block; overflow: visible; }
-        .think-ray {
-          transform-origin: 20px 11px;
-          animation: rayBreathe 1.8s ease-in-out infinite;
-        }
-        .think-core { animation: coreBreathe 1.8s ease-in-out infinite; }
+        .orbital-wrap { overflow: visible; }
+        .orb-glow { animation: orbGlow 2.4s ease-in-out infinite; }
+        .orb-core { animation: orbCore 2.4s ease-in-out infinite; }
+        .orb-ring-path { opacity: 0.15; }
+        .orb-particle { transform-origin: 20px 20px; }
+        .orb-p1 { animation: orbSpin 2.8s linear infinite; }
+        .orb-p2 { animation: orbSpin 3.6s linear infinite reverse; }
+        .orb-p3 { animation: orbSpin 3.2s linear infinite; animation-delay: -1.2s; }
 
-        @keyframes rayBreathe {
-          0%, 100% { transform: scaleY(0.3); opacity: 0.3; }
-          50%      { transform: scaleY(1);   opacity: 1; }
+        @keyframes orbSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        @keyframes orbGlow {
+          0%, 100% { opacity: 0.08; r: 9; }
+          50% { opacity: 0.2; r: 11; }
         }
-        @keyframes coreBreathe {
-          0%, 100% { opacity: 0.55; }
-          50%      { opacity: 1; }
-        }
-
-        /* ===== BLACK HOLE STATIS (cincin Saturnus) ===== */
-        .bh-glow {
-          transform-origin: 16px 16px;
-          animation: bhRadiate 3.2s ease-in-out infinite;
-        }
-        .bh-ring { animation: ringGlow 3.2s ease-in-out infinite; }
-
-        @keyframes bhRadiate {
-          0%, 100% { opacity: 0.45; transform: scale(0.94); }
-          50%      { opacity: 0.95; transform: scale(1.06); }
-        }
-        @keyframes ringGlow {
-          0%, 100% { opacity: 0.6; }
-          50%      { opacity: 1; }
+        @keyframes orbCore {
+          0%, 100% { r: 3.5; opacity: 0.85; }
+          50% { r: 4.5; opacity: 1; }
         }
 
         @keyframes myai-fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
@@ -808,46 +795,27 @@ function gambarKeJpeg(img: HTMLImageElement, sisiMaks: number, kualitas: number)
   return canvas.toDataURL("image/jpeg", kualitas);
 }
 
-/* ===== LOGO BLACK HOLE STATIS (SATURNUS) ===== */
+/* ===== LOGO MODERN ALA GROK ===== */
 function LogoMyAI({ size = 28 }: { size?: number }) {
   if (LOGO_SRC) return <img src={LOGO_SRC} alt="My AI" width={size} height={size} style={{ borderRadius: size * 0.28, objectFit: "cover", display: "block" }} />;
-  const id = `bh-${size}`;
+  const id = `grok-${size}`;
   return (
-    <svg width={size} height={size} viewBox="0 0 32 32" style={{ display: "block", overflow: "visible" }}>
+    <svg width={size} height={size} viewBox="0 0 32 32" style={{ display: "block" }}>
       <defs>
-        <radialGradient id={`${id}-halo`} cx="50%" cy="50%" r="50%">
-          <stop offset="45%" stopColor="#ff7a18" stopOpacity="0" />
-          <stop offset="68%" stopColor="#ff7a18" stopOpacity="0.55" />
-          <stop offset="82%" stopColor="#ff9d4d" stopOpacity="0.18" />
-          <stop offset="100%" stopColor="#ff9d4d" stopOpacity="0" />
-        </radialGradient>
-        <linearGradient id={`${id}-ring`} x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stopColor="#ff7a18" stopOpacity="0.35" />
-          <stop offset="50%" stopColor="#ffd89b" />
-          <stop offset="100%" stopColor="#ff7a18" stopOpacity="0.35" />
+        <linearGradient id={`${id}-g`} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#ff7a18" />
+          <stop offset="100%" stopColor="#ffb347" />
         </linearGradient>
-        <radialGradient id={`${id}-core`} cx="38%" cy="35%" r="70%">
-          <stop offset="0%" stopColor="#141414" />
-          <stop offset="100%" stopColor="#000" />
-        </radialGradient>
       </defs>
-
-      {/* Radiasi yang berdenyut */}
-      <circle cx="16" cy="16" r="15.5" fill={`url(#${id}-halo)`} className="bh-glow" />
-
-      {/* Cincin miring statis, kayak Saturnus */}
-      <g transform="rotate(-20 16 16)">
-        <path d="M2.5 16 A13.5 4.6 0 0 1 29.5 16" fill="none" stroke={`url(#${id}-ring)`} strokeWidth="1.6" className="bh-ring" />
-        <circle cx="16" cy="16" r="6.8" fill={`url(#${id}-core)`} />
-        <circle cx="16" cy="16" r="7" fill="none" stroke="#ff9d4d" strokeWidth="0.7" opacity="0.55" />
-        <path d="M29.5 16 A13.5 4.6 0 0 1 2.5 16" fill="none" stroke={`url(#${id}-ring)`} strokeWidth="2.2" className="bh-ring" />
-        <path d="M27.5 16 A11.5 3.4 0 0 1 4.5 16" fill="none" stroke="#ff9d4d" strokeWidth="0.6" opacity="0.45" />
-      </g>
+      {/* Geometric spark - 4 pointed star with hollow center */}
+      <path d="M16 2 L20 12 L30 16 L20 20 L16 30 L12 20 L2 16 L12 12 Z" fill={`url(#${id}-g)`} />
+      <circle cx="16" cy="16" r="4.5" fill="#0a0a0a" />
+      <circle cx="16" cy="16" r="2.2" fill={`url(#${id}-g)`} />
     </svg>
   );
 }
 
-/* ===== INDIKATOR MENGETIK (AL CLAUDE: SINAR MAJU-MUNDUR) ===== */
+/* ===== INDIKATOR MENGETIK: QUANTUM ORBITAL ===== */
 function IndikatorMengetik({ frasa }: { frasa: string[] }) {
   const [idx, setIdx] = useState(0);
   useEffect(() => {
@@ -856,28 +824,38 @@ function IndikatorMengetik({ frasa }: { frasa: string[] }) {
   }, []);
   return (
     <div className="myai-typing">
-      <span className="icon"><ThinkingSpark /></span>
+      <span className="icon"><ThinkingOrbital /></span>
       <span key={idx} className="teks">{frasa[idx % frasa.length]}<span className="dots" /></span>
     </div>
   );
 }
 
-function ThinkingSpark() {
+function ThinkingOrbital() {
   return (
-    <svg width="38" height="38" viewBox="0 0 40 40" fill="none" className="think-svg">
-      {Array.from({ length: 8 }).map((_, i) => (
-        <g key={i} transform={`rotate(${i * 45} 20 20)`}>
-          <line
-            x1="20" y1="11" x2="20" y2={i % 2 === 0 ? 3 : 5.5}
-            stroke="#ff9d4d"
-            strokeWidth={i % 2 === 0 ? 2.4 : 1.8}
-            strokeLinecap="round"
-            className="think-ray"
-            style={{ animationDelay: `${i * 0.14}s` }}
-          />
-        </g>
-      ))}
-      <circle cx="20" cy="20" r="3.4" fill="#ff9d4d" className="think-core" />
+    <svg width="40" height="40" viewBox="0 0 40 40" className="orbital-wrap">
+      {/* Glow ambient */}
+      <circle cx="20" cy="20" r="9" fill="#ff7a18" className="orb-glow" />
+
+      {/* Orbit path (ring tipis) */}
+      <circle cx="20" cy="20" r="12" fill="none" stroke="#ff9d4d" strokeWidth="0.6" className="orb-ring-path" />
+
+      {/* Core yang berdenyut */}
+      <circle cx="20" cy="20" r="3.5" fill="#ff9d4d" className="orb-core" />
+
+      {/* Partikel orbital 1 */}
+      <g className="orb-particle orb-p1">
+        <circle cx="20" cy="8" r="2.2" fill="#ffb347" />
+      </g>
+
+      {/* Partikel orbital 2 (reverse) */}
+      <g className="orb-particle orb-p2">
+        <circle cx="20" cy="8" r="1.6" fill="#ff7a18" />
+      </g>
+
+      {/* Partikel orbital 3 (delayed) */}
+      <g className="orb-particle orb-p3">
+        <circle cx="20" cy="8" r="1.9" fill="#ff9d4d" />
+      </g>
     </svg>
   );
 }
