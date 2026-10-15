@@ -658,14 +658,35 @@ export default function Home() {
         .msg-content .code-block pre { margin: 0; background: transparent; padding: 12px; overflow-x: auto; font-size: 13.5px; line-height: 1.5; }
 
         .myai-typing { display: flex; align-items: center; gap: 10px; color: #ff9d4d; font-size: 15px; margin: 4px 0 16px 0; }
-        .myai-typing .icon { display: inline-flex; animation: myai-spin 2.4s ease-in-out infinite; }
+        .myai-typing .icon { display: inline-flex; }
         .myai-typing .teks { animation: myai-fade 0.4s ease; }
         .myai-typing .dots::after { content: ""; animation: myai-dots 1.2s steps(1) infinite; }
-        @keyframes myai-spin {
-          0%, 100% { transform: translateY(0) scale(1); }
-          50% { transform: translateY(-3px) scale(1.12); }
-          
+        
+        /* --- ANIMASI NEURON BARU --- */
+        .neuron-svg { animation: neuronFloat 3s ease-in-out infinite; }
+        .neuron-tail-pulse { stroke-dasharray: 10, 25; animation: tailFlow 1.5s linear infinite; }
+        .neuron-node { animation: nodePulse 1.5s ease-in-out infinite alternate; }
+        .neuron-dot-active { animation: dotGlow 1.5s ease-in-out infinite alternate; }
+
+        @keyframes neuronFloat {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-4px); }
         }
+        @keyframes tailFlow {
+          0% { stroke-dashoffset: 35; opacity: 0.4; }
+          50% { opacity: 1; filter: drop-shadow(0 0 6px #ff9d4d); }
+          100% { stroke-dashoffset: 0; opacity: 0.4; }
+        }
+        @keyframes nodePulse {
+          0% { r: 5; stroke-width: 2; filter: drop-shadow(0 0 2px #ff9d4d); }
+          100% { r: 6.5; stroke-width: 2.5; filter: drop-shadow(0 0 8px #ff9d4d); }
+        }
+        @keyframes dotGlow {
+          0% { r: 2; opacity: 0.5; }
+          100% { r: 3; opacity: 1; filter: drop-shadow(0 0 5px #ff9d4d); }
+        }
+        /* ----------------------------- */
+
         @keyframes myai-fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
         @keyframes myai-dots { 0% { content: ""; } 25% { content: "."; } 50% { content: ".."; } 75% { content: "..."; } }
 
@@ -1295,7 +1316,7 @@ function IconSpark() {
   );
 }
 
-// Animasi saat AI bekerja: ikon bergerak + tulisan yang berganti sesuai pekerjaan
+// Animasi saat AI bekerja: ikon neuron bergerak + tulisan yang berganti sesuai pekerjaan
 function IndikatorMengetik({ frasa }: { frasa: string[] }) {
   const [idx, setIdx] = useState(0);
   useEffect(() => {
@@ -1304,7 +1325,9 @@ function IndikatorMengetik({ frasa }: { frasa: string[] }) {
   }, []);
   return (
     <div className="myai-typing">
-      <span className="icon"><LogoMyAI size={22} /></span>
+      <span className="icon">
+        <NeuronThinkingIcon />
+      </span>
       <span key={idx} className="teks">
         {frasa[idx % frasa.length]}
         <span className="dots" />
@@ -1513,6 +1536,32 @@ function IconChevron() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#666" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M9 6l6 6-6 6" />
+    </svg>
+  );
+}
+
+function NeuronThinkingIcon() {
+  return (
+    <svg width="36" height="36" viewBox="0 0 40 40" fill="none" className="neuron-svg">
+      {/* Cabang statis (Dendrit) */}
+      <path d="M20 20 C 15 15, 10 10, 6 6" stroke="#333" strokeWidth="2" strokeLinecap="round" />
+      <path d="M20 20 C 25 15, 30 10, 34 6" stroke="#333" strokeWidth="2" strokeLinecap="round" />
+      <path d="M20 20 C 15 25, 10 30, 6 34" stroke="#333" strokeWidth="2" strokeLinecap="round" />
+      
+      {/* Ekor (Akson) - Latar Belakang */}
+      <path d="M20 20 C 24 28, 30 34, 38 36" stroke="#333" strokeWidth="2.5" strokeLinecap="round" />
+      
+      {/* Ekor (Akson) - Animasi denyut yang merambat/gerak */}
+      <path d="M20 20 C 24 28, 30 34, 38 36" stroke="#ff9d4d" strokeWidth="2.5" strokeLinecap="round" className="neuron-tail-pulse" />
+      
+      {/* Badan Sel Neuron (Soma) */}
+      <circle cx="20" cy="20" r="5" fill="#0a0a0a" stroke="#ff9d4d" strokeWidth="2" className="neuron-node" />
+      
+      {/* Titik cahaya di ujung cabang */}
+      <circle cx="6" cy="6" r="2" fill="#333" className="neuron-dot" />
+      <circle cx="34" cy="6" r="2" fill="#333" className="neuron-dot" />
+      <circle cx="6" cy="34" r="2" fill="#333" className="neuron-dot" />
+      <circle cx="38" cy="36" r="2.5" fill="#ff9d4d" className="neuron-dot-active" />
     </svg>
   );
 }
