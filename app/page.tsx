@@ -424,27 +424,43 @@ export default function Home() {
         .code-head button { background: none; border: 1px solid #333; color: #ff9d4d; border-radius: 6px; padding: 3px 10px; font-size: 12px; cursor: pointer; }
         .msg-content .code-block pre { margin: 0; background: transparent; padding: 12px; overflow-x: auto; font-size: 13.5px; line-height: 1.5; }
 
-        /* ===== NEURON TYPING ===== */
+        /* ===== THINKING ALA CLAUDE: sinar maju-mundur ===== */
         .myai-typing { display: flex; align-items: center; gap: 10px; color: #ff9d4d; font-size: 15px; margin: 4px 0 16px 0; }
         .myai-typing .icon { display: inline-flex; }
         .myai-typing .teks { animation: myai-fade 0.4s ease; }
         .myai-typing .dots::after { content: ""; animation: myai-dots 1.2s steps(1) infinite; }
 
-        .neuron-svg { animation: neuronFloat 3s ease-in-out infinite; }
-        .neuron-tail { transform-origin: 20px 20px; animation: tailWag 1.6s ease-in-out infinite; }
-        .neuron-node { animation: nodePulse 1.5s ease-in-out infinite alternate; }
-        .neuron-dot-active { animation: dotGlow 1.5s ease-in-out infinite alternate; }
+        .think-svg { display: block; overflow: visible; }
+        .think-ray {
+          transform-origin: 20px 11px;
+          animation: rayBreathe 1.8s ease-in-out infinite;
+        }
+        .think-core { animation: coreBreathe 1.8s ease-in-out infinite; }
 
-        @keyframes neuronFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
-        @keyframes tailWag { 0% { transform: rotate(-14deg); } 50% { transform: rotate(14deg); } 100% { transform: rotate(-14deg); } }
-        @keyframes nodePulse { 0% { r: 5; filter: drop-shadow(0 0 2px #ff9d4d); } 100% { r: 6.5; filter: drop-shadow(0 0 8px #ff9d4d); } }
-        @keyframes dotGlow { 0% { r: 2; opacity: 0.5; } 100% { r: 3; opacity: 1; filter: drop-shadow(0 0 5px #ff9d4d); } }
+        @keyframes rayBreathe {
+          0%, 100% { transform: scaleY(0.3); opacity: 0.3; }
+          50%      { transform: scaleY(1);   opacity: 1; }
+        }
+        @keyframes coreBreathe {
+          0%, 100% { opacity: 0.55; }
+          50%      { opacity: 1; }
+        }
 
-        /* ===== BLACK HOLE LOGO ===== */
-        .bh-disk { transform-origin: 16px 16px; animation: bhSpin 10s linear infinite; }
-        .bh-core-pulse { animation: bhCorePulse 3s ease-in-out infinite alternate; }
-        @keyframes bhSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        @keyframes bhCorePulse { 0% { filter: drop-shadow(0 0 2px #ff7a18); } 100% { filter: drop-shadow(0 0 6px #ff9d4d); } }
+        /* ===== BLACK HOLE STATIS (cincin Saturnus) ===== */
+        .bh-glow {
+          transform-origin: 16px 16px;
+          animation: bhRadiate 3.2s ease-in-out infinite;
+        }
+        .bh-ring { animation: ringGlow 3.2s ease-in-out infinite; }
+
+        @keyframes bhRadiate {
+          0%, 100% { opacity: 0.45; transform: scale(0.94); }
+          50%      { opacity: 0.95; transform: scale(1.06); }
+        }
+        @keyframes ringGlow {
+          0%, 100% { opacity: 0.6; }
+          50%      { opacity: 1; }
+        }
 
         @keyframes myai-fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
         @keyframes myai-dots { 0% { content: ""; } 25% { content: "."; } 50% { content: ".."; } 75% { content: "..."; } }
@@ -792,37 +808,46 @@ function gambarKeJpeg(img: HTMLImageElement, sisiMaks: number, kualitas: number)
   return canvas.toDataURL("image/jpeg", kualitas);
 }
 
-/* ===== LOGO BLACK HOLE ===== */
+/* ===== LOGO BLACK HOLE STATIS (SATURNUS) ===== */
 function LogoMyAI({ size = 28 }: { size?: number }) {
   if (LOGO_SRC) return <img src={LOGO_SRC} alt="My AI" width={size} height={size} style={{ borderRadius: size * 0.28, objectFit: "cover", display: "block" }} />;
   const id = `bh-${size}`;
   return (
     <svg width={size} height={size} viewBox="0 0 32 32" style={{ display: "block", overflow: "visible" }}>
       <defs>
-        <radialGradient id={`${id}-glow`} cx="50%" cy="50%" r="50%">
-          <stop offset="55%" stopColor="#000" stopOpacity="1" />
-          <stop offset="72%" stopColor="#ff7a18" stopOpacity="0.9" />
-          <stop offset="88%" stopColor="#ff9d4d" stopOpacity="0.35" />
+        <radialGradient id={`${id}-halo`} cx="50%" cy="50%" r="50%">
+          <stop offset="45%" stopColor="#ff7a18" stopOpacity="0" />
+          <stop offset="68%" stopColor="#ff7a18" stopOpacity="0.55" />
+          <stop offset="82%" stopColor="#ff9d4d" stopOpacity="0.18" />
           <stop offset="100%" stopColor="#ff9d4d" stopOpacity="0" />
         </radialGradient>
-        <linearGradient id={`${id}-disk`} x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stopColor="#ff7a18" />
+        <linearGradient id={`${id}-ring`} x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="#ff7a18" stopOpacity="0.35" />
           <stop offset="50%" stopColor="#ffd89b" />
-          <stop offset="100%" stopColor="#ff7a18" />
+          <stop offset="100%" stopColor="#ff7a18" stopOpacity="0.35" />
         </linearGradient>
+        <radialGradient id={`${id}-core`} cx="38%" cy="35%" r="70%">
+          <stop offset="0%" stopColor="#141414" />
+          <stop offset="100%" stopColor="#000" />
+        </radialGradient>
       </defs>
-      <circle cx="16" cy="16" r="15" fill={`url(#${id}-glow)`} />
-      <g className="bh-disk">
-        <ellipse cx="16" cy="16" rx="13" ry="4.5" fill="none" stroke={`url(#${id}-disk)`} strokeWidth="1.6" opacity="0.9" transform="rotate(-25 16 16)" />
-        <ellipse cx="16" cy="16" rx="10.5" ry="3.2" fill="none" stroke="#ff9d4d" strokeWidth="0.6" opacity="0.55" transform="rotate(-25 16 16)" />
+
+      {/* Radiasi yang berdenyut */}
+      <circle cx="16" cy="16" r="15.5" fill={`url(#${id}-halo)`} className="bh-glow" />
+
+      {/* Cincin miring statis, kayak Saturnus */}
+      <g transform="rotate(-20 16 16)">
+        <path d="M2.5 16 A13.5 4.6 0 0 1 29.5 16" fill="none" stroke={`url(#${id}-ring)`} strokeWidth="1.6" className="bh-ring" />
+        <circle cx="16" cy="16" r="6.8" fill={`url(#${id}-core)`} />
+        <circle cx="16" cy="16" r="7" fill="none" stroke="#ff9d4d" strokeWidth="0.7" opacity="0.55" />
+        <path d="M29.5 16 A13.5 4.6 0 0 1 2.5 16" fill="none" stroke={`url(#${id}-ring)`} strokeWidth="2.2" className="bh-ring" />
+        <path d="M27.5 16 A11.5 3.4 0 0 1 4.5 16" fill="none" stroke="#ff9d4d" strokeWidth="0.6" opacity="0.45" />
       </g>
-      <circle cx="16" cy="16" r="6.5" fill="#000" className="bh-core-pulse" />
-      <circle cx="16" cy="16" r="7" fill="none" stroke="#ff7a18" strokeWidth="0.4" opacity="0.6" />
     </svg>
   );
 }
 
-/* ===== INDIKATOR MENGETIK (NEURON EKOR GOYANG) ===== */
+/* ===== INDIKATOR MENGETIK (AL CLAUDE: SINAR MAJU-MUNDUR) ===== */
 function IndikatorMengetik({ frasa }: { frasa: string[] }) {
   const [idx, setIdx] = useState(0);
   useEffect(() => {
@@ -831,27 +856,28 @@ function IndikatorMengetik({ frasa }: { frasa: string[] }) {
   }, []);
   return (
     <div className="myai-typing">
-      <span className="icon"><NeuronThinkingIcon /></span>
+      <span className="icon"><ThinkingSpark /></span>
       <span key={idx} className="teks">{frasa[idx % frasa.length]}<span className="dots" /></span>
     </div>
   );
 }
 
-function NeuronThinkingIcon() {
+function ThinkingSpark() {
   return (
-    <svg width="38" height="38" viewBox="0 0 40 40" fill="none" className="neuron-svg">
-      <path d="M20 20 C 15 15, 10 10, 6 6" stroke="#333" strokeWidth="2" strokeLinecap="round" />
-      <path d="M20 20 C 25 15, 30 10, 34 6" stroke="#333" strokeWidth="2" strokeLinecap="round" />
-      <path d="M20 20 C 15 25, 10 30, 6 34" stroke="#333" strokeWidth="2" strokeLinecap="round" />
-      <g className="neuron-tail">
-        <path d="M20 20 C 24 28, 30 34, 38 36" stroke="#333" strokeWidth="2.5" strokeLinecap="round" />
-        <path d="M20 20 C 24 28, 30 34, 38 36" stroke="#ff9d4d" strokeWidth="2.5" strokeLinecap="round" opacity="0.9" />
-      </g>
-      <circle cx="20" cy="20" r="5" fill="#0a0a0a" stroke="#ff9d4d" strokeWidth="2" className="neuron-node" />
-      <circle cx="6" cy="6" r="2" fill="#333" />
-      <circle cx="34" cy="6" r="2" fill="#333" />
-      <circle cx="6" cy="34" r="2" fill="#333" />
-      <circle cx="38" cy="36" r="2.5" fill="#ff9d4d" className="neuron-dot-active" />
+    <svg width="38" height="38" viewBox="0 0 40 40" fill="none" className="think-svg">
+      {Array.from({ length: 8 }).map((_, i) => (
+        <g key={i} transform={`rotate(${i * 45} 20 20)`}>
+          <line
+            x1="20" y1="11" x2="20" y2={i % 2 === 0 ? 3 : 5.5}
+            stroke="#ff9d4d"
+            strokeWidth={i % 2 === 0 ? 2.4 : 1.8}
+            strokeLinecap="round"
+            className="think-ray"
+            style={{ animationDelay: `${i * 0.14}s` }}
+          />
+        </g>
+      ))}
+      <circle cx="20" cy="20" r="3.4" fill="#ff9d4d" className="think-core" />
     </svg>
   );
 }
