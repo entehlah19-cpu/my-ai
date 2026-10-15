@@ -225,7 +225,7 @@ export default function Home() {
     setShowAttachSheet(false);
   };
 
-  const EMOJI_LIST = ["😀","😃","😄","😁","😆","😅","🤣","😂","🙂","😉","😊","😇","🥰","😍","😘","😋","😜","🤗","🤔","😎","🥳","😭","😢","😤","😡","🥺","😴","🤯","","👎","","👏","","✨","🎉","❤️","💡","✅","❌","🤖"];
+  const EMOJI_LIST = ["😀","😃","😄","😁","😆","😅","🤣","😂","🙂","😉","😊","😇","🥰","😍","😘","😋","😜","","🤔","","🥳","😭","😢","😤","😡","","😴","🤯","👍","👎","🙏","👏","🔥","✨","🎉","❤️","💡","✅","❌",""];
 
   const tambahEmoji = (emoji: string) => setInput((prev) => prev + emoji);
 
@@ -793,9 +793,10 @@ function gambarKeJpeg(img: HTMLImageElement, sisiMaks: number, kualitas: number)
   return canvas.toDataURL("image/jpeg", kualitas);
 }
 
-/* ===== MARK GROK: ring terpotong + blade diagonal ===== */
+/* ===== LOGO GROK ASLI, DICAT ORANYE ===== */
 function GrokMark({ size = 28, spinning = false }: { size?: number; spinning?: boolean }) {
   const id = `gk-${size}-${spinning ? "s" : "n"}`;
+  const cat = `url(#${id}-g)`; // ganti jadi "#ff9d4d" kalau mau cat polos
   return (
     <svg width={size} height={size} viewBox="0 0 32 32" style={{ display: "block", overflow: "visible" }}>
       <defs>
@@ -805,20 +806,19 @@ function GrokMark({ size = 28, spinning = false }: { size?: number; spinning?: b
         </linearGradient>
       </defs>
 
-      {/* Ring tebal dengan 2 celah (dipotong slash) */}
-      <circle
-        cx="16" cy="16" r="11"
-        fill="none"
-        stroke={`url(#${id}-g)`}
-        strokeWidth="5"
-        strokeDasharray="22.6 11.95"
-        className={spinning ? "grok-ring-spin" : undefined}
-      />
+      {/* Ring tebal terpotong jadi 2 arc */}
+      {spinning ? (
+        <g className="grok-ring-spin">
+          <circle cx="16" cy="16" r="11" fill="none" stroke={cat} strokeWidth="5" strokeDasharray="26.88 7.68" />
+        </g>
+      ) : (
+        <circle cx="16" cy="16" r="11" fill="none" stroke={cat} strokeWidth="5" strokeDasharray="26.88 7.68" transform="rotate(-25 16 16)" />
+      )}
 
-      {/* Blade diagonal (slash) */}
-      <path
-        d="M1 31 C 12 24, 20 14, 31 1 C 22 12, 14 22, 1 31 Z"
-        fill={`url(#${id}-g)`}
+      {/* Blade diagonal, ujung runcing keluar ring */}
+      <polygon
+        points="0.5,31.5 17.4,17.4 31.5,0.5 14.6,14.6"
+        fill={cat}
         className={spinning ? "grok-blade-pulse" : undefined}
       />
     </svg>
