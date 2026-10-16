@@ -3,15 +3,20 @@ import { retrieveRelevantMemories, extractFacts, saveFacts } from "../../../lib/
 
 export const maxDuration = 60;
 
-// ============= ENVIRONMENT VALIDATION =============
+// ============= ENVIRONMENT (TIDAK throw di sini biar build aman) =============
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const LLAMA_API_KEY = process.env.LLAMA_API_KEY;
 const CLOUDFLARE_API_TOKEN = process.env.CLOUDFLARE_API_TOKEN;
 const CLOUDFLARE_ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID;
 const SERPER_API_KEY = process.env.SERPER_API_KEY;
 
-if (!GEMINI_API_KEY || !LLAMA_API_KEY || !CLOUDFLARE_API_TOKEN || !CLOUDFLARE_ACCOUNT_ID || !SERPER_API_KEY) {
-  throw new Error("Environment variables belum lengkap. Cek .env.local / Vercel Settings.");
+// Cek provider mana yang siap dipakai (dipakai saat runtime, bukan saat build)
+function providerYangHilang(): string[] {
+  const hilang: string[] = [];
+  if (!GEMINI_API_KEY) hilang.push("GEMINI_API_KEY");
+  if (!LLAMA_API_KEY) hilang.push("LLAMA_API_KEY");
+  if (!CLOUDFLARE_API_TOKEN || !CLOUDFLARE_ACCOUNT_ID) hilang.push("CLOUDFLARE_API_TOKEN + CLOUDFLARE_ACCOUNT_ID");
+  return hilang;
 }
 
 // ============= RATE LIMITING (in-memory, per IP) =============
@@ -21,14 +26,11 @@ const RATE_LIMIT_MAX = 20;        // maks 20 request per menit per IP
 
 function checkRateLimit(ip: string): boolean {
   const now = Date.now();
-
-  // bersihkan entri kedaluwarsa biar memori nggak bengkak
   if (rateLimitMap.size > 1000) {
     for (const [key, val] of rateLimitMap.entries()) {
       if (now > val.resetTime) rateLimitMap.delete(key);
     }
   }
-
   const record = rateLimitMap.get(ip);
   if (!record || now > record.resetTime) {
     rateLimitMap.set(ip, { count: 1, resetTime: now + RATE_LIMIT_WINDOW });
@@ -66,16 +68,11 @@ function urlAman(raw: string): URL | null {
   if (u.protocol !== "http:" && u.protocol !== "https:") return null;
 
   const h = u.hostname.toLowerCase();
-
-  // domain internal/privat
   const blocked = ["localhost", ".local", ".internal", ".lan", ".corp", ".home", ".intranet"];
   if (blocked.some((b) => h === b || h.endsWith(b))) return null;
   if (h === "metadata.google.internal" || h === "instance-data") return null;
-
-  // IPv6 langsung: tolak
   if (h.startsWith("[") || h.includes(":")) return null;
 
-  // IPv4 privat / loopback / link-local / metadata cloud
   const m = h.match(/^(\d+)\.(\d+)\.(\d+)\.(\d+)$/);
   if (m) {
     const a = Number(m[1]);
@@ -84,7 +81,7 @@ function urlAman(raw: string): URL | null {
     if (a === 169 && b === 254) return null;
     if (a === 172 && b >= 16 && b <= 31) return null;
     if (a === 192 && b === 168) return null;
-    if (a === 100 && b >= 64 && b <= 127) return null; // CGNAT
+    if (a === 100 && b >= 64 && b <= 127) return null;
   }
   return u;
 }
@@ -104,10 +101,11 @@ function validateInput(d: any): string | null {
 
 // ============= PENCARIAN WEB =============
 async function cariWeb(query: string): Promise<string> {
+  if (!SERPER_API_KEY) return ""; // web search mati kalau key belum diset
   try {
     const res = await fetch("https://google.serper.dev/search", {
       method: "POST",
-      headers: { "X-API-KEY": SERPER_API_KEY as string, "Content-Type": "application/json" },
+      headers: { "X-API-KEY": SERPER_API_KEY, "Content-Type": "application/json" },
       body: JSON.stringify({ q: query.slice(0, 500) }),
     });
     if (!res.ok) return "";
@@ -199,6 +197,7 @@ async function ekstrakDokumen(doc: DocumentPart): Promise<string> {
 
 // ============= PEMANGGIL MODEL =============
 async function panggilGemini(prompt: string, images: ImagePart[] = []): Promise<string> {
+  if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY belum diset di server");
   const parts: any[] = [{ text: `${IDENTITAS}\n\n${prompt}` }];
   for (const img of images) parts.push({ inline_data: { mime_type: img.mimeType, data: img.data } });
 
@@ -206,7 +205,7 @@ async function panggilGemini(prompt: string, images: ImagePart[] = []): Promise<
     `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`,
     {
       method: "POST",
-      headers: { "Content-Type": "application/json", "x-goog-api-key": GEMINI_API_KEY as string },
+      headers: { "Content-Type": "application/json", "x-goog-api-key": GEMINI_API_KEY },
       body: JSON.stringify({ contents: [{ role: "user", parts }] }),
     }
   );
@@ -223,6 +222,7 @@ async function panggilGemini(prompt: string, images: ImagePart[] = []): Promise<
 let cacheModelOllama: string[] | null = null;
 
 async function daftarModelOllama(): Promise<string[]> {
+  if (!LLAMA_API_KEY) return [];
   if (cacheModelOllama) return cacheModelOllama;
   try {
     const res = await fetch("https://ollama.com/api/tags", {
@@ -251,6 +251,7 @@ async function urutanModel(kandidat: string[]): Promise<string[]> {
 }
 
 async function panggilOllamaModel(model: string, prompt: string, system: string, images: ImagePart[]): Promise<string> {
+  if (!LLAMA_API_KEY) throw new Error("LLAMA_API_KEY belum diset di server");
   const pesanUser: any = { role: "user", content: prompt };
   if (images.length > 0) pesanUser.images = images.map((img) => img.data);
 
@@ -268,6 +269,7 @@ async function panggilOllamaModel(model: string, prompt: string, system: string,
 }
 
 async function panggilCloudflare(prompt: string, system: string): Promise<string> {
+  if (!CLOUDFLARE_API_TOKEN || !CLOUDFLARE_ACCOUNT_ID) throw new Error("Cloudflare credentials belum diset di server");
   const res = await fetch(
     `https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/ai/run/${CLOUDFLARE_MODEL}`,
     {
@@ -319,6 +321,15 @@ async function jawabDenganFallback(prompt: string, images: ImagePart[] = [], mod
 // ============= HANDLER UTAMA =============
 export async function POST(req: NextRequest) {
   try {
+    // 0) Kalau SEMUA provider belum diset, beri tahu dengan jelas (tanpa membocorkan isi key)
+    const hilang = providerYangHilang();
+    if (hilang.length === 3) {
+      return NextResponse.json(
+        { error: `Konfigurasi server belum lengkap. Environment variable yang belum ada: ${hilang.join(", ")}` },
+        { status: 500 }
+      );
+    }
+
     // 1) Cek Origin: hanya izinkan request dari domain aplikasi sendiri
     const origin = req.headers.get("origin");
     const allowed = [process.env.APP_URL, "http://localhost:3000", "http://localhost:3001"].filter(Boolean) as string[];
