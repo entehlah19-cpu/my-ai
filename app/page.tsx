@@ -8,6 +8,7 @@ type PendingImg = { preview: string; mimeType: string; data: string };
 const MAX_IMAGES = 3;
 type Conversation = { id: string; title: string; messages: Message[]; projectId?: string; pinned?: boolean };
 type ProjectT = { id: string; name: string };
+type Memori = { id: string; teks: string };
 
 type PendingDoc =
   | { name: string; kind: "text"; text: string }
@@ -44,6 +45,9 @@ export default function Home() {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showHeaderMenu, setShowHeaderMenu] = useState(false);
   const [modeKode, setModeKode] = useState(false);
+  const [memories, setMemories] = useState<Memori[]>([]);
+  const [memoriAktif, setMemoriAktif] = useState(true);
+  const [showMemoriSheet, setShowMemoriSheet] = useState(false);
   const [activeNav, setActiveNav] = useState<"obrolan" | "proyek">("obrolan");
   const [isListening, setIsListening] = useState(false);
   const recognitionRef = useRef<any>(null);
@@ -76,6 +80,14 @@ export default function Home() {
       const savedProj = localStorage.getItem("myai-projects");
       if (savedProj) setProjects(JSON.parse(savedProj));
     } catch {}
+    try {
+      const savedMem = localStorage.getItem("myai-memories");
+      if (savedMem) {
+        const m = JSON.parse(savedMem);
+        if (Array.isArray(m)) setMemories(m.filter((x: any) => x && typeof x.id === "string" && typeof x.teks === "string"));
+      }
+      if (localStorage.getItem("myai-memori-aktif") === "0") setMemoriAktif(false);
+    } catch {}
   }, []);
 
   useEffect(() => {
@@ -98,6 +110,18 @@ export default function Home() {
       localStorage.setItem("myai-projects", JSON.stringify(projects));
     } catch {}
   }, [projects]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("myai-memories", JSON.stringify(memories));
+    } catch {}
+  }, [memories]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("myai-memori-aktif", memoriAktif ? "1" : "0");
+    } catch {}
+  }, [memoriAktif]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -348,7 +372,7 @@ export default function Home() {
 
   // --- Cadangkan & pulihkan riwayat (tanpa akun) ---
   const eksporRiwayat = () => {
-    const isi = JSON.stringify({ versi: 1, dibuat: new Date().toISOString(), conversations, projects }, null, 2);
+    const isi = JSON.stringify({ versi: 1, dibuat: new Date().toISOString(), conversations, projects, memories }, null, 2);
     const blob = new Blob([isi], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -381,15 +405,46 @@ export default function Home() {
         const projAda = new Set(projects.map((p) => p.id));
         const tambahan = valid.filter((c) => !idAda.has(c.id));
         const projTambahan = projValid.filter((p) => !projAda.has(p.id));
+        const memBaru: Memori[] = Array.isArray(data?.memories)
+          ? data.memories.filter((m: any) => m && typeof m.id === "string" && typeof m.teks === "string")
+          : [];
+        const teksAda = new Set(memories.map((m) => m.teks.toLowerCase()));
+        const memTambahan = memBaru.filter((m) => !teksAda.has(m.teks.toLowerCase()));
+        setMemories((prev) => [...prev, ...memTambahan].slice(-60));
         setConversations((prev) => [...prev, ...tambahan]);
         setProjects((prev) => [...prev, ...projTambahan]);
-        alert(`Berhasil memulihkan ${tambahan.length} obrolan dan ${projTambahan.length} proyek.`);
+        alert(`Berhasil memulihkan ${tambahan.length} obrolan dan ${projTambahan.length} proyek dan ${memTambahan.length} memori.`);
       } catch {
         alert("File cadangan tidak bisa dibaca.");
       }
     };
     reader.readAsText(file);
     setShowHeaderMenu(false);
+  };
+
+  // --- Memori lintas obrolan (disimpan di browser) ---
+  const hapusMemori = (id: string) => setMemories((prev) => prev.filter((m) => m.id !== id));
+
+  const ingatDariObrolan = async (pesan: string, jawaban: string, sudahAda: string[]) => {
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ aksi: "ingat", pesan, jawaban: jawaban.slice(0, 1500), sudahAda }),
+      });
+      const hasil = await res.json();
+      const baru: string[] = Array.isArray(hasil?.fakta) ? hasil.fakta : [];
+      if (baru.length === 0) return;
+      setMemories((prev) => {
+        const ada = new Set(prev.map((m) => m.teks.toLowerCase()));
+        const tambahan = baru
+          .filter((f) => typeof f === "string" && !ada.has(f.toLowerCase()))
+          .map((f, i) => ({ id: `${Date.now()}-${i}`, teks: f }));
+        return [...prev, ...tambahan].slice(-60);
+      });
+    } catch {
+      // memori gagal dicatat: abaikan saja, obrolan tetap jalan
+    }
   };
 
   // --- Kirim pesan ---
@@ -406,6 +461,7 @@ export default function Home() {
       .map((m) => ({ role: m.role, content: m.content || "(user mengirim gambar)" }));
 
     const teksInput = input;
+    const memoriUntukAI = memoriAktif ? memories.slice(-40).map((m) => m.teks) : [];
     const gambarUntukDikirim = pendingImages;
     const dokUntukDikirim = pendingDoc;
     const linkUntukDikirim = pendingLink;
@@ -457,11 +513,17 @@ export default function Home() {
               : undefined,
           link: linkUntukDikirim || undefined,
           mode: modeKode ? "kode" : "chat",
+          memories: memoriUntukAI,
           webSearch: webSearchOn,
           history: riwayatUntukAI,
         }),
       });
       const data = await res.json();
+
+      // Catat hal penting dari obrolan ini ke memori (diam-diam, tidak menghalangi jawaban)
+      if (memoriAktif && !modeKode && teksInput.trim().length >= 30 && data?.reply) {
+        ingatDariObrolan(teksInput, data.reply, memories.map((m) => m.teks));
+      }
 
       setConversations((prev) =>
         prev.map((c) =>
@@ -682,6 +744,10 @@ export default function Home() {
           0%, 100% { transform: translateY(0) scale(1); filter: drop-shadow(0 0 0 rgba(255,157,77,0)); }
           50% { transform: translateY(-3px) scale(1.1); filter: drop-shadow(0 0 6px rgba(255,157,77,0.7)); }
         }
+
+        .memori-item { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; padding: 10px 12px; background: #1a1a1a; border-radius: 10px; margin-bottom: 6px; font-size: 14px; line-height: 1.45; }
+        .memori-item button { background: none; border: none; color: #888; cursor: pointer; font-size: 14px; flex-shrink: 0; }
+        .memori-item button:hover { color: #ff6b6b; }
 
         .emoji-picker {
           max-width: 800px; margin: 0 auto 8px auto; background: #161616;
@@ -1156,22 +1222,54 @@ export default function Home() {
             <IconChevron />
           </div>
 
-          <div className="sheet-row">
+          <div className="sheet-row" onClick={() => { setShowAttachSheet(false); setShowMemoriSheet(true); }}>
             <div className="sheet-row-left">
               <div className="icon-circle-sm"><IconBrain /></div>
               <div>
                 <div style={{ fontWeight: 500 }}>Memori</div>
-                <div style={{ fontSize: 12, color: "#888" }}>Aktif untuk obrolan ini</div>
+                <div style={{ fontSize: 12, color: "#888" }}>{memoriAktif ? `Aktif · ${memories.length} hal diingat` : "Nonaktif"}</div>
               </div>
             </div>
-            <button className="toggle" style={{ background: "#ff7a18" }}>
-              <span className="knob" style={{ left: 21 }} />
+            <button
+              className="toggle"
+              onClick={(e) => { e.stopPropagation(); setMemoriAktif((v) => !v); }}
+              style={{ background: memoriAktif ? "#ff7a18" : "#333" }}
+            >
+              <span className="knob" style={{ left: memoriAktif ? 21 : 3 }} />
             </button>
           </div>
         </div>
       </div>
 
       {/* ===== BOTTOM SHEET: Pilih / Buat Proyek ===== */}
+      <div className={`sheet-backdrop ${showMemoriSheet ? "open" : ""}`} onClick={() => setShowMemoriSheet(false)}>
+        <div className="sheet" onClick={(e) => e.stopPropagation()}>
+          <div className="sheet-handle" />
+          <div style={{ textAlign: "center", fontWeight: 700, fontSize: 17, marginBottom: 6 }}>Memori My AI</div>
+          <div style={{ textAlign: "center", fontSize: 13, color: "#888", marginBottom: 14 }}>
+            Hal-hal yang diingat dari obrolanmu supaya jawaban nyambung di obrolan baru. Tersimpan hanya di browser ini, dan bisa kamu hapus kapan saja.
+          </div>
+          {memories.length === 0 && (
+            <div style={{ textAlign: "center", color: "#666", padding: 16, fontSize: 14 }}>Belum ada yang diingat.</div>
+          )}
+          {memories.map((m) => (
+            <div key={m.id} className="memori-item">
+              <span>{m.teks}</span>
+              <button onClick={() => hapusMemori(m.id)} title="Hapus">✕</button>
+            </div>
+          ))}
+          {memories.length > 0 && (
+            <button
+              className="sidebar-btn-secondary"
+              style={{ width: "100%", marginTop: 10 }}
+              onClick={() => { if (confirm("Hapus semua memori?")) setMemories([]); }}
+            >
+              Hapus semua memori
+            </button>
+          )}
+        </div>
+      </div>
+
       <div className={`sheet-backdrop ${showLinkSheet ? "open" : ""}`} onClick={() => setShowLinkSheet(false)}>
         <div className="sheet" onClick={(e) => e.stopPropagation()}>
           <div className="sheet-handle" />
