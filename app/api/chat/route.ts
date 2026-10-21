@@ -186,6 +186,8 @@ async function panggilQwen(prompt: string, system: string): Promise<string> {
   return reply;
 }
 
+const PETUNJUK_TAMPILAN = `Aturan tampilan jawaban: (1) Rumus matematika ditulis dengan LaTeX di antara dua tanda dolar, yaitu $$...$$ (boleh di dalam kalimat atau di baris sendiri). Jangan pakai kurung siku untuk rumus dan jangan pakai satu tanda dolar. (2) Untuk hasil evaluasi atau penilaian berbentuk kartu, tulis blok kode markdown berbahasa kartu yang isinya JSON seperti: {"judul":"Nilai latihan","nilai":8.5,"maks":10,"kriteria":[{"nama":"Analisis","nilai":9,"maks":10,"teks":"penjelasan singkat","ikon":"otak"}],"ringkasan":"opsional"}. Pilihan ikon: otak, perisai, target, bintang. (3) Kalau user meminta melihat grafik atau chart harga pasar, tulis blok kode markdown berbahasa grafik yang isinya JSON seperti: {"simbol":"OANDA:XAUUSD","interval":"5"}. Interval boleh 1, 5, 15, 30, 60, 240, D, atau W. Contoh simbol: OANDA:XAUUSD untuk emas, FX:EURUSD, BINANCE:BTCUSDT, NASDAQ:AAPL. Jangan menebak harga, karena grafiknya diambil langsung dari TradingView. (4) Untuk topik trading atau investasi, hanya beri edukasi dan latihan analisis: jangan memberi sinyal beli atau jual yang pasti, jangan menjanjikan untung, sebut risikonya, dan ingatkan bahwa ini bukan saran keuangan.`;
+
 const PETUNJUK_KODE = `Kamu sedang dalam MODE KODE. Bantu seperti programmer senior yang sabar. Aturan: (1) tulis kode di dalam blok kode markdown dengan nama bahasanya; (2) kode harus lengkap dan bisa langsung dijalankan, jangan dipotong atau diganti dengan "dst"; (3) jelaskan singkat apa yang dilakukan kode dan bagian mana yang perlu disesuaikan; (4) kalau user menempelkan error, jelaskan penyebabnya dulu, baru beri perbaikan; (5) sebutkan risiko keamanan atau kesalahan umum kalau relevan; (6) penjelasan pakai Bahasa Indonesia, nama variabel dan komentar kode boleh Inggris.`;
 
 // Urutan model Ollama Cloud yang dicoba (nama awalan; yang dipakai hanya yang benar-benar tersedia di akunmu)
@@ -264,7 +266,7 @@ async function panggilCloudflare(prompt: string, system: string): Promise<string
 
 // Urutan: Ollama (utama) -> Cloudflare (hanya teks) -> Gemini (pilihan terakhir)
 async function jawabDenganFallback(prompt: string, images: ImagePart[] = [], mode: "chat" | "kode" = "chat"): Promise<string> {
-  const system = mode === "kode" ? `${IDENTITAS}\n\n${PETUNJUK_KODE}` : IDENTITAS;
+  const system = mode === "kode" ? `${IDENTITAS}\n\n${PETUNJUK_TAMPILAN}\n\n${PETUNJUK_KODE}` : `${IDENTITAS}\n\n${PETUNJUK_TAMPILAN}`;
   const adaGambar = images.length > 0;
 
   // Mode Kode: coba Qwen dulu kalau key-nya diisi (model koding hanya teks, jadi lewati kalau ada gambar)
