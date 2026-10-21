@@ -20,5 +20,6 @@
     "rehype-katex": "^7.0.1",
     "remark-gfm": "^4.0.1",
     "remark-math": "^6.0.0"
+    "@tailwindcss/postcss": "^4.0.0"
   }
 }
