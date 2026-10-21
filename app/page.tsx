@@ -2,6 +2,10 @@
 
 import { useState, useEffect, useRef } from "react";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
+import rehypeKatex from "rehype-katex";
+import "katex/dist/katex.min.css";
 
 type Message = { role: string; content: string; imagePreviews?: string[]; imagePreview?: string };
 type PendingImg = { preview: string; mimeType: string; data: string };
@@ -749,6 +753,24 @@ export default function Home() {
         .memori-item button { background: none; border: none; color: #888; cursor: pointer; font-size: 14px; flex-shrink: 0; }
         .memori-item button:hover { color: #ff6b6b; }
 
+        .msg-content .katex { font-size: 1.08em; }
+        .msg-content .katex-display { overflow-x: auto; overflow-y: hidden; padding: 4px 0; margin: 10px 0; }
+        .msg-content table { border-collapse: collapse; margin: 10px 0; display: block; overflow-x: auto; max-width: 100%; }
+        .msg-content th, .msg-content td { border: 1px solid #2f2f2f; padding: 6px 10px; font-size: 14.5px; }
+        .msg-content th { background: #1a1a1a; }
+
+        .kartu-hasil { border: 1px solid #2a2a2a; border-radius: 14px; background: #101010; margin: 12px 0; overflow: hidden; }
+        .kartu-head { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; border-bottom: 1px solid #222; font-weight: 700; font-size: 17px; }
+        .kartu-item { display: flex; gap: 12px; padding: 12px 16px; }
+        .kartu-item-ikon { flex-shrink: 0; margin-top: 1px; display: inline-flex; }
+        .kartu-item-judul { font-weight: 700; font-size: 15.5px; }
+        .kartu-item-teks { color: #cfcfcf; font-size: 15px; line-height: 1.55; margin-top: 2px; }
+        .kartu-ringkasan { padding: 12px 16px 14px; border-top: 1px solid #222; color: #cfcfcf; font-size: 15px; line-height: 1.55; }
+
+        .grafik-box { height: 400px; border: 1px solid #2a2a2a; border-radius: 12px; overflow: hidden; margin: 12px 0; background: #0d0d0d; }
+        .grafik-sumber { height: 24px; font-size: 11px; text-align: right; padding: 4px 10px 0 0; }
+        .grafik-sumber a { color: #6b7280; text-decoration: none; }
+
         .emoji-picker {
           max-width: 800px; margin: 0 auto 8px auto; background: #161616;
           border: 1px solid #333; border-radius: 14px; padding: 10px;
@@ -1050,7 +1072,7 @@ export default function Home() {
             ) : (
               <div key={i} style={{ marginBottom: 20 }}>
                 <div className="msg-content" style={{ fontSize: 16.5, lineHeight: 1.65, color: "#f0f0f0", wordBreak: "break-word" }}>
-                  <ReactMarkdown components={komponenMarkdown}>{m.content}</ReactMarkdown>
+                  <ReactMarkdown remarkPlugins={pluginRemark} rehypePlugins={pluginRehype} components={komponenMarkdown}>{siapkanMatematika(m.content)}</ReactMarkdown>
                 </div>
               </div>
             )
@@ -1452,12 +1474,157 @@ function BlokKode({ bahasa, teks }: { bahasa?: string; teks: string }) {
   );
 }
 
+// ---- Rumus matematika, kartu hasil, dan grafik di dalam jawaban AI ----
+const pluginRemark: any[] = [remarkGfm, [remarkMath, { singleDollarTextMath: false }]];
+const pluginRehype: any[] = [rehypeKatex];
+
+// Ubah gaya rumus lama (garis-miring + kurung) jadi $$...$$, kecuali di dalam blok kode
+function siapkanMatematika(teks: string): string {
+  return teks
+    .split(/(```[\s\S]*?```)/g)
+    .map((bagian, i) =>
+      i % 2 === 1
+        ? bagian
+        : bagian
+            .replace(/\\\[([\s\S]+?)\\\]/g, (_m, rumus) => `\n$$\n${String(rumus).trim()}\n$$\n`)
+            .replace(/\\\(([\s\S]+?)\\\)/g, (_m, rumus) => `$$${String(rumus).trim()}$$`)
+    )
+    .join("");
+}
+
+const INTERVAL_OK = ["1", "3", "5", "15", "30", "60", "120", "240", "D", "W", "M"];
+function bacaGrafik(data: any): { simbol: string; interval: string } | null {
+  const simbol = typeof data?.simbol === "string" ? data.simbol.trim() : "";
+  if (!/^[A-Za-z0-9_.:!-]{2,40}$/.test(simbol)) return null;
+  const interval = INTERVAL_OK.includes(String(data?.interval)) ? String(data.interval) : "15";
+  return { simbol, interval };
+}
+
+// Grafik harga langsung dari TradingView (widget resmi, gratis, tanpa API key)
+function GrafikTradingView({ simbol, interval }: { simbol: string; interval: string }) {
+  const wadah = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = wadah.current;
+    if (!el) return;
+    el.innerHTML = "";
+    const isi = document.createElement("div");
+    isi.className = "tradingview-widget-container__widget";
+    isi.style.height = "100%";
+    isi.style.width = "100%";
+    el.appendChild(isi);
+    const script = document.createElement("script");
+    script.src = "https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js";
+    script.async = true;
+    script.innerHTML = JSON.stringify({
+      autosize: true,
+      symbol: simbol,
+      interval,
+      timezone: "Asia/Jakarta",
+      theme: "dark",
+      style: "1",
+      locale: "id",
+      allow_symbol_change: false,
+      hide_side_toolbar: true,
+      support_host: "https://www.tradingview.com",
+    });
+    el.appendChild(script);
+    return () => {
+      el.innerHTML = "";
+    };
+  }, [simbol, interval]);
+  return (
+    <div className="grafik-box">
+      <div className="tradingview-widget-container" ref={wadah} style={{ height: "calc(100% - 24px)", width: "100%" }} />
+      <div className="grafik-sumber">
+        <a href="https://www.tradingview.com/" target="_blank" rel="noopener nofollow">Grafik oleh TradingView</a>
+      </div>
+    </div>
+  );
+}
+
+function IkonKartu({ nama }: { nama?: string }) {
+  const p = { width: 22, height: 22, viewBox: "0 0 24 24", fill: "none", strokeWidth: 1.8, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
+  if (nama === "perisai")
+    return (
+      <svg {...p} stroke="#34d399"><path d="M12 3l7 3v5c0 5-3 8-7 10-4-2-7-5-7-10V6z" /><path d="M9 12l2 2 4-4" /></svg>
+    );
+  if (nama === "target")
+    return (
+      <svg {...p} stroke="#fb923c"><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="5" /><circle cx="12" cy="12" r="1.5" /></svg>
+    );
+  if (nama === "bintang")
+    return (
+      <svg {...p} stroke="#fbbf24"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z" /></svg>
+    );
+  return (
+    <svg {...p} stroke="#34d399">
+      <path d="M9 3a3 3 0 00-3 3v1a3 3 0 00-2 2.8V13a3 3 0 002 2.8V17a3 3 0 003 3h1" />
+      <path d="M15 3a3 3 0 013 3v1a3 3 0 012 2.8V13a3 3 0 01-2 2.8V17a3 3 0 01-3 3h-1" />
+      <path d="M12 3v17" />
+    </svg>
+  );
+}
+
+// Kartu hasil / evaluasi: judul + nilai besar + daftar kriteria berikon
+function KartuHasil({ data }: { data: any }) {
+  const angka = (v: any): number | null => {
+    if (typeof v === "number") return isFinite(v) ? v : null;
+    if (typeof v === "string" && v.trim() !== "") {
+      const n = Number(v.replace(",", "."));
+      return isFinite(n) ? n : null;
+    }
+    return null;
+  };
+  const fmt = (n: number) => String(n).replace(".", ",");
+  const warna = (n: number, m: number) => {
+    const r = n / (m || 10);
+    return r >= 0.8 ? "#34d399" : r >= 0.6 ? "#fbbf24" : "#f87171";
+  };
+  const judul = typeof data?.judul === "string" ? data.judul : "Hasil";
+  const maks = angka(data?.maks) ?? 10;
+  const nilai = angka(data?.nilai);
+  const kriteria: any[] = Array.isArray(data?.kriteria) ? data.kriteria.slice(0, 8) : [];
+  const ringkasan = typeof data?.ringkasan === "string" ? data.ringkasan : "";
+  return (
+    <div className="kartu-hasil">
+      <div className="kartu-head">
+        <span>{judul}</span>
+        {nilai !== null && <span style={{ color: warna(nilai, maks) }}>{fmt(nilai)}/{fmt(maks)}</span>}
+      </div>
+      {kriteria.map((k, i) => {
+        const kn = angka(k?.nilai);
+        const km = angka(k?.maks) ?? 10;
+        return (
+          <div key={i} className="kartu-item">
+            <span className="kartu-item-ikon"><IkonKartu nama={k?.ikon} /></span>
+            <div>
+              <div className="kartu-item-judul">{String(k?.nama ?? "")}{kn !== null ? `: ${fmt(kn)}/${fmt(km)}` : ""}</div>
+              {k?.teks && <div className="kartu-item-teks">{String(k.teks)}</div>}
+            </div>
+          </div>
+        );
+      })}
+      {ringkasan && <div className="kartu-ringkasan">{ringkasan}</div>}
+    </div>
+  );
+}
+
 const komponenMarkdown: any = {
   pre: ({ children }: any) => <>{children}</>,
   code: ({ className, children }: any) => {
     const teks = String(children ?? "").replace(/\n$/, "");
     const bahasa = /language-([\w-]+)/.exec(className || "")?.[1];
     if (!bahasa && !teks.includes("\n")) return <code>{children}</code>;
+    if (bahasa === "kartu" || bahasa === "grafik") {
+      try {
+        const data = JSON.parse(teks);
+        if (bahasa === "kartu") return <KartuHasil data={data} />;
+        const grafik = bacaGrafik(data);
+        if (grafik) return <GrafikTradingView simbol={grafik.simbol} interval={grafik.interval} />;
+      } catch {
+        // JSON belum valid: tampilkan sebagai blok kode biasa
+      }
+    }
     return <BlokKode bahasa={bahasa} teks={teks} />;
   },
 };
