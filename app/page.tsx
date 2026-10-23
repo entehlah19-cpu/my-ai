@@ -21,9 +21,20 @@ type PendingDoc =
 const MAX_IMAGE_SIZE_MB = 15;
 // Kalau sudah punya logo sendiri: taruh di folder public/logo.png lalu isi "/logo.png"
 const LOGO_SRC = "";
-const MAX_DOC_SIZE_MB = 5;
+const MAX_DOC_SIZE_MB = 3;
 const DOC_MIME_PDF = "application/pdf";
 const DOC_MIME_DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+const EKSTENSI_TEKS = [".txt", ".md", ".csv", ".json", ".log"];
+
+// Pencarian web selalu aktif, tapi dilewati untuk sapaan dan pesan pendek
+const SAPAAN = /^(hai|halo|hallo|hello|hi|hey|p|pagi|siang|sore|malam|assalamualaikum|apa kabar|terima kasih|makasih|thanks|ok|oke|sip|ya|iya|tes|test)\b[\s!.?,]*$/i;
+function perluCariWeb(teks: string): boolean {
+  const baris = (teks || "").split("\n")[0].trim();
+  if (baris.length < 12) return false;
+  if (SAPAAN.test(baris)) return false;
+  if (/https?:\/\//i.test(baris)) return false;
+  return true;
+}
 
 export default function Home() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -40,7 +51,6 @@ export default function Home() {
   const [showAttachSheet, setShowAttachSheet] = useState(false);
   const [showProjectPicker, setShowProjectPicker] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
-  const [webSearchOn, setWebSearchOn] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [collapsedProjects, setCollapsedProjects] = useState<Record<string, boolean>>({});
@@ -49,6 +59,7 @@ export default function Home() {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showHeaderMenu, setShowHeaderMenu] = useState(false);
   const [modeKode, setModeKode] = useState(false);
+  const [showWebcam, setShowWebcam] = useState(false);
   const [memories, setMemories] = useState<Memori[]>([]);
   const [memoriAktif, setMemoriAktif] = useState(true);
   const [showMemoriSheet, setShowMemoriSheet] = useState(false);
@@ -62,6 +73,7 @@ export default function Home() {
   const importRef = useRef<HTMLInputElement>(null);
   const emojiWrapRef = useRef<HTMLDivElement>(null);
   const headerMenuWrapRef = useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   // --- Load & save data di localStorage ---
   useEffect(() => {
@@ -130,6 +142,34 @@ export default function Home() {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [conversations, activeId]);
+
+  // Kamera laptop: buka webcam saat modal tampil, matikan saat ditutup
+  useEffect(() => {
+    if (!showWebcam) return;
+    let stream: MediaStream | null = null;
+    let batal = false;
+    navigator.mediaDevices
+      .getUserMedia({ video: { facingMode: "user" }, audio: false })
+      .then((s) => {
+        if (batal) {
+          s.getTracks().forEach((t) => t.stop());
+          return;
+        }
+        stream = s;
+        if (videoRef.current) {
+          videoRef.current.srcObject = s;
+          videoRef.current.play().catch(() => {});
+        }
+      })
+      .catch(() => {
+        alert("Kamera tidak bisa dibuka. Izinkan akses kamera di browser, atau pakai tombol Foto.");
+        setShowWebcam(false);
+      });
+    return () => {
+      batal = true;
+      stream?.getTracks().forEach((t) => t.stop());
+    };
+  }, [showWebcam]);
 
   // Tutup popup (emoji, menu titik-tiga, menu header) otomatis kalau klik di luar area-nya
   useEffect(() => {
@@ -244,7 +284,7 @@ export default function Home() {
   };
 
   // --- Upload gambar ---
-  const handleFilesPicked = (fileList: FileList) => {
+  const handleFilesPicked = (fileList: FileList | File[]) => {
     const files = Array.from(fileList);
     const sisaSlot = MAX_IMAGES - pendingImages.length;
 
@@ -284,15 +324,49 @@ export default function Home() {
     setPendingImages((prev) => prev.filter((_, i) => i !== index));
   };
 
-  // --- Upload dokumen (.txt langsung dibaca, .pdf/.docx dikirim ke server) ---
+  // --- Kamera: HP pakai kamera bawaan, laptop pakai webcam lewat jendela kecil ---
+  const bukaKamera = () => {
+    if (pendingImages.length >= MAX_IMAGES) {
+      alert(`Maksimal ${MAX_IMAGES} gambar per pesan.`);
+      return;
+    }
+    const hp = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+    if (!hp && navigator.mediaDevices?.getUserMedia) {
+      setShowAttachSheet(false);
+      setShowWebcam(true);
+    } else {
+      cameraInputRef.current?.click();
+    }
+  };
+
+  const ambilFotoWebcam = () => {
+    const v = videoRef.current;
+    if (!v || !v.videoWidth) return;
+    const canvas = document.createElement("canvas");
+    canvas.width = v.videoWidth;
+    canvas.height = v.videoHeight;
+    canvas.getContext("2d")?.drawImage(v, 0, 0);
+    canvas.toBlob(
+      (blob) => {
+        if (!blob) return;
+        const file = new File([blob], "kamera.jpg", { type: "image/jpeg" });
+        setShowWebcam(false);
+        handleFilesPicked([file]);
+      },
+      "image/jpeg",
+      0.9
+    );
+  };
+
+  // --- Upload dokumen (teks langsung dibaca, .pdf/.docx dikirim ke server) ---
   const handleDocPicked = (file: File) => {
     const namaLower = file.name.toLowerCase();
-    const isTxt = namaLower.endsWith(".txt");
+    const isTeks = EKSTENSI_TEKS.some((e) => namaLower.endsWith(e));
     const isPdf = file.type === DOC_MIME_PDF || namaLower.endsWith(".pdf");
     const isDocx = file.type === DOC_MIME_DOCX || namaLower.endsWith(".docx");
 
-    if (!isTxt && !isPdf && !isDocx) {
-      alert("Format yang didukung: .txt, .pdf, atau .docx (Word).");
+    if (!isTeks && !isPdf && !isDocx) {
+      alert("Format yang didukung: .txt, .md, .csv, .json, .log, .pdf, atau .docx (Word).");
       return;
     }
     if (file.size > MAX_DOC_SIZE_MB * 1024 * 1024) {
@@ -300,7 +374,7 @@ export default function Home() {
       return;
     }
 
-    if (isTxt) {
+    if (isTeks) {
       const reader = new FileReader();
       reader.onload = () => {
         setPendingDoc({ name: file.name, kind: "text", text: reader.result as string });
@@ -470,6 +544,9 @@ export default function Home() {
     const dokUntukDikirim = pendingDoc;
     const linkUntukDikirim = pendingLink;
 
+    // Cari di web otomatis, kecuali sapaan/pesan pendek, atau saat ada file atau link
+    const cariWebSekarang = perluCariWeb(teksInput) && !dokUntukDikirim && !linkUntukDikirim;
+
     const pesanUntukAI =
       dokUntukDikirim?.kind === "text"
         ? `${teksInput}\n\n[Isi file "${dokUntukDikirim.name}"]:\n${dokUntukDikirim.text.slice(0, 8000)}`
@@ -518,7 +595,7 @@ export default function Home() {
           link: linkUntukDikirim || undefined,
           mode: modeKode ? "kode" : "chat",
           memories: memoriUntukAI,
-          webSearch: webSearchOn,
+          webSearch: cariWebSekarang,
           history: riwayatUntukAI,
         }),
       });
@@ -555,7 +632,7 @@ export default function Home() {
     ...(pesanTerakhirUser && ((pesanTerakhirUser.imagePreviews?.length ?? 0) > 0 || pesanTerakhirUser.imagePreview) ? ["Melihat gambar"] : []),
     ...(pesanTerakhirUser?.content.includes("🔗") ? ["Membuka link"] : []),
     ...(pesanTerakhirUser?.content.startsWith("📄") ? ["Membaca file"] : []),
-    ...(webSearchOn ? ["Mencari di web"] : []),
+    ...(pesanTerakhirUser && !pesanTerakhirUser.content.includes("🔗") && !pesanTerakhirUser.content.startsWith("📄") && perluCariWeb(pesanTerakhirUser.content) ? ["Mencari di web"] : []),
     ...(modeKode ? ["Menyusun kode"] : []),
     "Berpikir",
     "Merangkai jawaban",
@@ -783,6 +860,16 @@ export default function Home() {
         }
         .emoji-item:hover { background: #262626; }
 
+        .webcam-backdrop {
+          position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 300;
+          display: flex; align-items: center; justify-content: center; padding: 16px;
+        }
+        .webcam-box {
+          background: #161616; border: 1px solid #2a2a2a; border-radius: 18px;
+          padding: 14px; width: 100%; max-width: 520px;
+        }
+        .webcam-box video { width: 100%; border-radius: 12px; background: #000; display: block; }
+
         @keyframes pulse {
           0% { box-shadow: 0 0 0 0 rgba(255,59,59,0.5); }
           70% { box-shadow: 0 0 0 8px rgba(255,59,59,0); }
@@ -829,7 +916,6 @@ export default function Home() {
         >
           <span style={{ color: modeKode ? "#ff9d4d" : "#aaa", display: "inline-flex" }}><IconCode /></span>
           <span style={{ color: modeKode ? "#ff9d4d" : "#ddd" }}>Kode</span>
-          {modeKode && <span style={{ marginLeft: "auto", fontSize: 11, color: "#ff9d4d" }}>Aktif</span>}
         </div>
 
         <div style={{ position: "relative", margin: "6px 2px 4px 2px" }}>
@@ -989,12 +1075,6 @@ export default function Home() {
               <IconFolderMini /> {projects.find((p) => p.id === activeConversation.projectId)?.name}
             </span>
           )}
-          {modeKode && (
-            <span style={{ fontSize: 11, background: "#1f1f1f", color: "#ff9d4d", padding: "3px 8px", borderRadius: 12, display: "inline-flex", alignItems: "center", gap: 4 }}>
-              <IconCode /> Mode Kode
-            </span>
-          )}
-          
 
           <div style={{ display: "flex", gap: 4, marginLeft: "auto" }}>
             <button className="header-icon-btn" onClick={eksporObrolan} title="Ekspor obrolan">
@@ -1131,7 +1211,17 @@ export default function Home() {
               e.target.value = "";
             }}
           />
-          <input ref={docInputRef} type="file" accept=".txt,.pdf,.docx" style={{ display: "none" }} onChange={(e) => e.target.files?.[0] && handleDocPicked(e.target.files[0])} />
+          <input
+            ref={docInputRef}
+            type="file"
+            accept=".txt,.md,.csv,.json,.log,.pdf,.docx"
+            style={{ display: "none" }}
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) handleDocPicked(f);
+              e.target.value = "";
+            }}
+          />
 
           <div ref={emojiWrapRef}>
             {showEmojiPicker && (
@@ -1158,40 +1248,60 @@ export default function Home() {
                 </button>
                 <button onClick={() => setShowAttachSheet(true)} className="input-icon-btn" style={{ fontSize: 20 }}>
                   +
-              </button>
-              <div style={{ flex: 1 }} />
-              <button
-                onClick={() => setWebSearchOn((v) => !v)}
-                className="input-icon-btn"
-                title={webSearchOn ? "Pencarian web aktif" : "Aktifkan pencarian web"}
-                style={{ background: webSearchOn ? "rgba(77,163,255,0.18)" : "transparent" }}
-              >
-                <IconWeb aktif={webSearchOn} />
-              </button>
-              <button
-                onClick={mulaiRekamSuara}
-                className="input-icon-btn"
-                style={{ background: isListening ? "#ff3b3b" : "transparent", animation: isListening ? "pulse 1s infinite" : "none" }}
-              >
-                <IconMic active={isListening} />
-              </button>
-              <button
-                onClick={kirimPesan}
-                disabled={loading}
-                style={{
-                  width: 38, height: 38, borderRadius: "50%",
-                  background: "linear-gradient(135deg, #ff7a18, #ff9d4d)", color: "#0a0a0a", border: "none",
-                  cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.6 : 1,
-                  display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-                }}
-              >
-                <IconSend />
-              </button>
+                </button>
+                <div style={{ flex: 1 }} />
+                <span
+                  className="input-icon-btn"
+                  title="Pencarian web selalu aktif"
+                  style={{ background: "rgba(77,163,255,0.18)", cursor: "default" }}
+                >
+                  <IconWeb aktif />
+                </span>
+                <button
+                  onClick={() => setModeKode((v) => !v)}
+                  className="input-icon-btn"
+                  title={modeKode ? "Mode Kode menyala" : "Nyalakan Mode Kode"}
+                  style={{ background: modeKode ? "rgba(255,122,24,0.22)" : "transparent", color: modeKode ? "#ff9d4d" : "#888" }}
+                >
+                  <IconCode />
+                </button>
+                <button
+                  onClick={mulaiRekamSuara}
+                  className="input-icon-btn"
+                  style={{ background: isListening ? "#ff3b3b" : "transparent", animation: isListening ? "pulse 1s infinite" : "none" }}
+                >
+                  <IconMic active={isListening} />
+                </button>
+                <button
+                  onClick={kirimPesan}
+                  disabled={loading}
+                  style={{
+                    width: 38, height: 38, borderRadius: "50%",
+                    background: "linear-gradient(135deg, #ff7a18, #ff9d4d)", color: "#0a0a0a", border: "none",
+                    cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.6 : 1,
+                    display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                  }}
+                >
+                  <IconSend />
+                </button>
+              </div>
             </div>
-          </div>
           </div>
         </div>
       </main>
+
+      {/* ===== MODAL WEBCAM (laptop) ===== */}
+      {showWebcam && (
+        <div className="webcam-backdrop" onClick={() => setShowWebcam(false)}>
+          <div className="webcam-box" onClick={(e) => e.stopPropagation()}>
+            <video ref={videoRef} playsInline muted autoPlay />
+            <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+              <button className="sidebar-btn" style={{ flex: 1 }} onClick={ambilFotoWebcam}>Ambil foto</button>
+              <button className="sidebar-btn-secondary" onClick={() => setShowWebcam(false)}>Batal</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ===== BOTTOM SHEET: Tambahkan ke chat ===== */}
       <div className={`sheet-backdrop ${showAttachSheet ? "open" : ""}`} onClick={() => setShowAttachSheet(false)}>
@@ -1200,7 +1310,7 @@ export default function Home() {
           <div style={{ textAlign: "center", fontWeight: 700, fontSize: 17, marginBottom: 18 }}>Tambahkan ke chat</div>
 
           <div className="sheet-grid">
-            <button className="sheet-grid-item" onClick={() => cameraInputRef.current?.click()}>
+            <button className="sheet-grid-item" onClick={bukaKamera}>
               <div className="icon-circle"><IconCamera /></div>
               Kamera
             </button>
@@ -1263,7 +1373,7 @@ export default function Home() {
         </div>
       </div>
 
-      {/* ===== BOTTOM SHEET: Pilih / Buat Proyek ===== */}
+      {/* ===== BOTTOM SHEET: Memori ===== */}
       <div className={`sheet-backdrop ${showMemoriSheet ? "open" : ""}`} onClick={() => setShowMemoriSheet(false)}>
         <div className="sheet" onClick={(e) => e.stopPropagation()}>
           <div className="sheet-handle" />
@@ -1292,6 +1402,7 @@ export default function Home() {
         </div>
       </div>
 
+      {/* ===== BOTTOM SHEET: Konektor link ===== */}
       <div className={`sheet-backdrop ${showLinkSheet ? "open" : ""}`} onClick={() => setShowLinkSheet(false)}>
         <div className="sheet" onClick={(e) => e.stopPropagation()}>
           <div className="sheet-handle" />
@@ -1312,6 +1423,7 @@ export default function Home() {
         </div>
       </div>
 
+      {/* ===== BOTTOM SHEET: Pilih / Buat Proyek ===== */}
       <div className={`sheet-backdrop ${showProjectPicker ? "open" : ""}`} onClick={() => setShowProjectPicker(false)}>
         <div className="sheet" onClick={(e) => e.stopPropagation()}>
           <div className="sheet-handle" />
