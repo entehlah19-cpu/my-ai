@@ -416,15 +416,18 @@ async function buatGambar(promptMentah: string): Promise<{ image?: string; galat
   if (TERLARANG.test(teks)) {
     return { galat: "Gambar seperti ini tidak bisa dibuat. Coba deskripsi lain yang aman ya.", status: 400 };
   }
-  if (!CLOUDFLARE_API_TOKEN || !CLOUDFLARE_ACCOUNT_ID) {
-    return { galat: "Pembuat gambar belum diatur di server.", status: 500 };
+  const token = process.env.CLOUDFLARE_API_TOKEN;
+  const akun = process.env.CLOUDFLARE_ACCOUNT_ID;
+  if (!token || !akun) {
+    const hilang = [!token ? "CLOUDFLARE_API_TOKEN" : "", !akun ? "CLOUDFLARE_ACCOUNT_ID" : ""].filter(Boolean).join(" dan ");
+    return { galat: `Server belum menemukan ${hilang}.`, status: 500 };
   }
   try {
     const res = await fetch(
-      `https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/ai/run/${MODEL_GAMBAR}`,
+      `https://api.cloudflare.com/client/v4/accounts/${akun}/ai/run/${MODEL_GAMBAR}`,
       {
         method: "POST",
-        headers: { Authorization: `Bearer ${CLOUDFLARE_API_TOKEN}`, "Content-Type": "application/json" },
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify({ prompt: teks, steps: 6 }),
         signal: AbortSignal.timeout(30000),
       }
