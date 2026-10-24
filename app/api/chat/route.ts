@@ -471,7 +471,7 @@ export async function POST(req: NextRequest) {
     // Kalau toggle "Pencarian web" aktif
     let searchBlock = "";
     if (webSearch && message) {
-      const hasilSearch = await cariWeb(message);
+    const hasilSearch = await cariWeb(String(message).split("\n")[0].trim().slice(0, 200));
       if (hasilSearch) {
         searchBlock = `\n\nHasil pencarian web terbaru (gunakan ini untuk jawaban yang akurat dan terkini, sebutkan sumbernya kalau relevan):\n${hasilSearch}`;
       }
