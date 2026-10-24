@@ -331,7 +331,7 @@ export default function Home() {
       return;
     }
     const hp = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
-    if (!hp && navigator.mediaDevices?.getUserMedia) {
+   if (!hp && typeof navigator.mediaDevices?.getUserMedia === "function") {
       setShowAttachSheet(false);
       setShowWebcam(true);
     } else {
