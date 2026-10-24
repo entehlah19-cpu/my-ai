@@ -256,7 +256,7 @@ async function panggilQwen(prompt: string, system: string): Promise<string> {
   return reply;
 }
 
-const PETUNJUK_TAMPILAN = `Aturan tampilan jawaban: (1) Rumus matematika ditulis dengan LaTeX di antara dua tanda dolar, yaitu $$...$$ (boleh di dalam kalimat atau di baris sendiri). Jangan pakai kurung siku untuk rumus dan jangan pakai satu tanda dolar. (2) Untuk hasil evaluasi atau penilaian berbentuk kartu, tulis blok kode markdown berbahasa kartu yang isinya JSON seperti: {"judul":"Nilai latihan","nilai":8.5,"maks":10,"kriteria":[{"nama":"Analisis","nilai":9,"maks":10,"teks":"penjelasan singkat","ikon":"otak"}],"ringkasan":"opsional"}. Pilihan ikon: otak, perisai, target, bintang. (3) Kalau user meminta melihat grafik atau chart harga pasar, tulis blok kode markdown berbahasa grafik yang isinya JSON seperti: {"simbol":"OANDA:XAUUSD","interval":"5"}. Interval boleh 1, 5, 15, 30, 60, 240, D, atau W. Contoh simbol: OANDA:XAUUSD untuk emas, FX:EURUSD, BINANCE:BTCUSDT, NASDAQ:AAPL. Jangan menebak harga, karena grafiknya diambil langsung dari TradingView. (4) Untuk topik trading atau investasi, hanya beri edukasi dan latihan analisis: jangan memberi sinyal beli atau jual yang pasti, jangan menjanjikan untung, sebut risikonya, dan ingatkan bahwa ini bukan saran keuangan.`;
+const PETUNJUK_TAMPILAN = `Aturan tampilan jawaban: (1) Rumus matematika ditulis dengan LaTeX di antara dua tanda dolar, yaitu $$...$$ (boleh di dalam kalimat atau di baris sendiri). Jangan pakai kurung siku untuk rumus dan jangan pakai satu tanda dolar. (2) Untuk hasil evaluasi atau penilaian berbentuk kartu, tulis blok kode markdown berbahasa kartu yang isinya JSON seperti: {"judul":"Nilai latihan","nilai":8.5,"maks":10,"kriteria":[{"nama":"Analisis","nilai":9,"maks":10,"teks":"penjelasan singkat","ikon":"otak"}],"ringkasan":"opsional"}. Pilihan ikon: otak, perisai, target, bintang. (3) Kalau user meminta melihat grafik atau chart harga pasar, tulis blok kode markdown berbahasa grafik yang isinya JSON seperti: {"simbol":"OANDA:XAUUSD","interval":"5"}. Interval boleh 1, 5, 15, 30, 60, 240, D, atau W. Contoh simbol: OANDA:XAUUSD untuk emas, FX:EURUSD, BINANCE:BTCUSDT, NASDAQ:AAPL. Jangan menebak harga, karena grafiknya diambil langsung dari TradingView. (4) Untuk topik trading atau investasi, hanya beri edukasi dan latihan analisis: jangan memberi sinyal beli atau jual yang pasti, jangan menjanjikan untung, sebut risikonya, dan ingatkan bahwa ini bukan saran keuangan. (5) Kalau user meminta dibuatkan gambar, tulis blok kode markdown berbahasa gambar yang isinya JSON seperti: {"prompt":"deskripsi gambar dalam Bahasa Inggris, detail, maksimal 400 karakter"}, lalu satu kalimat singkat Bahasa Indonesia. Jangan membuat gambar orang sungguhan (tokoh terkenal), logo atau merek dagang, konten dewasa, kekerasan, atau hal berbahaya. Kalau diminta, tolak dengan sopan dan tawarkan alternatif yang aman.`;
 
 const PETUNJUK_KODE = `Kamu sedang dalam MODE KODE. Bantu seperti programmer senior yang sabar. Aturan: (1) tulis kode di dalam blok kode markdown dengan nama bahasanya; (2) kode harus lengkap dan bisa langsung dijalankan, jangan dipotong atau diganti dengan "dst"; (3) jelaskan singkat apa yang dilakukan kode dan bagian mana yang perlu disesuaikan; (4) kalau user menempelkan error, jelaskan penyebabnya dulu, baru beri perbaikan; (5) sebutkan risiko keamanan atau kesalahan umum kalau relevan; (6) penjelasan pakai Bahasa Indonesia, nama variabel dan komentar kode boleh Inggris.`;
 
@@ -405,6 +405,47 @@ async function ekstrakFakta(pesanUser: string, jawabanAI: string, sudahAda: stri
   return [];
 }
 
+// ---- Gambar AI lewat Cloudflare flux-1-schnell, dengan filter keamanan ----
+const MODEL_GAMBAR = "@cf/black-forest-labs/flux-1-schnell";
+const TERLARANG =
+  /\b(nsfw|nude|naked|nudity|topless|porn\w*|sex\w*|erotic\w*|hentai|lingerie|bikini|fetish|gore|gory|mutilat\w*|dismember\w*|beheading|corpse|suicide|self[- ]?harm|child abuse|molest\w*)\b|telanjang|bugil|bokep|porno|seks|cabul|mesum|erotis|bunuh diri|mayat|pemenggalan|mutilasi/i;
+
+async function buatGambar(promptMentah: string): Promise<{ image?: string; galat?: string; status: number }> {
+  const teks = promptMentah.trim().slice(0, 500);
+  if (teks.length < 3) return { galat: "Deskripsi gambar terlalu pendek.", status: 400 };
+  if (TERLARANG.test(teks)) {
+    return { galat: "Gambar seperti ini tidak bisa dibuat. Coba deskripsi lain yang aman ya.", status: 400 };
+  }
+  if (!CLOUDFLARE_API_TOKEN || !CLOUDFLARE_ACCOUNT_ID) {
+    return { galat: "Pembuat gambar belum diatur di server.", status: 500 };
+  }
+  try {
+    const res = await fetch(
+      `https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/ai/run/${MODEL_GAMBAR}`,
+      {
+        method: "POST",
+        headers: { Authorization: `Bearer ${CLOUDFLARE_API_TOKEN}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: teks, steps: 6 }),
+        signal: AbortSignal.timeout(30000),
+      }
+    );
+    if (!res.ok) {
+      console.log("Gambar gagal dengan status", res.status);
+      return {
+        galat: res.status === 429 ? "Jatah gambar hari ini habis. Coba lagi nanti." : "Gambar gagal dibuat. Coba lagi ya.",
+        status: 502,
+      };
+    }
+    const data = await res.json();
+    const image = data?.result?.image;
+    if (typeof image !== "string" || !image) return { galat: "Gambar gagal dibuat. Coba lagi ya.", status: 502 };
+    return { image, status: 200 };
+  } catch (err) {
+    console.log("Gambar error:", (err as Error).message);
+    return { galat: "Gambar gagal dibuat. Coba lagi ya.", status: 500 };
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { userId, message, image, images, document, history, webSearch, link, mode, memories, aksi, pesan, jawaban, sudahAda } = await req.json();
@@ -417,6 +458,11 @@ export async function POST(req: NextRequest) {
         Array.isArray(sudahAda) ? sudahAda.slice(0, 60).map((x: unknown) => String(x).slice(0, 200)) : []
       );
       return NextResponse.json({ fakta });
+    }
+    // Permintaan khusus: buat gambar AI (isi "pesan" = deskripsi gambar)
+    if (aksi === "gambar") {
+      const hasil = await buatGambar(String(pesan || ""));
+      return NextResponse.json(hasil.galat ? { error: hasil.galat } : { image: hasil.image }, { status: hasil.status });
     }
     const linkBersih = typeof link === "string" ? link.trim().slice(0, 2000) : "";
 
@@ -471,7 +517,7 @@ export async function POST(req: NextRequest) {
     // Kalau toggle "Pencarian web" aktif
     let searchBlock = "";
     if (webSearch && message) {
-    const hasilSearch = await cariWeb(String(message).split("\n")[0].trim().slice(0, 200));
+      const hasilSearch = await cariWeb(String(message).split("\n")[0].trim().slice(0, 200));
       if (hasilSearch) {
         searchBlock = `\n\nHasil pencarian web terbaru (gunakan ini untuk jawaban yang akurat dan terkini, sebutkan sumbernya kalau relevan):\n${hasilSearch}`;
       }
