@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, type CSSProperties } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
@@ -331,7 +331,7 @@ export default function Home() {
       return;
     }
     const hp = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
-   if (!hp && typeof navigator.mediaDevices?.getUserMedia === "function") {
+    if (!hp && typeof navigator.mediaDevices?.getUserMedia === "function") {
       setShowAttachSheet(false);
       setShowWebcam(true);
     } else {
@@ -1721,12 +1721,94 @@ function KartuHasil({ data }: { data: any }) {
   );
 }
 
+// ---- Kartu gambar AI: klik "Buat gambar" supaya jatah gratis tidak terbuang ----
+const cacheGambar = new Map<string, string>();
+
+function KartuGambar({ prompt }: { prompt: string }) {
+  const [src, setSrc] = useState<string>(cacheGambar.get(prompt) || "");
+  const [proses, setProses] = useState(false);
+  const [galat, setGalat] = useState("");
+
+  const buat = async () => {
+    if (proses) return;
+    setProses(true);
+    setGalat("");
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ aksi: "gambar", pesan: prompt }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data?.image) {
+        setGalat(data?.error || "Gambar gagal dibuat. Coba lagi ya.");
+      } else {
+        const url = `data:image/jpeg;base64,${data.image}`;
+        cacheGambar.set(prompt, url);
+        setSrc(url);
+      }
+    } catch {
+      setGalat("Gambar gagal dibuat. Cek koneksi lalu coba lagi.");
+    } finally {
+      setProses(false);
+    }
+  };
+
+  const tombol: CSSProperties = {
+    background: "linear-gradient(135deg, #ff7a18, #ff9d4d)",
+    color: "#0a0a0a",
+    border: "none",
+    borderRadius: 10,
+    padding: "9px 16px",
+    fontWeight: 600,
+    fontSize: 14,
+    cursor: proses ? "not-allowed" : "pointer",
+    opacity: proses ? 0.6 : 1,
+    textDecoration: "none",
+    display: "inline-block",
+  };
+
+  return (
+    <div style={{ border: "1px solid #2a2a2a", borderRadius: 14, background: "#101010", margin: "12px 0", padding: 12, maxWidth: 420 }}>
+      {src ? (
+        <>
+          <img src={src} alt={prompt} style={{ width: "100%", borderRadius: 10, display: "block" }} />
+          <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+            <a href={src} download="gambar-my-ai.jpg" style={tombol}>Simpan</a>
+            <button onClick={buat} disabled={proses} style={{ ...tombol, background: "#1f1f1f", color: "#ff9d4d", border: "1px solid #333" }}>
+              {proses ? "Membuat..." : "Buat ulang"}
+            </button>
+          </div>
+        </>
+      ) : (
+        <>
+          <div style={{ fontSize: 13, color: "#999", lineHeight: 1.5, marginBottom: 10, wordBreak: "break-word" }}>{prompt}</div>
+          <button onClick={buat} disabled={proses} style={tombol}>
+            {proses ? "Membuat gambar..." : "Buat gambar"}
+          </button>
+        </>
+      )}
+      {galat && <div style={{ color: "#ff6b6b", fontSize: 13, marginTop: 8 }}>{galat}</div>}
+    </div>
+  );
+}
+
 const komponenMarkdown: any = {
   pre: ({ children }: any) => <>{children}</>,
   code: ({ className, children }: any) => {
     const teks = String(children ?? "").replace(/\n$/, "");
     const bahasa = /language-([\w-]+)/.exec(className || "")?.[1];
     if (!bahasa && !teks.includes("\n")) return <code>{children}</code>;
+    if (bahasa === "gambar") {
+      try {
+        const d = JSON.parse(teks);
+        if (typeof d?.prompt === "string" && d.prompt.trim()) {
+          return <KartuGambar prompt={d.prompt.trim().slice(0, 500)} />;
+        }
+      } catch {
+        // JSON belum valid: tampilkan sebagai blok kode biasa
+      }
+    }
     if (bahasa === "kartu" || bahasa === "grafik") {
       try {
         const data = JSON.parse(teks);
