@@ -244,6 +244,32 @@ export default function Home() {
     URL.revokeObjectURL(url);
   };
 
+  // Bagikan isi obrolan lewat menu share bawaan HP/laptop (tanpa link publik, tanpa server)
+  const bagikanObrolan = async () => {
+    if (!activeConversation || activeConversation.messages.length === 0) {
+      alert("Belum ada isi obrolan untuk dibagikan.");
+      return;
+    }
+    const isi = activeConversation.messages
+      .map((m) => `${m.role === "user" ? "Kamu" : "My AI"}: ${m.content}`)
+      .join("\n\n");
+    const judul = activeConversation.title || "Obrolan My AI";
+    if (typeof navigator.share === "function") {
+      try {
+        await navigator.share({ title: judul, text: isi });
+        return;
+      } catch (err) {
+        if ((err as Error).name === "AbortError") return; // user menutup menu share
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(isi);
+      alert("Obrolan disalin. Tinggal tempel di WhatsApp atau tempat lain.");
+    } catch {
+      alert("Tidak bisa membagikan otomatis. Pakai tombol Ekspor ya.");
+    }
+  };
+
   const tambahKeProyekDari = (id: string) => {
     setActiveId(id);
     setOpenMenuId(null);
@@ -1096,6 +1122,9 @@ export default function Home() {
           )}
 
           <div style={{ display: "flex", gap: 4, marginLeft: "auto" }}>
+            <button className="header-icon-btn" onClick={bagikanObrolan} title="Bagikan obrolan">
+              <IconShare />
+            </button>
             <button className="header-icon-btn" onClick={eksporObrolan} title="Ekspor obrolan">
               <IconDocument />
             </button>
@@ -2101,6 +2130,16 @@ function IconIncognito() {
       <circle cx="8" cy="16.5" r="2.5" />
       <circle cx="16" cy="16.5" r="2.5" />
       <path d="M10.5 16h3" />
+    </svg>
+  );
+}
+function IconShare() {
+  return (
+    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="18" cy="5" r="2.5" />
+      <circle cx="6" cy="12" r="2.5" />
+      <circle cx="18" cy="19" r="2.5" />
+      <path d="M8.2 10.9l7.6-4.3M8.2 13.1l7.6 4.3" />
     </svg>
   );
 }
