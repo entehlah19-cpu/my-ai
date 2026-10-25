@@ -7,7 +7,8 @@ import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import "katex/dist/katex.min.css";
 
-type Message = { role: string; content: string; imagePreviews?: string[]; imagePreview?: string };
+type Sumber = { judul: string; link: string };
+type Message = { role: string; content: string; imagePreviews?: string[]; imagePreview?: string; sumber?: Sumber[] };
 type PendingImg = { preview: string; mimeType: string; data: string };
 const MAX_IMAGES = 3;
 type Conversation = { id: string; title: string; messages: Message[]; projectId?: string; pinned?: boolean; incognito?: boolean };
@@ -679,7 +680,7 @@ export default function Home() {
       setConversations((prev) =>
         prev.map((c) =>
           c.id === convId
-            ? { ...c, messages: [...c.messages, { role: "assistant", content: data.reply || data.error || "Maaf, terjadi kesalahan." }] }
+            ? { ...c, messages: [...c.messages, { role: "assistant", content: data.reply || data.error || "Maaf, terjadi kesalahan.", sumber: bersihkanSumber(data?.sumber) }] }
             : c
         )
       );
@@ -1245,7 +1246,10 @@ export default function Home() {
                 <div className="msg-content" style={{ fontSize: ukuranPx, lineHeight: 1.65, color: "#f0f0f0", wordBreak: "break-word" }}>
                   <ReactMarkdown remarkPlugins={pluginRemark} rehypePlugins={pluginRehype} components={komponenMarkdown}>{siapkanMatematika(m.content)}</ReactMarkdown>
                 </div>
-                <TombolSalin teks={m.content} />
+                <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginTop: 4 }}>
+                  {m.sumber && m.sumber.length > 0 && <ChipSumber sumber={m.sumber} />}
+                  <TombolSalin teks={m.content} />
+                </div>
               </div>
             )
           )}
@@ -1670,6 +1674,62 @@ function IndikatorMengetik({ frasa }: { frasa: string[] }) {
         <span className="dots" />
       </span>
     </div>
+  );
+}
+
+// ---- Sumber jawaban (hasil pencarian web atau link), tampil sebagai chip yang bisa dibuka ----
+function bersihkanSumber(data: any): Sumber[] | undefined {
+  if (!Array.isArray(data)) return undefined;
+  const hasil = data
+    .filter((s: any) => s && typeof s.link === "string" && /^https?:\/\//i.test(s.link))
+    .map((s: any) => ({ judul: String(s.judul || s.link).slice(0, 120), link: String(s.link) }))
+    .slice(0, 6);
+  return hasil.length > 0 ? hasil : undefined;
+}
+
+function domainDari(link: string): string {
+  try {
+    return new URL(link).hostname.replace(/^www\./, "");
+  } catch {
+    return link;
+  }
+}
+
+function ChipSumber({ sumber }: { sumber: Sumber[] }) {
+  const [buka, setBuka] = useState(false);
+  const sisa = sumber.length - 1;
+  return (
+    <>
+      <button
+        onClick={() => setBuka((v) => !v)}
+        style={{
+          display: "inline-flex", alignItems: "center", gap: 6, background: "#1f1f1f", color: "#bbb",
+          border: "1px solid #333", borderRadius: 999, padding: "4px 12px 4px 8px", fontSize: 12.5, cursor: "pointer",
+        }}
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4da3ff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="9" />
+          <path d="M3 12h18M12 3c2.5 2.5 4 6 4 9s-1.5 6.5-4 9c-2.5-2.5-4-6-4-9s1.5-6.5 4-9z" />
+        </svg>
+        {domainDari(sumber[0].link)}{sisa > 0 ? ` +${sisa}` : ""}
+      </button>
+      {buka && (
+        <div style={{ flexBasis: "100%", background: "#141414", border: "1px solid #2a2a2a", borderRadius: 12, padding: 6 }}>
+          {sumber.map((s, i) => (
+            <a
+              key={i}
+              href={s.link}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ display: "block", padding: "8px 10px", borderRadius: 8, textDecoration: "none" }}
+            >
+              <div style={{ color: "#eee", fontSize: 14, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.judul}</div>
+              <div style={{ color: "#777", fontSize: 12 }}>{domainDari(s.link)}</div>
+            </a>
+          ))}
+        </div>
+      )}
+    </>
   );
 }
 
