@@ -262,7 +262,7 @@ async function panggilQwen(prompt: string, system: string): Promise<string> {
   return reply;
 }
 
-const PETUNJUK_TAMPILAN = `Aturan tampilan jawaban: (1) Rumus matematika ditulis dengan LaTeX di antara dua tanda dolar, yaitu $$...$$ (boleh di dalam kalimat atau di baris sendiri). Jangan pakai kurung siku untuk rumus dan jangan pakai satu tanda dolar. (2) Untuk hasil evaluasi atau penilaian berbentuk kartu, tulis blok kode markdown berbahasa kartu yang isinya JSON seperti: {"judul":"Nilai latihan","nilai":8.5,"maks":10,"kriteria":[{"nama":"Analisis","nilai":9,"maks":10,"teks":"penjelasan singkat","ikon":"otak"}],"ringkasan":"opsional"}. Pilihan ikon: otak, perisai, target, bintang. (3) Kalau user meminta melihat grafik atau chart harga pasar, tulis blok kode markdown berbahasa grafik yang isinya JSON seperti: {"simbol":"OANDA:XAUUSD","interval":"5"}. Interval boleh 1, 5, 15, 30, 60, 240, D, atau W. Contoh simbol: OANDA:XAUUSD untuk emas, FX:EURUSD, BINANCE:BTCUSDT, NASDAQ:AAPL. Jangan menebak harga, karena grafiknya diambil langsung dari TradingView. (4) Untuk topik trading atau investasi, hanya beri edukasi dan latihan analisis: jangan memberi sinyal beli atau jual yang pasti, jangan menjanjikan untung, sebut risikonya, dan ingatkan bahwa ini bukan saran keuangan. (5) Kalau user meminta dibuatkan gambar, tulis blok kode markdown berbahasa gambar yang isinya JSON seperti: {"prompt":"deskripsi gambar dalam Bahasa Inggris, detail, maksimal 400 karakter"}, lalu satu kalimat singkat Bahasa Indonesia. Jangan membuat gambar orang sungguhan (tokoh terkenal), logo atau merek dagang, konten dewasa, kekerasan, atau hal berbahaya. Kalau diminta, tolak dengan sopan dan tawarkan alternatif yang aman. (6) Kalau user meminta animasi, simulasi, permainan kecil, atau tampilan interaktif sederhana, tulis blok kode markdown berbahasa animasi yang isinya SATU dokumen HTML lengkap dengan CSS dan JavaScript di dalamnya. Jangan pakai file, library, gambar, atau font dari luar, dan jangan butuh internet. Gunakan latar gelap, warna cerah, dan ukuran yang pas untuk layar HP. Jangan pakai alert, prompt, atau localStorage. Setelah blok itu, tulis satu kalimat singkat Bahasa Indonesia.`;
+const PETUNJUK_TAMPILAN = `Aturan tampilan jawaban: (1) Rumus matematika ditulis dengan LaTeX di antara dua tanda dolar, yaitu $$...$$ (boleh di dalam kalimat atau di baris sendiri). Jangan pakai kurung siku untuk rumus dan jangan pakai satu tanda dolar. (2) Untuk hasil evaluasi atau penilaian berbentuk kartu, tulis blok kode markdown berbahasa kartu yang isinya JSON seperti: {"judul":"Nilai latihan","nilai":8.5,"maks":10,"kriteria":[{"nama":"Analisis","nilai":9,"maks":10,"teks":"penjelasan singkat","ikon":"otak"}],"ringkasan":"opsional"}. Pilihan ikon: otak, perisai, target, bintang. (3) Kalau user meminta melihat grafik atau chart harga pasar, tulis blok kode markdown berbahasa grafik yang isinya JSON seperti: {"simbol":"OANDA:XAUUSD","interval":"5"}. Interval boleh 1, 5, 15, 30, 60, 240, D, atau W. Contoh simbol: OANDA:XAUUSD untuk emas, FX:EURUSD, BINANCE:BTCUSDT, NASDAQ:AAPL. Jangan menebak harga, karena grafiknya diambil langsung dari TradingView. (4) Untuk topik trading atau investasi, hanya beri edukasi dan latihan analisis: jangan memberi sinyal beli atau jual yang pasti, jangan menjanjikan untung, sebut risikonya, dan ingatkan bahwa ini bukan saran keuangan. (5) Kalau user meminta dibuatkan gambar, tulis blok kode markdown berbahasa gambar yang isinya JSON seperti: {"prompt":"deskripsi gambar dalam Bahasa Inggris, detail, maksimal 400 karakter"}, lalu satu kalimat singkat Bahasa Indonesia. Khusus untuk gambar buatan AI ini, jangan membuat gambar orang sungguhan (tokoh terkenal), logo atau merek dagang, konten dewasa, kekerasan, atau hal berbahaya. Kalau diminta, tolak dengan sopan dan tawarkan alternatif yang aman. (6) Kalau user meminta animasi, simulasi, permainan kecil, atau tampilan interaktif sederhana, tulis blok kode markdown berbahasa animasi yang isinya SATU dokumen HTML lengkap dengan CSS dan JavaScript di dalamnya. Jangan pakai file, library, gambar, atau font dari luar, dan jangan butuh internet. Gunakan latar gelap, warna cerah, dan ukuran yang pas untuk layar HP. Jangan pakai alert, prompt, atau localStorage. Setelah blok itu, tulis satu kalimat singkat Bahasa Indonesia. (7) Kalau user minta dilihatkan foto atau gambar sungguhan dari internet (tokoh publik terkenal, tempat, hewan, benda, produk, peta, diagram), tulis blok kode markdown berbahasa foto yang isinya JSON seperti: {"query":"kata kunci pencarian gambar, 2 sampai 6 kata"}. Taruh blok itu setelah satu kalimat pembuka, lalu lanjutkan dengan penjelasan singkat. Ini mengambil foto asli dari web (seperti pencarian gambar), bukan membuat gambar baru, jadi boleh untuk tokoh publik. Jangan mencari foto orang pribadi yang bukan tokoh publik, dan jangan mencari konten dewasa atau kekerasan. Kalau nama yang diketik user salah ketik, perbaiki di query.`;
 
 const PETUNJUK_KODE = `Kamu sedang dalam MODE KODE. Bantu seperti programmer senior yang sabar. Aturan: (1) tulis kode di dalam blok kode markdown dengan nama bahasanya; (2) kode harus lengkap dan bisa langsung dijalankan, jangan dipotong atau diganti dengan "dst"; (3) jelaskan singkat apa yang dilakukan kode dan bagian mana yang perlu disesuaikan; (4) kalau user menempelkan error, jelaskan penyebabnya dulu, baru beri perbaikan; (5) sebutkan risiko keamanan atau kesalahan umum kalau relevan; (6) penjelasan pakai Bahasa Indonesia, nama variabel dan komentar kode boleh Inggris.`;
 
@@ -455,6 +455,42 @@ async function buatGambar(promptMentah: string): Promise<{ image?: string; galat
   }
 }
 
+type FotoT = { judul: string; kecil: string; besar: string; link: string; sumber: string };
+
+// Cari foto asli dari web lewat Serper (pencarian gambar), dengan filter keamanan sederhana
+async function cariFoto(queryMentah: string): Promise<{ foto?: FotoT[]; galat?: string; status: number }> {
+  const q = queryMentah.trim().slice(0, 100);
+  if (q.length < 2) return { galat: "Kata kunci foto terlalu pendek.", status: 400 };
+  if (TERLARANG.test(q)) return { galat: "Foto seperti ini tidak bisa dicari.", status: 400 };
+  if (!SERPER_API_KEY) return { galat: "Pencarian foto belum diatur di server.", status: 500 };
+  try {
+    const res = await fetch("https://google.serper.dev/images", {
+      method: "POST",
+      headers: { "X-API-KEY": SERPER_API_KEY, "Content-Type": "application/json" },
+      body: JSON.stringify({ q, num: 9, safe: "active" }),
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!res.ok) return { galat: "Foto gagal dicari. Coba lagi ya.", status: 502 };
+    const data = await res.json();
+    const aman = (u: any): boolean => typeof u === "string" && /^https:\/\//i.test(u);
+    const foto: FotoT[] = (Array.isArray(data?.images) ? data.images : [])
+      .filter((x: any) => aman(x?.thumbnailUrl) || aman(x?.imageUrl))
+      .slice(0, 9)
+      .map((x: any) => ({
+        judul: String(x.title || "").slice(0, 120),
+        kecil: aman(x.thumbnailUrl) ? x.thumbnailUrl : x.imageUrl,
+        besar: aman(x.imageUrl) ? x.imageUrl : x.thumbnailUrl,
+        link: aman(x.link) ? x.link : "",
+        sumber: String(x.source || x.domain || "").slice(0, 60),
+      }));
+    if (foto.length === 0) return { galat: "Tidak ada foto yang ketemu.", status: 404 };
+    return { foto, status: 200 };
+  } catch (err) {
+    console.log("Cari foto error:", (err as Error).message);
+    return { galat: "Foto gagal dicari. Coba lagi ya.", status: 500 };
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { userId, message, image, images, document, history, webSearch, link, mode, memories, aksi, pesan, jawaban, sudahAda } = await req.json();
@@ -467,6 +503,11 @@ export async function POST(req: NextRequest) {
         Array.isArray(sudahAda) ? sudahAda.slice(0, 60).map((x: unknown) => String(x).slice(0, 200)) : []
       );
       return NextResponse.json({ fakta });
+    }
+    // Permintaan khusus: cari foto asli dari web (isi "pesan" = kata kunci)
+    if (aksi === "foto") {
+      const hasil = await cariFoto(String(pesan || ""));
+      return NextResponse.json(hasil.galat ? { error: hasil.galat } : { foto: hasil.foto }, { status: hasil.status });
     }
     // Permintaan khusus: buat gambar AI (isi "pesan" = deskripsi gambar)
     if (aksi === "gambar") {
