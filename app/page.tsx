@@ -29,12 +29,31 @@ const EKSTENSI_TEKS = [".txt", ".md", ".csv", ".json", ".log"];
 
 // Pencarian web selalu aktif, tapi dilewati untuk sapaan dan pesan pendek
 const SAPAAN = /^(hai|halo|hallo|hello|hi|hey|p|pagi|siang|sore|malam|assalamualaikum|apa kabar|terima kasih|makasih|thanks|ok|oke|sip|ya|iya|tes|test)\b[\s!.?,]*$/i;
+const KATA_BUTUH_INFO = /(cari|carikan|berita|terbaru|terkini|hari ini|kemarin|besok|harga|cuaca|skor|jadwal|rilis|update|kapan|siapa (presiden|menteri|ceo|juara|pemenang)|tahun 20\d\d)/i;
+const KATA_NGOBROL = /\b(kamu|lu|lo|loe|elu|kau|anda|my ai|bot)\b|wk(wk)+|haha|hehe|lol|bosen|capek|cape\b|curhat/i;
 function perluCariWeb(teks: string): boolean {
   const baris = (teks || "").split("\n")[0].trim();
   if (baris.length < 12) return false;
   if (SAPAAN.test(baris)) return false;
   if (/https?:\/\//i.test(baris)) return false;
+  // Obrolan santai atau pertanyaan tentang si AI sendiri tidak perlu cari di web
+  if (KATA_NGOBROL.test(baris) && !KATA_BUTUH_INFO.test(baris)) return false;
   return true;
+}
+
+// Potongan singkat dari obrolan lain (bukan incognito) untuk dikirim sebagai konteks
+function ringkasObrolanLain(daftar: Conversation[], idAktif: string): string[] {
+  return daftar
+    .filter((c) => c.id !== idAktif && !c.incognito && c.messages.length > 0)
+    .slice(0, 5)
+    .map((c) => {
+      const ucapan = c.messages
+        .filter((m) => m.role === "user" && m.content)
+        .slice(-2)
+        .map((m) => m.content.replace(/\s+/g, " ").slice(0, 100));
+      return `${c.title}: ${ucapan.join(" / ")}`.slice(0, 250);
+    })
+    .filter((x) => x.length > 5);
 }
 
 export default function Home() {
@@ -611,6 +630,7 @@ export default function Home() {
       .slice(-10)
       .map((m) => ({ role: m.role, content: m.content || "(user mengirim gambar)" }));
     const memoriUntukAI = memoriAktif && !conv.incognito ? memories.slice(-40).map((m) => m.teks) : [];
+    const obrolanLainUntukAI = memoriAktif && !conv.incognito ? ringkasObrolanLain(conversations, convId) : [];
 
     setConversations((prev) => prev.map((c) => (c.id === convId ? { ...c, messages: c.messages.slice(0, -1) } : c)));
     setLoadingIds((prev) => [...prev, convId]);
@@ -627,6 +647,7 @@ export default function Home() {
           message: teksUser,
           mode: modeKode ? "kode" : "chat",
           memories: memoriUntukAI,
+          obrolanLain: obrolanLainUntukAI,
           webSearch: perluCariWeb(teksUser) && !teksUser.includes("🔗"),
           history: riwayat,
         }),
@@ -672,6 +693,14 @@ export default function Home() {
     const teksInput = input;
     const incognito = !!conversations.find((c) => c.id === convId)?.incognito;
     const memoriUntukAI = memoriAktif && !incognito ? memories.slice(-40).map((m) => m.teks) : [];
+    const obrolanLainUntukAI = memoriAktif && !incognito ? ringkasObrolanLain(conversations, convId) : [];
+
+    // Perintah "ingat ..." langsung disimpan ke memori
+    const perintahIngat = /^\s*(tolong\s+)?ingat(kan)?(\s+ya|\s+bahwa)?[\s:,]+(.{6,})/i.exec(teksInput);
+    if (perintahIngat && memoriAktif && !incognito) {
+      const isi = perintahIngat[4].trim().slice(0, 170);
+      setMemories((prev) => [...prev, { id: `${Date.now()}-m`, teks: `User minta diingat: ${isi}` }].slice(-60));
+    }
     const gambarUntukDikirim = pendingImages;
     const dokUntukDikirim = pendingDoc;
     const linkUntukDikirim = pendingLink;
@@ -730,6 +759,7 @@ export default function Home() {
           link: linkUntukDikirim || undefined,
           mode: modeKode ? "kode" : "chat",
           memories: memoriUntukAI,
+          obrolanLain: obrolanLainUntukAI,
           webSearch: cariWebSekarang,
           history: riwayatUntukAI,
         }),
@@ -737,7 +767,7 @@ export default function Home() {
       const data = await res.json();
 
       // Catat hal penting dari obrolan ini ke memori (diam-diam, tidak menghalangi jawaban)
-      if (memoriAktif && !incognito && !modeKode && teksInput.trim().length >= 30 && data?.reply) {
+      if (memoriAktif && !incognito && !modeKode && teksInput.trim().length >= 20 && data?.reply) {
         ingatDariObrolan(teksInput, data.reply, memories.map((m) => m.teks));
       }
 
