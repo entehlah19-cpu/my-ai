@@ -10,7 +10,7 @@ import "katex/dist/katex.min.css";
 type Message = { role: string; content: string; imagePreviews?: string[]; imagePreview?: string };
 type PendingImg = { preview: string; mimeType: string; data: string };
 const MAX_IMAGES = 3;
-type Conversation = { id: string; title: string; messages: Message[]; projectId?: string; pinned?: boolean };
+type Conversation = { id: string; title: string; messages: Message[]; projectId?: string; pinned?: boolean; incognito?: boolean };
 type ProjectT = { id: string; name: string };
 type Memori = { id: string; teks: string };
 
@@ -108,11 +108,11 @@ export default function Home() {
 
   useEffect(() => {
     try {
-      localStorage.setItem("myai-conversations", JSON.stringify(conversations));
+      localStorage.setItem("myai-conversations", JSON.stringify(conversations.filter((c) => !c.incognito)));
     } catch {
       // Penyimpanan browser penuh: simpan tanpa gambar supaya aplikasi tidak crash
       try {
-        const tanpaGambar = conversations.map((c) => ({
+        const tanpaGambar = conversations.filter((c) => !c.incognito).map((c) => ({
           ...c,
           messages: c.messages.map((m) => ({ ...m, imagePreviews: undefined, imagePreview: undefined })),
         }));
@@ -199,6 +199,16 @@ export default function Home() {
     setConversations((prev) => [baru, ...prev]);
     setActiveId(id);
     setSidebarOpen(false);
+  };
+
+  // Obrolan incognito: tidak disimpan di browser, tidak memakai dan tidak menambah memori
+  const buatObrolanIncognito = () => {
+    const id = `inc-${Date.now()}`;
+    const baru: Conversation = { id, title: "Obrolan incognito", messages: [], incognito: true };
+    setConversations((prev) => [baru, ...prev]);
+    setActiveId(id);
+    setSidebarOpen(false);
+    setShowHeaderMenu(false);
   };
 
   const pilihObrolan = (id: string) => {
@@ -450,7 +460,7 @@ export default function Home() {
 
   // --- Cadangkan & pulihkan riwayat (tanpa akun) ---
   const eksporRiwayat = () => {
-    const isi = JSON.stringify({ versi: 1, dibuat: new Date().toISOString(), conversations, projects, memories }, null, 2);
+    const isi = JSON.stringify({ versi: 1, dibuat: new Date().toISOString(), conversations: conversations.filter((c) => !c.incognito), projects, memories }, null, 2);
     const blob = new Blob([isi], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -539,7 +549,8 @@ export default function Home() {
       .map((m) => ({ role: m.role, content: m.content || "(user mengirim gambar)" }));
 
     const teksInput = input;
-    const memoriUntukAI = memoriAktif ? memories.slice(-40).map((m) => m.teks) : [];
+    const incognito = !!conversations.find((c) => c.id === convId)?.incognito;
+    const memoriUntukAI = memoriAktif && !incognito ? memories.slice(-40).map((m) => m.teks) : [];
     const gambarUntukDikirim = pendingImages;
     const dokUntukDikirim = pendingDoc;
     const linkUntukDikirim = pendingLink;
@@ -571,7 +582,7 @@ export default function Home() {
         c.id === convId
           ? {
               ...c,
-              title: c.messages.length === 0 ? (teksInput || dokUntukDikirim?.name || linkUntukDikirim || "Gambar").slice(0, 30) : c.title,
+              title: c.messages.length === 0 && !c.incognito ? (teksInput || dokUntukDikirim?.name || linkUntukDikirim || "Gambar").slice(0, 30) : c.title,
               messages: [...c.messages, pesanUser],
             }
           : c
@@ -602,7 +613,7 @@ export default function Home() {
       const data = await res.json();
 
       // Catat hal penting dari obrolan ini ke memori (diam-diam, tidak menghalangi jawaban)
-      if (memoriAktif && !modeKode && teksInput.trim().length >= 30 && data?.reply) {
+      if (memoriAktif && !incognito && !modeKode && teksInput.trim().length >= 30 && data?.reply) {
         ingatDariObrolan(teksInput, data.reply, memories.map((m) => m.teks));
       }
 
@@ -917,6 +928,10 @@ export default function Home() {
           <span style={{ color: modeKode ? "#ff9d4d" : "#aaa", display: "inline-flex" }}><IconCode /></span>
           <span style={{ color: modeKode ? "#ff9d4d" : "#ddd" }}>Kode</span>
         </div>
+        <div className="nav-item" onClick={buatObrolanIncognito}>
+          <span style={{ color: "#aaa", display: "inline-flex" }}><IconIncognito /></span>
+          <span style={{ color: "#ddd" }}>Incognito</span>
+        </div>
 
         <div style={{ position: "relative", margin: "6px 2px 4px 2px" }}>
           <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "#777" }}>
@@ -983,7 +998,7 @@ export default function Home() {
                           }}
                         >
                           <span className="conv-title" onClick={() => pilihObrolan(c.id)} style={{ color: c.id === activeId ? "#ff9d4d" : "#ccc" }}>
-                            {c.pinned && "📌 "}{c.title || "Obrolan Baru"}
+                            {c.incognito && "🕶️ "}{c.pinned && "📌 "}{c.title || "Obrolan Baru"}
                           </span>
                           <div className="conv-menu-wrap">
                             <button className="conv-delete-btn" onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === c.id ? null : c.id); }}>
@@ -1030,7 +1045,7 @@ export default function Home() {
                 }}
               >
                 <span className="conv-title" onClick={() => pilihObrolan(c.id)} style={{ color: c.id === activeId ? "#ff9d4d" : "#ccc" }}>
-                  {c.pinned && "📌 "}{c.title || "Obrolan Baru"}
+                  {c.incognito && "🕶️ "}{c.pinned && "📌 "}{c.title || "Obrolan Baru"}
                 </span>
                 <div className="conv-menu-wrap">
                   <button className="conv-delete-btn" onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === c.id ? null : c.id); }}>
@@ -1076,6 +1091,10 @@ export default function Home() {
             </span>
           )}
 
+          {activeConversation?.incognito && (
+            <span style={{ fontSize: 11, background: "#1f1f1f", color: "#ff9d4d", padding: "3px 10px", borderRadius: 12 }}>Incognito</span>
+          )}
+
           <div style={{ display: "flex", gap: 4, marginLeft: "auto" }}>
             <button className="header-icon-btn" onClick={eksporObrolan} title="Ekspor obrolan">
               <IconDocument />
@@ -1089,6 +1108,7 @@ export default function Home() {
               </button>
               {showHeaderMenu && activeConversation && (
                 <div className="conv-menu-dropdown" style={{ top: 38 }} onClick={(e) => e.stopPropagation()}>
+                  <button className="conv-menu-item" onClick={buatObrolanIncognito}><IconIncognito /> Obrolan incognito</button>
                   <button className="conv-menu-item" onClick={() => { gantiNamaObrolan(activeConversation.id); setShowHeaderMenu(false); }}><IconEdit /> Ganti nama</button>
                   <button className="conv-menu-item" onClick={() => { toggleSematkan(activeConversation.id); setShowHeaderMenu(false); }}><IconPin /> {activeConversation.pinned ? "Lepas sematan" : "Sematkan"}</button>
                   <button className="conv-menu-item" onClick={() => { setShowHeaderMenu(false); tambahKeProyekDari(activeConversation.id); }}><IconFolder /> Tambahkan ke proyek</button>
@@ -1106,7 +1126,11 @@ export default function Home() {
             <div style={{ textAlign: "center", marginTop: 70, color: "#777" }}>
               <div style={{ display: "flex", justifyContent: "center", marginBottom: 14 }}><LogoMyAI size={56} animated /></div>
               <div style={{ fontSize: 18, color: "#ddd", fontWeight: 600 }}>Halo, ada yang bisa kubantu?</div>
-              <div style={{ fontSize: 13, marginTop: 6 }}>Ketik pesan, kirim foto, atau tempel link.</div>
+              <div style={{ fontSize: 13, marginTop: 6, padding: "0 20px" }}>
+                {activeConversation?.incognito
+                  ? "Mode incognito: obrolan ini tidak disimpan dan tidak masuk memori. Hilang kalau halaman dimuat ulang."
+                  : "Ketik pesan, kirim foto, atau tempel link."}
+              </div>
             </div>
           )}
           {activeConversation?.messages.map((m, i) =>
@@ -2066,6 +2090,17 @@ function IconBrain() {
       <path d="M9 3a3 3 0 00-3 3v1a3 3 0 00-2 2.8V13a3 3 0 002 2.8V17a3 3 0 003 3h1" />
       <path d="M15 3a3 3 0 013 3v1a3 3 0 012 2.8V13a3 3 0 01-2 2.8V17a3 3 0 01-3 3h-1" />
       <path d="M12 3v17" />
+    </svg>
+  );
+}
+function IconIncognito() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#aaa" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 11h18" />
+      <path d="M5 11l1.5-6h11L19 11" />
+      <circle cx="8" cy="16.5" r="2.5" />
+      <circle cx="16" cy="16.5" r="2.5" />
+      <path d="M10.5 16h3" />
     </svg>
   );
 }
