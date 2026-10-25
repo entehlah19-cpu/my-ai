@@ -248,6 +248,7 @@ async function panggilQwen(prompt: string, system: string): Promise<string> {
     headers: { Authorization: `Bearer ${QWEN_API_KEY}`, "Content-Type": "application/json" },
     body: JSON.stringify({
       model: QWEN_MODEL,
+      max_tokens: 8192,
       messages: [
         { role: "system", content: system },
         { role: "user", content: prompt },
@@ -264,7 +265,7 @@ async function panggilQwen(prompt: string, system: string): Promise<string> {
 
 const PETUNJUK_TAMPILAN = `Aturan tampilan jawaban: (1) Rumus matematika ditulis dengan LaTeX di antara dua tanda dolar, yaitu $$...$$ (boleh di dalam kalimat atau di baris sendiri). Jangan pakai kurung siku untuk rumus dan jangan pakai satu tanda dolar. (2) Untuk hasil evaluasi atau penilaian berbentuk kartu, tulis blok kode markdown berbahasa kartu yang isinya JSON seperti: {"judul":"Nilai latihan","nilai":8.5,"maks":10,"kriteria":[{"nama":"Analisis","nilai":9,"maks":10,"teks":"penjelasan singkat","ikon":"otak"}],"ringkasan":"opsional"}. Pilihan ikon: otak, perisai, target, bintang. (3) Kalau user meminta melihat grafik atau chart harga pasar, tulis blok kode markdown berbahasa grafik yang isinya JSON seperti: {"simbol":"OANDA:XAUUSD","interval":"5"}. Interval boleh 1, 5, 15, 30, 60, 240, D, atau W. Contoh simbol: OANDA:XAUUSD untuk emas, FX:EURUSD, BINANCE:BTCUSDT, NASDAQ:AAPL. Jangan menebak harga, karena grafiknya diambil langsung dari TradingView. (4) Untuk topik trading atau investasi, hanya beri edukasi dan latihan analisis: jangan memberi sinyal beli atau jual yang pasti, jangan menjanjikan untung, sebut risikonya, dan ingatkan bahwa ini bukan saran keuangan. (5) Kalau user meminta dibuatkan gambar, tulis blok kode markdown berbahasa gambar yang isinya JSON seperti: {"prompt":"deskripsi gambar dalam Bahasa Inggris, detail, maksimal 400 karakter"}, lalu satu kalimat singkat Bahasa Indonesia. Khusus untuk gambar buatan AI ini, jangan membuat gambar orang sungguhan (tokoh terkenal), logo atau merek dagang, konten dewasa, kekerasan, atau hal berbahaya. Kalau diminta, tolak dengan sopan dan tawarkan alternatif yang aman. (6) Kalau user meminta animasi, simulasi, permainan kecil, atau tampilan interaktif sederhana, tulis blok kode markdown berbahasa animasi yang isinya SATU dokumen HTML lengkap dengan CSS dan JavaScript di dalamnya. Jangan pakai file, library, gambar, atau font dari luar, dan jangan butuh internet. Gunakan latar gelap, warna cerah, dan ukuran yang pas untuk layar HP. Jangan pakai alert, prompt, atau localStorage. Setelah blok itu, tulis satu kalimat singkat Bahasa Indonesia. (7) Kalau user minta dilihatkan foto atau gambar sungguhan dari internet (tokoh publik terkenal, tempat, hewan, benda, produk, peta, diagram), tulis blok kode markdown berbahasa foto yang isinya JSON seperti: {"query":"kata kunci pencarian gambar, 2 sampai 6 kata"}. Taruh blok itu setelah satu kalimat pembuka, lalu lanjutkan dengan penjelasan singkat. Ini mengambil foto asli dari web (seperti pencarian gambar), bukan membuat gambar baru, jadi boleh untuk tokoh publik. Jangan mencari foto orang pribadi yang bukan tokoh publik, dan jangan mencari konten dewasa atau kekerasan. Kalau nama yang diketik user salah ketik, perbaiki di query.`;
 
-const PETUNJUK_KODE = `Kamu sedang dalam MODE KODE. Bantu seperti programmer senior yang sabar. Aturan: (1) tulis kode di dalam blok kode markdown dengan nama bahasanya; (2) kode harus lengkap dan bisa langsung dijalankan, jangan dipotong atau diganti dengan "dst"; (3) jelaskan singkat apa yang dilakukan kode dan bagian mana yang perlu disesuaikan; (4) kalau user menempelkan error, jelaskan penyebabnya dulu, baru beri perbaikan; (5) sebutkan risiko keamanan atau kesalahan umum kalau relevan; (6) penjelasan pakai Bahasa Indonesia, nama variabel dan komentar kode boleh Inggris.`;
+const PETUNJUK_KODE = `Kamu sedang dalam MODE KODE. Bantu seperti programmer senior yang sabar. Aturan: (1) Setiap file kode ditulis dalam SATU blok kode markdown. Format baris pembuka blok: tiga tanda kutip terbalik, nama bahasa, spasi, lalu nama file lengkap dengan foldernya. Contoh baris pembuka: tsx app/page.tsx. (2) Kalau user minta mengubah file, kirim FILE LENGKAP hasil akhirnya, bukan potongan, dan sebut jelas file mana yang diganti. (3) Kode harus lengkap dan bisa langsung dijalankan, tanpa "dst" atau "bagian lain tetap sama". Kalau terlalu panjang, bagi jadi beberapa file, jangan dipotong di tengah. (4) Sebelum kode, tulis rencana singkat 1 sampai 3 kalimat. Setelah kode, jelaskan singkat cara memasang atau menjalankannya dan bagian yang perlu disesuaikan. (5) Kalau user menempelkan error, jelaskan penyebabnya dulu, baru beri perbaikan. (6) Kalau permintaan kurang jelas, buat asumsi yang masuk akal, sebut asumsinya, lalu kerjakan. Jangan banyak bertanya. (7) Untuk halaman web sederhana, tulis HTML, CSS, dan JavaScript dalam satu blok html supaya bisa langsung dipratinjau. (8) Sebutkan risiko keamanan atau kesalahan umum kalau relevan, dan jangan menulis malware atau kode berbahaya. (9) Penjelasan pakai Bahasa Indonesia santai, nama variabel dan komentar kode boleh Inggris.`;
 
 // Urutan model Ollama Cloud yang dicoba (nama awalan; yang dipakai hanya yang benar-benar tersedia di akunmu)
 const KANDIDAT_TEKS = ["gpt-oss:120b", "gpt-oss"];
@@ -302,15 +303,20 @@ async function urutanModel(kandidat: string[]): Promise<string[]> {
   return hasil;
 }
 
-async function panggilOllamaModel(model: string, prompt: string, system: string, images: ImagePart[]): Promise<string> {
+async function panggilOllamaModel(model: string, prompt: string, system: string, images: ImagePart[], timeoutMs = 35000, maksToken?: number): Promise<string> {
   const pesanUser: any = { role: "user", content: prompt };
   if (images.length > 0) pesanUser.images = images.map((img) => img.data);
 
   const res = await fetch("https://ollama.com/api/chat", {
     method: "POST",
     headers: { Authorization: `Bearer ${LLAMA_API_KEY}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ model, messages: [{ role: "system", content: system }, pesanUser], stream: false }),
-    signal: AbortSignal.timeout(35000),
+    body: JSON.stringify({
+      model,
+      messages: [{ role: "system", content: system }, pesanUser],
+      stream: false,
+      ...(maksToken ? { options: { num_predict: maksToken } } : {}),
+    }),
+    signal: AbortSignal.timeout(timeoutMs),
   });
   if (!res.ok) throw new Error(`Ollama (${model}) gagal dengan status ${res.status}`);
   const data = await res.json();
@@ -355,10 +361,14 @@ async function jawabDenganFallback(prompt: string, images: ImagePart[] = [], mod
   }
 
   const kandidat = adaGambar ? KANDIDAT_GAMBAR : mode === "kode" ? KANDIDAT_KODE : KANDIDAT_TEKS;
+  const mulai = Date.now();
   const daftar = await urutanModel(kandidat);
   for (const model of daftar.slice(0, 3)) {
+    // Sisa waktu dihitung supaya total tidak melewati batas 60 detik di Vercel
+    const sisa = 56000 - (Date.now() - mulai);
+    if (sisa < 8000) break;
     try {
-      return await panggilOllamaModel(model, prompt, system, images);
+      return await panggilOllamaModel(model, prompt, system, images, Math.min(mode === "kode" ? 50000 : 35000, sisa), mode === "kode" ? 8192 : undefined);
     } catch (err) {
       console.log((err as Error).message);
     }
