@@ -1793,12 +1793,77 @@ function KartuGambar({ prompt }: { prompt: string }) {
   );
 }
 
+// ---- Kartu animasi: HTML/SVG dari AI dijalankan di kotak terkunci (sandbox), tanpa internet ----
+function KartuAnimasi({ kode }: { kode: string }) {
+  const [jalan, setJalan] = useState(false);
+  const [putaran, setPutaran] = useState(0);
+
+  const dokumen =
+    `<!doctype html><html><head><meta charset="utf-8">` +
+    `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data:; font-src data:; media-src data:;">` +
+    `<meta name="viewport" content="width=device-width,initial-scale=1">` +
+    `<style>html,body{margin:0;background:#0d0d0d;color:#f5f5f5;font-family:system-ui,sans-serif}</style>` +
+    `</head><body>${kode}</body></html>`;
+
+  const salin = async () => {
+    try {
+      await navigator.clipboard.writeText(kode);
+    } catch {
+      alert("Tidak bisa menyalin otomatis. Tahan dan salin manual ya.");
+    }
+  };
+
+  const tombol: CSSProperties = {
+    background: "linear-gradient(135deg, #ff7a18, #ff9d4d)",
+    color: "#0a0a0a",
+    border: "none",
+    borderRadius: 10,
+    padding: "9px 16px",
+    fontWeight: 600,
+    fontSize: 14,
+    cursor: "pointer",
+  };
+  const tombolKedua: CSSProperties = { ...tombol, background: "#1f1f1f", color: "#ff9d4d", border: "1px solid #333" };
+
+  return (
+    <div style={{ border: "1px solid #2a2a2a", borderRadius: 14, background: "#101010", margin: "12px 0", padding: 12, maxWidth: 520 }}>
+      {jalan ? (
+        <iframe
+          key={putaran}
+          title="Animasi"
+          sandbox="allow-scripts"
+          srcDoc={dokumen}
+          style={{ width: "100%", height: 340, border: "none", borderRadius: 10, background: "#0d0d0d", display: "block" }}
+        />
+      ) : (
+        <div style={{ fontSize: 13, color: "#999", lineHeight: 1.5, marginBottom: 4 }}>
+          Animasi siap. Klik Putar untuk menjalankannya.
+        </div>
+      )}
+      <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+        {!jalan ? (
+          <button onClick={() => setJalan(true)} style={tombol}>Putar animasi</button>
+        ) : (
+          <>
+            <button onClick={() => setPutaran((n) => n + 1)} style={tombol}>Ulangi</button>
+            <button onClick={() => setJalan(false)} style={tombolKedua}>Berhenti</button>
+          </>
+        )}
+        <button onClick={salin} style={tombolKedua}>Salin kode</button>
+      </div>
+    </div>
+  );
+}
+
 const komponenMarkdown: any = {
   pre: ({ children }: any) => <>{children}</>,
   code: ({ className, children }: any) => {
     const teks = String(children ?? "").replace(/\n$/, "");
     const bahasa = /language-([\w-]+)/.exec(className || "")?.[1];
     if (!bahasa && !teks.includes("\n")) return <code>{children}</code>;
+    if (bahasa === "animasi") {
+      return <KartuAnimasi kode={teks} />;
+    }
     if (bahasa === "gambar") {
       try {
         const d = JSON.parse(teks);
