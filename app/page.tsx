@@ -1513,17 +1513,34 @@ function LogoMyAI({ size = 28, animated = false }: { size?: number; animated?: b
       <img src={LOGO_SRC} alt="My AI" width={size} height={size} className={animated ? "logo-img-anim" : undefined} style={{ borderRadius: size * 0.28, objectFit: "cover", display: "block" }} />
     );
   }
-  // Logo bawaan sementara (ganti dengan logomu lewat LOGO_SRC)
+  // Logo bawaan: cincin oranye berputar + garis miring (ganti dengan logomu sendiri lewat LOGO_SRC)
+  const kecepatan = animated ? "2.2s" : "8s";
   return (
-    <svg width={size} height={size} viewBox="0 0 32 32" className={animated ? "logo-img-anim" : undefined} style={{ display: "block" }}>
+    <svg width={size} height={size} viewBox="0 0 32 32" style={{ display: "block" }}>
       <defs>
-        <linearGradient id="gradMyAI" x1="0" y1="0" x2="1" y2="1">
+        <radialGradient id="bhGlow" cx="50%" cy="50%" r="50%">
+          <stop offset="40%" stopColor="#ff7a18" stopOpacity="0" />
+          <stop offset="70%" stopColor="#ff9d4d" stopOpacity="0.35" />
+          <stop offset="100%" stopColor="#ff7a18" stopOpacity="0" />
+        </radialGradient>
+        <linearGradient id="bhRing" x1="0" y1="0" x2="1" y2="1">
           <stop offset="0" stopColor="#ff7a18" />
-          <stop offset="1" stopColor="#ff9d4d" />
+          <stop offset="1" stopColor="#ffb36b" />
+        </linearGradient>
+        <linearGradient id="bhSlash" x1="0" y1="1" x2="1" y2="0">
+          <stop offset="0" stopColor="#ff9d4d" />
+          <stop offset="1" stopColor="#fff1e0" />
         </linearGradient>
       </defs>
-      <rect width="32" height="32" rx="9" fill="url(#gradMyAI)" />
-      <path d="M16 6l2.4 7.1L25.5 16l-7.1 2.4L16 26l-2.4-7.6L6.5 16l7.1-2.9z" fill="#0a0a0a" />
+      <rect width="32" height="32" rx="9" fill="#050505" stroke="#2a2a2a" strokeWidth="0.6" />
+      <circle cx="16" cy="16" r="15" fill="url(#bhGlow)" />
+      <circle cx="16" cy="16" r="12.2" fill="none" stroke="#ff9d4d" strokeOpacity="0.4" strokeWidth="0.8" strokeLinecap="round" strokeDasharray="5 11">
+        <animateTransform attributeName="transform" type="rotate" from="360 16 16" to="0 16 16" dur={kecepatan} repeatCount="indefinite" />
+      </circle>
+      <circle cx="16" cy="16" r="8.4" fill="none" stroke="url(#bhRing)" strokeWidth="3" strokeLinecap="round" strokeDasharray="40 12.8">
+        <animateTransform attributeName="transform" type="rotate" from="0 16 16" to="360 16 16" dur={kecepatan} repeatCount="indefinite" />
+      </circle>
+      <path d="M4.5 27.5 Q12.5 12.5 27.5 4.5 Q19.5 19.5 4.5 27.5 Z" fill="url(#bhSlash)" stroke="#050505" strokeWidth="1.3" strokeLinejoin="round" paintOrder="stroke" />
     </svg>
   );
 }
