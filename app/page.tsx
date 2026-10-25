@@ -77,6 +77,7 @@ export default function Home() {
   const emojiWrapRef = useRef<HTMLDivElement>(null);
   const headerMenuWrapRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   // --- Load & save data di localStorage ---
   useEffect(() => {
@@ -145,6 +146,14 @@ export default function Home() {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [conversations, activeId]);
+
+  // Kolom ketik tumbuh ke bawah mengikuti isi (maksimal 200px, lalu bisa digulir)
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
+  }, [input, activeId]);
 
   // Kamera laptop: buka webcam saat modal tampil, matikan saat ditutup
   useEffect(() => {
@@ -919,8 +928,8 @@ export default function Home() {
         .hamburger { display: none; }
 
         .input-card {
-          max-width: 800px; margin: 0 auto; background: #161616;
-          border: 1px solid #333; border-radius: 20px; padding: 10px 12px 8px 12px;
+          max-width: 800px; margin: 0 auto; background: #1a1a1a;
+          border: none; border-radius: 22px; padding: 10px 12px 8px 12px;
         }
         .input-icon-btn {
           width: 34px; height: 34px; border-radius: "50%"; border: none;
@@ -1199,7 +1208,7 @@ export default function Home() {
 
       {/* ===== CHAT UTAMA ===== */}
       <main style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
-        <header style={{ padding: "16px 20px", borderBottom: "1px solid #262626", fontWeight: 700, fontSize: 18, display: "flex", alignItems: "center", gap: 12 }}>
+        <header style={{ padding: "16px 20px", fontWeight: 700, fontSize: 18, display: "flex", alignItems: "center", gap: 12 }}>
           <button
             className="hamburger"
             onClick={() => setSidebarOpen(true)}
@@ -1321,7 +1330,7 @@ export default function Home() {
           <div ref={bottomRef} />
         </div>
 
-        <div style={{ padding: "12px 16px", borderTop: "1px solid #262626", position: "relative", paddingBottom: "calc(12px + env(safe-area-inset-bottom, 0px))" }}>
+        <div style={{ padding: "12px 16px", position: "relative", paddingBottom: "calc(12px + env(safe-area-inset-bottom, 0px))" }}>
           {pendingImages.length > 0 && (
             <div style={{ maxWidth: 800, margin: "0 auto 10px", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
               {pendingImages.map((img, idx) => (
@@ -1395,12 +1404,25 @@ export default function Home() {
             )}
 
             <div className="input-card">
-              <input
+              <textarea
+                ref={inputRef}
+                rows={1}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && kirimPesan()}
+                onKeyDown={(e) => {
+                  if (e.key !== "Enter" || e.shiftKey) return;
+                  // Di HP, Enter = baris baru (kirim pakai tombol panah). Di laptop, Enter = kirim.
+                  const layarSentuh = typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
+                  if (layarSentuh) return;
+                  e.preventDefault();
+                  kirimPesan();
+                }}
                 placeholder="Ketik pesan..."
-                style={{ width: "100%", padding: "4px 4px 10px 4px", border: "none", background: "transparent", color: "#f5f5f5", outline: "none", fontSize: 16 }}
+                style={{
+                  width: "100%", padding: "4px 4px 10px 4px", border: "none", background: "transparent", color: "#f5f5f5",
+                  outline: "none", fontSize: 16, lineHeight: 1.5, resize: "none", overflowY: "auto", maxHeight: 200,
+                  fontFamily: "inherit", display: "block",
+                }}
               />
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 <button onClick={() => setShowEmojiPicker((v) => !v)} className="input-icon-btn" style={{ background: showEmojiPicker ? "#2a2015" : "transparent" }}>
