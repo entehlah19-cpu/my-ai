@@ -1926,8 +1926,37 @@ function TombolSalin({ teks }: { teks: string }) {
   );
 }
 
-function BlokKode({ bahasa, teks }: { bahasa?: string; teks: string }) {
+const EKSTENSI: Record<string, string> = {
+  typescript: "ts", ts: "ts", tsx: "tsx", javascript: "js", js: "js", jsx: "jsx", python: "py", py: "py",
+  html: "html", css: "css", json: "json", markdown: "md", md: "md", bash: "sh", sh: "sh", shell: "sh",
+  java: "java", c: "c", cpp: "cpp", csharp: "cs", cs: "cs", go: "go", rust: "rs", rs: "rs", php: "php",
+  sql: "sql", yaml: "yml", yml: "yml", svg: "svg", kotlin: "kt", swift: "swift", ruby: "rb", dart: "dart", lua: "lua",
+};
+
+// Dokumen terkunci untuk pratinjau HTML: tanpa internet, tanpa akses ke halaman utama
+function dokumenSandbox(kode: string): string {
+  return (
+    `<!doctype html><html><head><meta charset="utf-8">` +
+    `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data:; font-src data:; media-src data:;">` +
+    `<meta name="viewport" content="width=device-width,initial-scale=1">` +
+    `<style>html,body{margin:0;background:#0d0d0d;color:#f5f5f5;font-family:system-ui,sans-serif}</style>` +
+    `</head><body>${kode}</body></html>`
+  );
+}
+
+// Blok kode: kartu file (nama, bahasa, Salin, Unduh, Pratinjau) untuk kode panjang atau yang punya nama file
+function BlokKode({ bahasa, teks, namaFile }: { bahasa?: string; teks: string; namaFile?: string }) {
+  const jumlahBaris = teks.split("\n").length;
+  const kartu = !!namaFile || jumlahBaris > 8;
   const [tersalin, setTersalin] = useState(false);
+  const [terbuka, setTerbuka] = useState(jumlahBaris <= 25);
+  const [pratinjau, setPratinjau] = useState(false);
+
+  const ext = EKSTENSI[(bahasa || "").toLowerCase()] || "txt";
+  const nama = namaFile || `kode.${ext}`;
+  const namaUnduh = (nama.split("/").pop() || `kode.${ext}`).replace(/[^\w.\- ]/g, "_");
+  const bisaPratinjau = (bahasa === "html" || bahasa === "svg") && teks.includes("<");
+
   const salin = async () => {
     try {
       await navigator.clipboard.writeText(teks);
@@ -1937,13 +1966,63 @@ function BlokKode({ bahasa, teks }: { bahasa?: string; teks: string }) {
       alert("Tidak bisa menyalin otomatis. Tahan dan salin manual ya.");
     }
   };
+
+  const unduh = () => {
+    const blob = new Blob([teks], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = namaUnduh;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  if (!kartu) {
+    return (
+      <div className="code-block">
+        <div className="code-head">
+          <span>{bahasa || "kode"}</span>
+          <button onClick={salin}>{tersalin ? "Tersalin ✓" : "Salin"}</button>
+        </div>
+        <pre><code>{teks}</code></pre>
+      </div>
+    );
+  }
+
+  const kecil: CSSProperties = { padding: "6px 12px", fontSize: 12.5 };
+
   return (
     <div className="code-block">
-      <div className="code-head">
-        <span>{bahasa || "kode"}</span>
-        <button onClick={salin}>{tersalin ? "Tersalin ✓" : "Salin"}</button>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", background: "#161616" }}>
+        <div style={{ width: 42, height: 42, borderRadius: 10, background: "#2a1a05", color: "#ff9d4d", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <IconCode />
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontWeight: 600, fontSize: 15, color: "#f0f0f0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{nama}</div>
+          <div style={{ fontSize: 12.5, color: "#888" }}>Kode · {(bahasa || ext).toUpperCase()} · {jumlahBaris} baris</div>
+        </div>
       </div>
-      <pre><code>{teks}</code></pre>
+      <div style={{ display: "flex", gap: 8, padding: "0 14px 12px", flexWrap: "wrap", background: "#161616" }}>
+        <button className="sidebar-btn-secondary" style={kecil} onClick={salin}>{tersalin ? "Tersalin ✓" : "Salin"}</button>
+        <button className="sidebar-btn-secondary" style={kecil} onClick={unduh}>Unduh</button>
+        {bisaPratinjau && (
+          <button className="sidebar-btn-secondary" style={kecil} onClick={() => setPratinjau((v) => !v)}>
+            {pratinjau ? "Tutup pratinjau" : "Pratinjau"}
+          </button>
+        )}
+        <button className="sidebar-btn-secondary" style={kecil} onClick={() => setTerbuka((v) => !v)}>
+          {terbuka ? "Sembunyikan kode" : "Lihat kode"}
+        </button>
+      </div>
+      {pratinjau && (
+        <iframe
+          title="Pratinjau"
+          sandbox="allow-scripts"
+          srcDoc={dokumenSandbox(teks)}
+          style={{ width: "100%", height: 340, border: "none", borderTop: "1px solid #2a2a2a", background: "#0d0d0d", display: "block" }}
+        />
+      )}
+      {terbuka && <pre><code>{teks}</code></pre>}
     </div>
   );
 }
@@ -2368,7 +2447,7 @@ const komponenMarkdown: any = {
   a: ({ href, children }: any) => (
     <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>
   ),
-  code: ({ className, children }: any) => {
+  code: ({ node, className, children }: any) => {
     const teks = String(children ?? "").replace(/\n$/, "");
     const bahasa = /language-([\w-]+)/.exec(className || "")?.[1];
     if (!bahasa && !teks.includes("\n")) return <code>{children}</code>;
@@ -2405,7 +2484,9 @@ const komponenMarkdown: any = {
         // JSON belum valid: tampilkan sebagai blok kode biasa
       }
     }
-    return <BlokKode bahasa={bahasa} teks={teks} />;
+    const meta: string = typeof node?.data?.meta === "string" ? node.data.meta : "";
+    const namaFile = (meta.trim().split(/\s+/)[0] || "").replace(/^title=/, "").replace(/^["']|["']$/g, "");
+    return <BlokKode bahasa={bahasa} teks={teks} namaFile={namaFile} />;
   },
 };
 
