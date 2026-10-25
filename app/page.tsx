@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, type CSSProperties } from "react";
+import { useState, useEffect, useRef, type CSSProperties, type ReactNode } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
@@ -589,6 +589,61 @@ export default function Home() {
   };
 
   // --- Kirim pesan ---
+  // Buat ulang jawaban terakhir (hanya untuk pesan teks biasa)
+  const ulangiJawaban = async () => {
+    const convId = activeId;
+    const conv = conversations.find((c) => c.id === convId);
+    if (!conv || loadingIds.includes(convId)) return;
+    const pesan = conv.messages;
+    if (!bisaDiulang(pesan, pesan.length - 1)) return;
+    const teksUser = pesan[pesan.length - 2].content;
+    const riwayat = pesan
+      .slice(0, -2)
+      .slice(-10)
+      .map((m) => ({ role: m.role, content: m.content || "(user mengirim gambar)" }));
+    const memoriUntukAI = memoriAktif && !conv.incognito ? memories.slice(-40).map((m) => m.teks) : [];
+
+    setConversations((prev) => prev.map((c) => (c.id === convId ? { ...c, messages: c.messages.slice(0, -1) } : c)));
+    setLoadingIds((prev) => [...prev, convId]);
+    const ctrl = new AbortController();
+    abortRef.current[convId] = ctrl;
+
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        signal: ctrl.signal,
+        body: JSON.stringify({
+          userId: "user-1",
+          message: teksUser,
+          mode: modeKode ? "kode" : "chat",
+          memories: memoriUntukAI,
+          webSearch: perluCariWeb(teksUser) && !teksUser.includes("🔗"),
+          history: riwayat,
+        }),
+      });
+      const data = await res.json();
+      setConversations((prev) =>
+        prev.map((c) =>
+          c.id === convId
+            ? { ...c, messages: [...c.messages, { role: "assistant", content: data.reply || data.error || "Maaf, terjadi kesalahan.", sumber: bersihkanSumber(data?.sumber) }] }
+            : c
+        )
+      );
+    } catch (err) {
+      setConversations((prev) =>
+        prev.map((c) =>
+          c.id === convId
+            ? { ...c, messages: [...c.messages, { role: "assistant", content: (err as Error).name === "AbortError" ? "Dihentikan." : "Maaf, terjadi kesalahan. Coba lagi ya." }] }
+            : c
+        )
+      );
+    } finally {
+      delete abortRef.current[convId];
+      setLoadingIds((prev) => prev.filter((id) => id !== convId));
+    }
+  };
+
   const hentikanJawaban = () => {
     abortRef.current[activeId]?.abort();
   };
@@ -847,6 +902,13 @@ export default function Home() {
         .msg-content pre { background: rgba(0,0,0,0.3); padding: 10px; border-radius: 8px; overflow-x: auto; margin: 8px 0; }
         .msg-content pre code { background: none; padding: 0; }
         .msg-content h1, .msg-content h2, .msg-content h3 { margin: 8px 0 4px 0; }
+        .msg-content a { color: #ff9d4d; text-decoration: underline; text-underline-offset: 2px; word-break: break-all; }
+        .msg-content a:hover { color: #ffb36b; }
+        .aksi-btn {
+          width: 32px; height: 32px; border-radius: 8px; border: none; background: none; color: #888;
+          display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
+        }
+        .aksi-btn:hover { color: #ff9d4d; background: #1a1a1a; }
 
         @media (max-width: 768px) {
           .sidebar { position: fixed; top: 0; left: 0; height: 100dvh; z-index: 100; transform: translateX(-100%); }
@@ -1246,10 +1308,12 @@ export default function Home() {
                 <div className="msg-content" style={{ fontSize: ukuranPx, lineHeight: 1.65, color: "#f0f0f0", wordBreak: "break-word" }}>
                   <ReactMarkdown remarkPlugins={pluginRemark} rehypePlugins={pluginRehype} components={komponenMarkdown}>{siapkanMatematika(m.content)}</ReactMarkdown>
                 </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginTop: 4 }}>
-                  {m.sumber && m.sumber.length > 0 && <ChipSumber sumber={m.sumber} />}
-                  <TombolSalin teks={m.content} />
-                </div>
+                <BarisAksi
+                  teks={m.content}
+                  sumber={m.sumber}
+                  bisaUlang={!loading && bisaDiulang(activeConversation!.messages, i)}
+                  onUlang={ulangiJawaban}
+                />
               </div>
             )
           )}
@@ -1381,6 +1445,9 @@ export default function Home() {
                   {loading ? <IconStop /> : <IconSend />}
                 </button>
               </div>
+            </div>
+            <div style={{ textAlign: "center", fontSize: 11.5, color: "#666", marginTop: 8 }}>
+              My AI adalah AI dan dapat membuat kesalahan. Periksa info penting.
             </div>
           </div>
         </div>
@@ -1733,6 +1800,110 @@ function ChipSumber({ sumber }: { sumber: Sumber[] }) {
   );
 }
 
+// ---- Baris tombol di bawah jawaban AI: salin, bagikan, bacakan, suka, tidak suka, ulangi ----
+function bisaDiulang(pesan: Message[], i: number): boolean {
+  if (i !== pesan.length - 1) return false;
+  const u = pesan[i - 1];
+  return !!u && u.role === "user" && !!u.content && !u.content.startsWith("📄") && !(u.imagePreviews && u.imagePreviews.length) && !u.imagePreview;
+}
+
+function TombolIkon({ judul, onClick, aktif, children }: { judul: string; onClick: () => void; aktif?: boolean; children: ReactNode }) {
+  return (
+    <button className="aksi-btn" title={judul} aria-label={judul} onClick={onClick} style={aktif ? { color: "#ff9d4d" } : undefined}>
+      {children}
+    </button>
+  );
+}
+
+const ikonProps = { width: 18, height: 18, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
+
+function BarisAksi({ teks, sumber, bisaUlang, onUlang }: { teks: string; sumber?: Sumber[]; bisaUlang: boolean; onUlang: () => void }) {
+  const [tersalin, setTersalin] = useState(false);
+  const [membaca, setMembaca] = useState(false);
+  const [reaksi, setReaksi] = useState<"suka" | "tidak" | null>(null);
+
+  const salin = async () => {
+    try {
+      await navigator.clipboard.writeText(teks);
+      setTersalin(true);
+      setTimeout(() => setTersalin(false), 1500);
+    } catch {
+      alert("Tidak bisa menyalin otomatis. Tahan dan salin manual ya.");
+    }
+  };
+
+  const bagikan = async () => {
+    if (typeof navigator.share === "function") {
+      try {
+        await navigator.share({ text: teks });
+        return;
+      } catch (err) {
+        if ((err as Error).name === "AbortError") return;
+      }
+    }
+    salin();
+  };
+
+  const bacakan = () => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) {
+      alert("Browser kamu belum mendukung baca suara.");
+      return;
+    }
+    if (membaca) {
+      window.speechSynthesis.cancel();
+      setMembaca(false);
+      return;
+    }
+    const bersih = teks
+      .replace(/```[\s\S]*?```/g, " blok kode dilewati. ")
+      .replace(/https?:\/\/\S+/g, " ")
+      .replace(/[*#_`>$|]/g, "");
+    const u = new SpeechSynthesisUtterance(bersih);
+    u.lang = "id-ID";
+    u.onend = () => setMembaca(false);
+    u.onerror = () => setMembaca(false);
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(u);
+    setMembaca(true);
+  };
+
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 2, flexWrap: "wrap", marginTop: 4 }}>
+      {sumber && sumber.length > 0 && (
+        <span style={{ marginRight: 8, display: "contents" }}><ChipSumber sumber={sumber} /></span>
+      )}
+      <TombolIkon judul={tersalin ? "Tersalin" : "Salin"} onClick={salin} aktif={tersalin}>
+        {tersalin ? (
+          <svg {...ikonProps}><path d="M20 6L9 17l-5-5" /></svg>
+        ) : (
+          <svg {...ikonProps}><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" /></svg>
+        )}
+      </TombolIkon>
+      <TombolIkon judul="Bagikan" onClick={bagikan}>
+        <svg {...ikonProps}><circle cx="18" cy="5" r="2.5" /><circle cx="6" cy="12" r="2.5" /><circle cx="18" cy="19" r="2.5" /><path d="M8.2 10.9l7.6-4.3M8.2 13.1l7.6 4.3" /></svg>
+      </TombolIkon>
+      <TombolIkon judul={membaca ? "Berhenti membaca" : "Bacakan"} onClick={bacakan} aktif={membaca}>
+        {membaca ? (
+          <svg {...ikonProps}><rect x="6" y="6" width="12" height="12" rx="2" /></svg>
+        ) : (
+          <svg {...ikonProps}><path d="M6 4l14 8-14 8z" /></svg>
+        )}
+      </TombolIkon>
+      <TombolIkon judul="Suka" onClick={() => setReaksi((r) => (r === "suka" ? null : "suka"))} aktif={reaksi === "suka"}>
+        <svg {...ikonProps} fill={reaksi === "suka" ? "currentColor" : "none"}><path d="M7 10v12" /><path d="M15 5.9L14 10h5.8a2 2 0 011.9 2.6l-2.3 8a2 2 0 01-1.9 1.4H4a2 2 0 01-2-2v-8a2 2 0 012-2h2.8a2 2 0 001.8-1.1L12 2a3.1 3.1 0 013 3.9z" /></svg>
+      </TombolIkon>
+      <TombolIkon judul="Tidak suka" onClick={() => setReaksi((r) => (r === "tidak" ? null : "tidak"))} aktif={reaksi === "tidak"}>
+        <svg {...ikonProps} fill={reaksi === "tidak" ? "currentColor" : "none"}><path d="M17 14V2" /><path d="M9 18.1L10 14H4.2a2 2 0 01-1.9-2.6l2.3-8A2 2 0 016.5 2H20a2 2 0 012 2v8a2 2 0 01-2 2h-2.8a2 2 0 00-1.8 1.1L12 22a3.1 3.1 0 01-3-3.9z" /></svg>
+      </TombolIkon>
+      {bisaUlang && (
+        <TombolIkon judul="Buat ulang jawaban" onClick={onUlang}>
+          <svg {...ikonProps}><path d="M21 12a9 9 0 11-3-6.7L21 8" /><path d="M21 3v5h-5" /></svg>
+        </TombolIkon>
+      )}
+    </div>
+  );
+}
+
 // Tombol salin seluruh jawaban AI
 function TombolSalin({ teks }: { teks: string }) {
   const [tersalin, setTersalin] = useState(false);
@@ -2048,6 +2219,9 @@ function KartuAnimasi({ kode }: { kode: string }) {
 
 const komponenMarkdown: any = {
   pre: ({ children }: any) => <>{children}</>,
+  a: ({ href, children }: any) => (
+    <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>
+  ),
   code: ({ className, children }: any) => {
     const teks = String(children ?? "").replace(/\n$/, "");
     const bahasa = /language-([\w-]+)/.exec(className || "")?.[1];
