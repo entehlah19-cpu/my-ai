@@ -80,6 +80,7 @@ export default function Home() {
   const [showHeaderMenu, setShowHeaderMenu] = useState(false);
   const [modeKode, setModeKode] = useState(false);
   const [ukuranTeks, setUkuranTeks] = useState<"kecil" | "sedang" | "besar">("sedang");
+  const [tema, setTema] = useState<"gelap" | "terang">("gelap");
   const abortRef = useRef<Record<string, AbortController>>({});
   const [showWebcam, setShowWebcam] = useState(false);
   const [memories, setMemories] = useState<Memori[]>([]);
@@ -233,6 +234,19 @@ export default function Home() {
       localStorage.setItem("myai-ukuran", ukuranTeks);
     } catch {}
   }, [ukuranTeks]);
+
+  useEffect(() => {
+    try {
+      if (localStorage.getItem("myai-tema") === "terang") setTema("terang");
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("tema-terang", tema === "terang");
+    try {
+      localStorage.setItem("myai-tema", tema);
+    } catch {}
+  }, [tema]);
 
   const ukuranPx = ukuranTeks === "kecil" ? 14.5 : ukuranTeks === "besar" ? 19 : 16.5;
 
@@ -949,6 +963,13 @@ export default function Home() {
         }
         .aksi-btn:hover { color: #ff9d4d; background: #1a1a1a; }
 
+        /* Tema terang: warna seluruh halaman dibalik, lalu foto, video, dan pratinjau dibalik lagi supaya tampil normal */
+        html.tema-terang { filter: invert(1) hue-rotate(180deg); }
+        html.tema-terang img,
+        html.tema-terang video,
+        html.tema-terang iframe[title="Animasi"],
+        html.tema-terang iframe[title="Pratinjau"] { filter: invert(1) hue-rotate(180deg); }
+
         @media (max-width: 768px) {
           .sidebar { position: fixed; top: 0; left: 0; height: 100dvh; z-index: 100; transform: translateX(-100%); }
           .sidebar.open { transform: translateX(0); }
@@ -1275,6 +1296,9 @@ export default function Home() {
                 <div className="conv-menu-dropdown" style={{ top: 38 }} onClick={(e) => e.stopPropagation()}>
                   <button className="conv-menu-item" onClick={() => setUkuranTeks((u) => (u === "kecil" ? "sedang" : u === "sedang" ? "besar" : "kecil"))}>
                     <span style={{ width: 15, textAlign: "center", color: "#ccc", fontWeight: 700 }}>Aa</span> Ukuran tulisan: {ukuranTeks}
+                  </button>
+                  <button className="conv-menu-item" onClick={() => setTema((t) => (t === "gelap" ? "terang" : "gelap"))}>
+                    <span style={{ width: 15, textAlign: "center" }}>{tema === "gelap" ? "☀️" : "🌙"}</span> Ganti ke tema {tema === "gelap" ? "terang" : "gelap"}
                   </button>
                   <button className="conv-menu-item" onClick={buatObrolanIncognito}><IconIncognito /> Obrolan incognito</button>
                   <button className="conv-menu-item" onClick={() => { gantiNamaObrolan(activeConversation.id); setShowHeaderMenu(false); }}><IconEdit /> Ganti nama</button>
