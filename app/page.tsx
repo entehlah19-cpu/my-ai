@@ -59,6 +59,8 @@ export default function Home() {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showHeaderMenu, setShowHeaderMenu] = useState(false);
   const [modeKode, setModeKode] = useState(false);
+  const [ukuranTeks, setUkuranTeks] = useState<"kecil" | "sedang" | "besar">("sedang");
+  const abortRef = useRef<Record<string, AbortController>>({});
   const [showWebcam, setShowWebcam] = useState(false);
   const [memories, setMemories] = useState<Memori[]>([]);
   const [memoriAktif, setMemoriAktif] = useState(true);
@@ -189,6 +191,21 @@ export default function Home() {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [showEmojiPicker, showHeaderMenu, openMenuId]);
+
+  useEffect(() => {
+    try {
+      const u = localStorage.getItem("myai-ukuran");
+      if (u === "kecil" || u === "sedang" || u === "besar") setUkuranTeks(u);
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("myai-ukuran", ukuranTeks);
+    } catch {}
+  }, [ukuranTeks]);
+
+  const ukuranPx = ukuranTeks === "kecil" ? 14.5 : ukuranTeks === "besar" ? 19 : 16.5;
 
   const activeConversation = conversations.find((c) => c.id === activeId);
 
@@ -571,6 +588,10 @@ export default function Home() {
   };
 
   // --- Kirim pesan ---
+  const hentikanJawaban = () => {
+    abortRef.current[activeId]?.abort();
+  };
+
   const kirimPesan = async () => {
     if ((!input.trim() && pendingImages.length === 0 && !pendingDoc && !pendingLink) || !activeId) return;
     // Jangan kirim lagi kalau obrolan ini masih menunggu jawaban
@@ -611,6 +632,8 @@ export default function Home() {
     setPendingDoc(null);
     setPendingLink(null);
     setLoadingIds((prev) => [...prev, convId]);
+    const ctrl = new AbortController();
+    abortRef.current[convId] = ctrl;
 
     setConversations((prev) =>
       prev.map((c) =>
@@ -628,6 +651,7 @@ export default function Home() {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: ctrl.signal,
         body: JSON.stringify({
           userId: "user-1",
           message: pesanUntukAI,
@@ -663,11 +687,12 @@ export default function Home() {
       setConversations((prev) =>
         prev.map((c) =>
           c.id === convId
-            ? { ...c, messages: [...c.messages, { role: "assistant", content: "Maaf, terjadi kesalahan. Coba lagi ya." }] }
+            ? { ...c, messages: [...c.messages, { role: "assistant", content: (err as Error).name === "AbortError" ? "Dihentikan." : "Maaf, terjadi kesalahan. Coba lagi ya." }] }
             : c
         )
       );
     } finally {
+      delete abortRef.current[convId];
       setLoadingIds((prev) => prev.filter((id) => id !== convId));
     }
   };
@@ -1146,6 +1171,9 @@ export default function Home() {
               </button>
               {showHeaderMenu && activeConversation && (
                 <div className="conv-menu-dropdown" style={{ top: 38 }} onClick={(e) => e.stopPropagation()}>
+                  <button className="conv-menu-item" onClick={() => setUkuranTeks((u) => (u === "kecil" ? "sedang" : u === "sedang" ? "besar" : "kecil"))}>
+                    <span style={{ width: 15, textAlign: "center", color: "#ccc", fontWeight: 700 }}>Aa</span> Ukuran tulisan: {ukuranTeks}
+                  </button>
                   <button className="conv-menu-item" onClick={buatObrolanIncognito}><IconIncognito /> Obrolan incognito</button>
                   <button className="conv-menu-item" onClick={() => { gantiNamaObrolan(activeConversation.id); setShowHeaderMenu(false); }}><IconEdit /> Ganti nama</button>
                   <button className="conv-menu-item" onClick={() => { toggleSematkan(activeConversation.id); setShowHeaderMenu(false); }}><IconPin /> {activeConversation.pinned ? "Lepas sematan" : "Sematkan"}</button>
@@ -1204,7 +1232,7 @@ export default function Home() {
                   <div
                     className="msg-content"
                     style={{
-                      maxWidth: "92%", padding: "12px 18px", borderRadius: 16, fontSize: 16.5, lineHeight: 1.6,
+                      maxWidth: "92%", padding: "12px 18px", borderRadius: 16, fontSize: ukuranPx, lineHeight: 1.6,
                       background: "linear-gradient(135deg, #ff7a18, #ff9d4d)", color: "#0a0a0a", wordBreak: "break-word", whiteSpace: "pre-wrap",
                     }}
                   >
@@ -1214,7 +1242,7 @@ export default function Home() {
               </div>
             ) : (
               <div key={i} style={{ marginBottom: 20 }}>
-                <div className="msg-content" style={{ fontSize: 16.5, lineHeight: 1.65, color: "#f0f0f0", wordBreak: "break-word" }}>
+                <div className="msg-content" style={{ fontSize: ukuranPx, lineHeight: 1.65, color: "#f0f0f0", wordBreak: "break-word" }}>
                   <ReactMarkdown remarkPlugins={pluginRemark} rehypePlugins={pluginRehype} components={komponenMarkdown}>{siapkanMatematika(m.content)}</ReactMarkdown>
                 </div>
                 <TombolSalin teks={m.content} />
@@ -1337,16 +1365,16 @@ export default function Home() {
                   <IconMic active={isListening} />
                 </button>
                 <button
-                  onClick={kirimPesan}
-                  disabled={loading}
+                  onClick={loading ? hentikanJawaban : kirimPesan}
+                  title={loading ? "Hentikan" : "Kirim"}
                   style={{
                     width: 38, height: 38, borderRadius: "50%",
                     background: "linear-gradient(135deg, #ff7a18, #ff9d4d)", color: "#0a0a0a", border: "none",
-                    cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.6 : 1,
+                    cursor: "pointer",
                     display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
                   }}
                 >
-                  <IconSend />
+                  {loading ? <IconStop /> : <IconSend />}
                 </button>
               </div>
             </div>
@@ -2005,6 +2033,13 @@ function IconSearch() {
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="11" cy="11" r="7" />
       <path d="M21 21l-4.3-4.3" />
+    </svg>
+  );
+}
+function IconStop() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="#0a0a0a">
+      <rect x="5" y="5" width="14" height="14" rx="2.5" />
     </svg>
   );
 }
