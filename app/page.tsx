@@ -2217,6 +2217,152 @@ function KartuAnimasi({ kode }: { kode: string }) {
   );
 }
 
+// ---- Foto asli dari web (pencarian gambar): kotak foto + tampilan besar saat diklik ----
+type Foto = { judul: string; kecil: string; besar: string; link: string; sumber: string };
+
+function KartuFoto({ query }: { query: string }) {
+  const kunci = `myai-foto:${query.toLowerCase()}`;
+  const [foto, setFoto] = useState<Foto[] | null>(null);
+  const [status, setStatus] = useState<"memuat" | "siap" | "gagal">("memuat");
+  const [galat, setGalat] = useState("");
+  const [terbuka, setTerbuka] = useState<number | null>(null);
+
+  useEffect(() => {
+    let batal = false;
+    try {
+      const simpan = localStorage.getItem(kunci);
+      if (simpan) {
+        const d = JSON.parse(simpan);
+        if (Array.isArray(d) && d.length > 0) {
+          setFoto(d);
+          setStatus("siap");
+          return;
+        }
+      }
+    } catch {}
+    (async () => {
+      try {
+        const res = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ aksi: "foto", pesan: query }),
+        });
+        const data = await res.json();
+        if (batal) return;
+        if (!res.ok || !Array.isArray(data?.foto)) {
+          setGalat(data?.error || "Foto gagal dimuat.");
+          setStatus("gagal");
+          return;
+        }
+        setFoto(data.foto);
+        setStatus("siap");
+        try {
+          localStorage.setItem(kunci, JSON.stringify(data.foto));
+        } catch {}
+      } catch {
+        if (!batal) {
+          setGalat("Foto gagal dimuat. Cek koneksi.");
+          setStatus("gagal");
+        }
+      }
+    })();
+    return () => {
+      batal = true;
+    };
+  }, [kunci, query]);
+
+  if (status === "memuat") {
+    return (
+      <div style={{ height: 120, borderRadius: 14, background: "#101010", border: "1px solid #2a2a2a", margin: "12px 0", display: "flex", alignItems: "center", justifyContent: "center", color: "#777", fontSize: 14 }}>
+        Mencari foto...
+      </div>
+    );
+  }
+  if (status === "gagal" || !foto) {
+    return <div style={{ color: "#777", fontSize: 13, margin: "8px 0" }}>{galat || "Foto tidak bisa dimuat."}</div>;
+  }
+
+  const tampil = foto.slice(0, 3);
+  const sisa = foto.length - 3;
+  const aktif = terbuka !== null ? foto[terbuka] : null;
+
+  return (
+    <div style={{ margin: "12px 0", maxWidth: 560 }}>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: tampil.length === 1 ? "1fr" : "1.5fr 1fr",
+          gridTemplateRows: tampil.length >= 3 ? "1fr 1fr" : "1fr",
+          gap: 4,
+          height: 280,
+          borderRadius: 16,
+          overflow: "hidden",
+        }}
+      >
+        {tampil.map((f, i) => (
+          <button
+            key={i}
+            onClick={() => setTerbuka(i)}
+            style={{
+              position: "relative", padding: 0, border: "none", background: "#161616", cursor: "pointer", overflow: "hidden",
+              gridRow: i === 0 && tampil.length >= 3 ? "1 / span 2" : undefined,
+            }}
+          >
+            <img
+              src={f.kecil}
+              alt={f.judul}
+              referrerPolicy="no-referrer"
+              style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+            />
+            {i === 2 && sisa > 0 && (
+              <span style={{ position: "absolute", right: 8, bottom: 8, background: "rgba(0,0,0,0.65)", color: "#fff", borderRadius: 999, padding: "3px 10px", fontSize: 13, fontWeight: 600 }}>
+                +{sisa}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+      <div style={{ fontSize: 12, color: "#666", marginTop: 6 }}>Foto dari hasil pencarian web. Klik untuk memperbesar.</div>
+
+      {aktif && terbuka !== null && (
+        <div
+          onClick={() => setTerbuka(null)}
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.9)", zIndex: 400, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 16, gap: 12 }}
+        >
+          <img
+            key={terbuka}
+            src={aktif.besar}
+            alt={aktif.judul}
+            referrerPolicy="no-referrer"
+            onClick={(e) => e.stopPropagation()}
+            onError={(e) => {
+              const el = e.currentTarget;
+              if (el.dataset.cadangan !== "1") {
+                el.dataset.cadangan = "1";
+                el.src = aktif.kecil;
+              }
+            }}
+            style={{ maxWidth: "92vw", maxHeight: "68vh", objectFit: "contain", borderRadius: 10 }}
+          />
+          <div onClick={(e) => e.stopPropagation()} style={{ textAlign: "center", maxWidth: "92vw" }}>
+            <div style={{ color: "#ddd", fontSize: 14 }}>{aktif.judul}</div>
+            {aktif.link && (
+              <a href={aktif.link} target="_blank" rel="noopener noreferrer" style={{ color: "#ff9d4d", fontSize: 13 }}>
+                Buka sumber{aktif.sumber ? ` (${aktif.sumber})` : ""}
+              </a>
+            )}
+          </div>
+          <div onClick={(e) => e.stopPropagation()} style={{ display: "flex", gap: 8 }}>
+            <button className="sidebar-btn-secondary" onClick={() => setTerbuka((terbuka - 1 + foto.length) % foto.length)}>‹ Sebelumnya</button>
+            <button className="sidebar-btn-secondary" onClick={() => setTerbuka((terbuka + 1) % foto.length)}>Berikutnya ›</button>
+            <button className="sidebar-btn" onClick={() => setTerbuka(null)}>Tutup</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 const komponenMarkdown: any = {
   pre: ({ children }: any) => <>{children}</>,
   a: ({ href, children }: any) => (
@@ -2226,6 +2372,16 @@ const komponenMarkdown: any = {
     const teks = String(children ?? "").replace(/\n$/, "");
     const bahasa = /language-([\w-]+)/.exec(className || "")?.[1];
     if (!bahasa && !teks.includes("\n")) return <code>{children}</code>;
+    if (bahasa === "foto") {
+      try {
+        const d = JSON.parse(teks);
+        if (typeof d?.query === "string" && d.query.trim()) {
+          return <KartuFoto query={d.query.trim().slice(0, 100)} />;
+        }
+      } catch {
+        // JSON belum valid: tampilkan sebagai blok kode biasa
+      }
+    }
     if (bahasa === "animasi") {
       return <KartuAnimasi kode={teks} />;
     }
