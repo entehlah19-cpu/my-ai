@@ -17,27 +17,33 @@ type ImagePart = { mimeType: string; data: string };
 type DocumentPart = { name: string; mimeType: string; data: string };
 type HistoryItem = { role: string; content: string };
 type Halaman = { judul: string; deskripsi: string; isi: string };
+type SumberT = { judul: string; link: string };
 
 // Batas ukuran file (batas body Vercel 4,5MB, base64 menambah sekitar 33%)
 const BATAS_FILE_BYTE = 3 * 1024 * 1024;
 const EKSTENSI_TEKS = [".txt", ".md", ".csv", ".json", ".log"];
 
-async function cariWeb(query: string): Promise<string> {
+async function cariWeb(query: string): Promise<{ teks: string; sumber: SumberT[] }> {
+  const kosong = { teks: "", sumber: [] as SumberT[] };
   try {
     const res = await fetch("https://google.serper.dev/search", {
       method: "POST",
       headers: { "X-API-KEY": SERPER_API_KEY || "", "Content-Type": "application/json" },
       body: JSON.stringify({ q: query }),
     });
-    if (!res.ok) return "";
+    if (!res.ok) return kosong;
     const data = await res.json();
-    return (data.organic || [])
-      .slice(0, 5)
+    const hasil: any[] = (data.organic || []).slice(0, 5);
+    const teks = hasil
       .map((r: any, i: number) => `${i + 1}. ${r.title}\n${r.snippet}\nSumber: ${r.link}`)
       .join("\n\n");
+    const sumber: SumberT[] = hasil
+      .filter((r: any) => typeof r?.link === "string" && /^https?:\/\//i.test(r.link))
+      .map((r: any) => ({ judul: String(r.title || r.link).slice(0, 120), link: String(r.link) }));
+    return { teks, sumber };
   } catch (err) {
     console.log("Gagal melakukan pencarian web:", (err as Error).message);
-    return "";
+    return kosong;
   }
 }
 
@@ -518,9 +524,12 @@ export async function POST(req: NextRequest) {
         : "(user mengirim gambar tanpa teks)");
 
     // Kalau toggle "Pencarian web" aktif
+    const daftarSumber: SumberT[] = [];
     let searchBlock = "";
     if (webSearch && message) {
-      const hasilSearch = await cariWeb(String(message).split("\n")[0].trim().slice(0, 200));
+      const hasilCari = await cariWeb(String(message).split("\n")[0].trim().slice(0, 200));
+      const hasilSearch = hasilCari.teks;
+      daftarSumber.push(...hasilCari.sumber);
       if (hasilSearch) {
         searchBlock = `\n\nHasil pencarian web terbaru (gunakan ini untuk jawaban yang akurat dan terkini, sebutkan sumbernya kalau relevan):\n${hasilSearch}`;
       }
@@ -546,6 +555,7 @@ export async function POST(req: NextRequest) {
       daftarLink.forEach((u, i) => {
         const h = hasilLink[i];
         if (h && (h.isi || h.judul || h.deskripsi)) {
+          daftarSumber.push({ judul: (h.judul || u).slice(0, 120), link: u });
           const kepala = [h.judul ? `Judul: ${h.judul}` : "", h.deskripsi ? `Deskripsi: ${h.deskripsi}` : ""]
             .filter(Boolean)
             .join("\n");
@@ -570,7 +580,8 @@ Jawab secara natural, ringkas, dan langsung ke inti, sesuai konteks percakapan d
 
     const reply = await jawabDenganFallback(prompt, daftarGambar, mode === "kode" ? "kode" : "chat");
 
-    return NextResponse.json({ reply });
+    const sumberUnik = daftarSumber.filter((s, i) => daftarSumber.findIndex((x) => x.link === s.link) === i).slice(0, 6);
+    return NextResponse.json({ reply, sumber: sumberUnik });
   } catch (err) {
     console.error(err);
     return NextResponse.json({ error: "Terjadi kesalahan di server" }, { status: 500 });
