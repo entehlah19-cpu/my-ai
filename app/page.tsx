@@ -270,6 +270,15 @@ export default function Home() {
     }
   };
 
+  const hapusSemuaObrolan = () => {
+    setShowHeaderMenu(false);
+    if (!confirm("Hapus SEMUA obrolan? Ini tidak bisa dikembalikan kecuali kamu punya file cadangan. Proyek dan memori tidak ikut terhapus.")) return;
+    const id = Date.now().toString();
+    setConversations([{ id, title: "Obrolan Baru", messages: [] }]);
+    setActiveId(id);
+    setConfirmDeleteId(null);
+  };
+
   const tambahKeProyekDari = (id: string) => {
     setActiveId(id);
     setOpenMenuId(null);
@@ -1144,6 +1153,7 @@ export default function Home() {
                   <button className="conv-menu-item" onClick={eksporRiwayat}><IconDownload /> Cadangkan semua obrolan</button>
                   <button className="conv-menu-item" onClick={() => importRef.current?.click()}><IconUpload /> Pulihkan dari cadangan</button>
                   <button className="conv-menu-item danger" onClick={() => { setShowHeaderMenu(false); setConfirmDeleteId(activeConversation.id); }}><IconTrash /> Hapus</button>
+                  <button className="conv-menu-item danger" onClick={hapusSemuaObrolan}><IconTrash /> Hapus semua obrolan</button>
                 </div>
               )}
             </div>
@@ -1207,6 +1217,7 @@ export default function Home() {
                 <div className="msg-content" style={{ fontSize: 16.5, lineHeight: 1.65, color: "#f0f0f0", wordBreak: "break-word" }}>
                   <ReactMarkdown remarkPlugins={pluginRemark} rehypePlugins={pluginRehype} components={komponenMarkdown}>{siapkanMatematika(m.content)}</ReactMarkdown>
                 </div>
+                <TombolSalin teks={m.content} />
               </div>
             )
           )}
@@ -1631,6 +1642,28 @@ function IndikatorMengetik({ frasa }: { frasa: string[] }) {
         <span className="dots" />
       </span>
     </div>
+  );
+}
+
+// Tombol salin seluruh jawaban AI
+function TombolSalin({ teks }: { teks: string }) {
+  const [tersalin, setTersalin] = useState(false);
+  const salin = async () => {
+    try {
+      await navigator.clipboard.writeText(teks);
+      setTersalin(true);
+      setTimeout(() => setTersalin(false), 1500);
+    } catch {
+      alert("Tidak bisa menyalin otomatis. Tahan dan salin manual ya.");
+    }
+  };
+  return (
+    <button
+      onClick={salin}
+      style={{ background: "none", border: "none", color: tersalin ? "#ff9d4d" : "#777", fontSize: 12.5, cursor: "pointer", padding: "4px 0", marginTop: 4 }}
+    >
+      {tersalin ? "Tersalin ✓" : "Salin jawaban"}
+    </button>
   );
 }
 
