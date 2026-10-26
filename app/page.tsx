@@ -850,7 +850,7 @@ export default function Home() {
         html, body { background: #0a0a0a; margin: 0; padding: 0; }
 
         .sidebar {
-          width: 260px; background: #111111; border-right: 1px solid #262626;
+          width: 260px; background: #111111; border-right: none;
           display: flex; flex-direction: column; padding: 12px; flex-shrink: 0;
           transition: transform 0.25s ease;
         }
@@ -867,7 +867,7 @@ export default function Home() {
         .header-icon-btn:hover { background: #1a1a1a; color: #ff9d4d; }
         .nav-item {
           display: flex; align-items: center; gap: 12px; padding: 9px 8px;
-          border-radius: 8px; cursor: pointer; font-size: 14.5px; color: #ddd;
+          border-radius: 12px; cursor: pointer; font-size: 14.5px; color: #ddd;
         }
         .nav-item:hover { background: #1a1a1a; }
         .sidebar-btn-secondary {
@@ -881,14 +881,15 @@ export default function Home() {
         }
         .project-header:hover { background: #1a1a1a; }
         .project-header-left { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; color: #eee; }
-        .project-children { padding-left: 14px; border-left: 1px solid #262626; margin-left: 10px; }
+        .project-children { padding-left: 12px; margin-left: 6px; }
         .project-delete-btn { background: none; border: none; color: #555; cursor: pointer; font-size: 12px; padding: 2px 4px; }
         .project-delete-btn:hover { color: #ff5555; }
 
         .conv-item {
           display: flex; align-items: center; justify-content: space-between;
-          padding: 9px 10px; border-radius: 8px; margin-bottom: 2px; cursor: pointer; font-size: 13.5px;
+          padding: 10px 12px; border-radius: 12px; margin-bottom: 3px; cursor: pointer; font-size: 13.5px;
         }
+        .conv-item:hover { background: #1a1a1a; }
         .conv-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
         .conv-delete-btn { background: none; border: none; color: #666; cursor: pointer; font-size: 14px; padding: 3px 5px; flex-shrink: 0; border-radius: 6px; }
         .conv-delete-btn:hover { color: #ff5555; background: #2a1515; }
@@ -907,7 +908,7 @@ export default function Home() {
           background: #161616; width: 100%; max-width: 480px;
           border-radius: 20px 20px 0 0; padding: 20px;
           transform: translateY(100%); transition: transform 0.25s ease;
-          border: 1px solid #2a2a2a; border-bottom: none;
+          border: none;
           max-height: 80dvh; overflow-y: auto;
         }
         .sheet-backdrop.open .sheet { transform: translateY(0); }
@@ -925,10 +926,10 @@ export default function Home() {
         }
         .sheet-row {
           display: flex; align-items: center; justify-content: space-between;
-          padding: 14px 6px; border-top: 1px solid #262626; border-radius: 10px;
+          padding: 14px 16px; margin-bottom: 8px; background: #1a1a1a; border-radius: 16px;
           transition: background 0.15s ease; cursor: pointer;
         }
-        .sheet-row:hover { background: #1c1c1c; }
+        .sheet-row:hover { background: #222222; }
         .sheet-row-left { display: flex; align-items: center; gap: 12px; }
         .sheet-row .icon-circle-sm {
           width: 36px; height: 36px; border-radius: 50%; background: #2a2a2a;
@@ -940,7 +941,7 @@ export default function Home() {
         .conv-menu-wrap { position: relative; }
         .conv-menu-dropdown {
           position: absolute; right: 0; top: 28px; z-index: 50;
-          background: #1f1f1f; border: 1px solid #333; border-radius: 10px;
+          background: #222222; border: none; border-radius: 14px;
           min-width: 170px; overflow: hidden; box-shadow: 0 8px 20px rgba(0,0,0,0.4);
         }
         .conv-menu-item {
@@ -956,7 +957,7 @@ export default function Home() {
         }
         .project-picker-item:hover { background: #222; }
         .project-picker-input {
-          flex: 1; padding: 10px 12px; border-radius: 10px; border: 1px solid #333;
+          flex: 1; padding: 10px 14px; border-radius: 14px; border: none;
           background: #1a1a1a; color: #fff; font-size: 14px;
         }
 
@@ -1139,8 +1140,8 @@ export default function Home() {
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Cari obrolan..."
             style={{
-              width: "100%", padding: "8px 10px 8px 32px", borderRadius: 8, border: "1px solid #262626",
-              background: "#161616", color: "#f5f5f5", fontSize: 13, outline: "none",
+              width: "100%", padding: "8px 10px 8px 32px", borderRadius: 12, border: "none",
+              background: "#1a1a1a", color: "#f5f5f5", fontSize: 13, outline: "none",
             }}
           />
         </div>
@@ -1190,8 +1191,7 @@ export default function Home() {
                           key={c.id}
                           className="conv-item"
                           style={{
-                            background: c.id === activeId ? "#1f1f1f" : "transparent",
-                            borderLeft: c.id === activeId ? "3px solid #ff7a18" : "3px solid transparent",
+                            background: c.id === activeId ? "#262626" : undefined,
                           }}
                         >
                           <span className="conv-title" onClick={() => pilihObrolan(c.id)} style={{ color: c.id === activeId ? "#ff9d4d" : "#ccc" }}>
@@ -1237,8 +1237,7 @@ export default function Home() {
                 key={c.id}
                 className="conv-item"
                 style={{
-                  background: c.id === activeId ? "#1f1f1f" : "transparent",
-                  borderLeft: c.id === activeId ? "3px solid #ff7a18" : "3px solid transparent",
+                  background: c.id === activeId ? "#262626" : undefined,
                 }}
               >
                 <span className="conv-title" onClick={() => pilihObrolan(c.id)} style={{ color: c.id === activeId ? "#ff9d4d" : "#ccc" }}>
@@ -2839,7 +2838,7 @@ function IconSettings() {
 // Tombol pilihan bergeser (segmen) untuk pengaturan
 function Segmen<T extends string>({ nilai, pilihan, onPilih }: { nilai: T; pilihan: { nilai: T; label: string }[]; onPilih: (v: T) => void }) {
   return (
-    <div style={{ display: "flex", background: "#1a1a1a", borderRadius: 10, padding: 3, gap: 2 }}>
+    <div style={{ display: "flex", background: "#2a2a2a", borderRadius: 10, padding: 3, gap: 2 }}>
       {pilihan.map((o) => (
         <button
           key={o.nilai}
