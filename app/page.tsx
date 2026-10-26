@@ -81,6 +81,7 @@ export default function Home() {
   const [modeKode, setModeKode] = useState(false);
   const [ukuranTeks, setUkuranTeks] = useState<"kecil" | "sedang" | "besar">("sedang");
   const [tema, setTema] = useState<"gelap" | "terang">("gelap");
+  const [showSettings, setShowSettings] = useState(false);
   const abortRef = useRef<Record<string, AbortController>>({});
   const [showWebcam, setShowWebcam] = useState(false);
   const [memories, setMemories] = useState<Memori[]>([]);
@@ -639,10 +640,15 @@ export default function Home() {
     const pesan = conv.messages;
     if (!bisaDiulang(pesan, pesan.length - 1)) return;
     const teksUser = pesan[pesan.length - 2].content;
-    const riwayat = pesan
-      .slice(0, -2)
-      .slice(-10)
+    const pesanSebelumnya = pesan.slice(0, -2);
+    const riwayat = pesanSebelumnya
+      .slice(-16)
       .map((m) => ({ role: m.role, content: m.content || "(user mengirim gambar)" }));
+    const ringkasanAwal = pesanSebelumnya
+      .slice(0, -16)
+      .filter((m) => m.role === "user" && m.content)
+      .slice(-10)
+      .map((m) => m.content.replace(/\s+/g, " ").slice(0, 100));
     const memoriUntukAI = memoriAktif && !conv.incognito ? memories.slice(-40).map((m) => m.teks) : [];
     const obrolanLainUntukAI = memoriAktif && !conv.incognito ? ringkasObrolanLain(conversations, convId) : [];
 
@@ -664,6 +670,7 @@ export default function Home() {
           obrolanLain: obrolanLainUntukAI,
           webSearch: perluCariWeb(teksUser) && !teksUser.includes("🔗"),
           history: riwayat,
+          ringkasanAwal,
         }),
       });
       const data = await res.json();
@@ -700,9 +707,15 @@ export default function Home() {
     // Simpan ID obrolan SAAT pesan dikirim, supaya jawaban masuk ke obrolan yang benar
     // walaupun user pindah ke obrolan lain selagi menunggu
     const convId = activeId;
-    const riwayatUntukAI = (conversations.find((c) => c.id === convId)?.messages || [])
-      .slice(-10)
+    const semuaPesan = conversations.find((c) => c.id === convId)?.messages || [];
+    const riwayatUntukAI = semuaPesan
+      .slice(-16)
       .map((m) => ({ role: m.role, content: m.content || "(user mengirim gambar)" }));
+    const ringkasanAwal = semuaPesan
+      .slice(0, -16)
+      .filter((m) => m.role === "user" && m.content)
+      .slice(-10)
+      .map((m) => m.content.replace(/\s+/g, " ").slice(0, 100));
 
     const teksInput = input;
     const incognito = !!conversations.find((c) => c.id === convId)?.incognito;
@@ -776,6 +789,7 @@ export default function Home() {
           obrolanLain: obrolanLainUntukAI,
           webSearch: cariWebSekarang,
           history: riwayatUntukAI,
+          ringkasanAwal,
         }),
       });
       const data = await res.json();
@@ -1248,13 +1262,23 @@ export default function Home() {
           )}
         </div>
 
-        <button
-          className="sidebar-btn"
-          onClick={buatObrolanBaru}
-          style={{ marginTop: 10, borderRadius: 24, padding: "12px 16px" }}
-        >
-          + Chat baru
-        </button>
+        <div style={{ display: "flex", gap: 8, marginTop: 10, alignItems: "center" }}>
+          <button
+            className="sidebar-btn"
+            onClick={buatObrolanBaru}
+            style={{ flex: 1, borderRadius: 24, padding: "12px 16px" }}
+          >
+            + Chat baru
+          </button>
+          <button
+            onClick={() => { setShowSettings(true); setSidebarOpen(false); }}
+            title="Pengaturan"
+            aria-label="Pengaturan"
+            style={{ width: 46, height: 46, borderRadius: "50%", border: "none", background: "#1a1a1a", color: "#ff9d4d", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}
+          >
+            <IconSettings />
+          </button>
+        </div>
       </aside>
 
       {/* ===== CHAT UTAMA ===== */}
@@ -1608,6 +1632,72 @@ export default function Home() {
             >
               <span className="knob" style={{ left: memoriAktif ? 21 : 3 }} />
             </button>
+          </div>
+        </div>
+      </div>
+
+      {/* ===== BOTTOM SHEET: Pengaturan ===== */}
+      <div className={`sheet-backdrop ${showSettings ? "open" : ""}`} onClick={() => setShowSettings(false)}>
+        <div className="sheet" onClick={(e) => e.stopPropagation()}>
+          <div className="sheet-handle" />
+          <div style={{ textAlign: "center", fontWeight: 700, fontSize: 17, marginBottom: 10 }}>Pengaturan</div>
+
+          <div className="sheet-row" style={{ cursor: "default" }}>
+            <div style={{ fontWeight: 500 }}>Tema</div>
+            <Segmen
+              nilai={tema}
+              pilihan={[{ nilai: "gelap", label: "Gelap" }, { nilai: "terang", label: "Terang" }]}
+              onPilih={setTema}
+            />
+          </div>
+
+          <div className="sheet-row" style={{ cursor: "default" }}>
+            <div style={{ fontWeight: 500 }}>Ukuran tulisan</div>
+            <Segmen
+              nilai={ukuranTeks}
+              pilihan={[{ nilai: "kecil", label: "Kecil" }, { nilai: "sedang", label: "Sedang" }, { nilai: "besar", label: "Besar" }]}
+              onPilih={setUkuranTeks}
+            />
+          </div>
+
+          <div className="sheet-row" style={{ cursor: "default" }}>
+            <div>
+              <div style={{ fontWeight: 500 }}>Mode Kode</div>
+              <div style={{ fontSize: 12, color: "#888" }}>Jawaban berupa file kode lengkap</div>
+            </div>
+            <button className="toggle" onClick={() => setModeKode((v) => !v)} style={{ background: modeKode ? "#ff7a18" : "#333" }}>
+              <span className="knob" style={{ left: modeKode ? 21 : 3 }} />
+            </button>
+          </div>
+
+          <div className="sheet-row" style={{ cursor: "default" }}>
+            <div>
+              <div style={{ fontWeight: 500 }}>Memori</div>
+              <div style={{ fontSize: 12, color: "#888" }}>{memoriAktif ? `Aktif · ${memories.length} hal diingat` : "Nonaktif"}</div>
+            </div>
+            <button className="toggle" onClick={() => setMemoriAktif((v) => !v)} style={{ background: memoriAktif ? "#ff7a18" : "#333" }}>
+              <span className="knob" style={{ left: memoriAktif ? 21 : 3 }} />
+            </button>
+          </div>
+
+          <div className="sheet-row" onClick={() => { setShowSettings(false); setShowMemoriSheet(true); }}>
+            <div style={{ fontWeight: 500 }}>Lihat dan hapus memori</div>
+            <IconChevron />
+          </div>
+
+          <div className="sheet-row" onClick={() => { setShowSettings(false); eksporRiwayat(); }}>
+            <div style={{ fontWeight: 500 }}>Cadangkan semua obrolan</div>
+            <IconChevron />
+          </div>
+
+          <div className="sheet-row" onClick={() => { setShowSettings(false); importRef.current?.click(); }}>
+            <div style={{ fontWeight: 500 }}>Pulihkan dari cadangan</div>
+            <IconChevron />
+          </div>
+
+          <div className="sheet-row" onClick={() => { setShowSettings(false); hapusSemuaObrolan(); }}>
+            <div style={{ fontWeight: 500, color: "#ff6b6b" }}>Hapus semua obrolan</div>
+            <IconChevron />
           </div>
         </div>
       </div>
@@ -2737,6 +2827,36 @@ function IconBrain() {
     </svg>
   );
 }
+function IconSettings() {
+  return (
+    <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z" />
+    </svg>
+  );
+}
+
+// Tombol pilihan bergeser (segmen) untuk pengaturan
+function Segmen<T extends string>({ nilai, pilihan, onPilih }: { nilai: T; pilihan: { nilai: T; label: string }[]; onPilih: (v: T) => void }) {
+  return (
+    <div style={{ display: "flex", background: "#1a1a1a", borderRadius: 10, padding: 3, gap: 2 }}>
+      {pilihan.map((o) => (
+        <button
+          key={o.nilai}
+          onClick={() => onPilih(o.nilai)}
+          style={{
+            border: "none", borderRadius: 8, padding: "6px 12px", fontSize: 13, fontWeight: 600, cursor: "pointer",
+            background: o.nilai === nilai ? "linear-gradient(135deg, #ff7a18, #ff9d4d)" : "transparent",
+            color: o.nilai === nilai ? "#0a0a0a" : "#aaa",
+          }}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function IconIncognito() {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#aaa" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
