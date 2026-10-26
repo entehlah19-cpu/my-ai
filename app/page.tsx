@@ -41,6 +41,91 @@ function perluCariWeb(teks: string): boolean {
   return true;
 }
 
+// ---- Jawaban mengalir dan sambungan otomatis untuk kode panjang ----
+const PEMISAH = "\u001e";
+
+function kodeTerbuka(t: string): boolean {
+  return ((t.match(/```/g) || []).length % 2) === 1;
+}
+
+function potongBarisTerakhir(t: string): string {
+  const i = t.lastIndexOf("\n");
+  return i > 0 ? t.slice(0, i) : t;
+}
+
+function bersihAwalLanjutan(t: string): string {
+  const s = t.replace(/^\s*\n/, "");
+  if (s.startsWith("```")) {
+    const i = s.indexOf("\n");
+    return i === -1 ? "" : s.slice(i + 1);
+  }
+  return s;
+}
+
+function susunPerintahLanjut(dasar: string): string {
+  const i = dasar.lastIndexOf("```");
+  const baris = dasar.slice(i).split("\n");
+  const kepala = baris[0].replace(/^```/, "").trim();
+  const isi = baris.slice(1);
+  const awal = isi.slice(0, 40).join("\n").slice(0, 2500);
+  const akhir = isi.slice(-150).join("\n").slice(-7000);
+  return (
+    `Kodemu terpotong karena batas panjang. Lanjutkan file ini sampai selesai.\nFile: ${kepala || "kode"}\n\n` +
+    `AWAL file (untuk menjaga konsistensi import, nama, dan gaya):\n${awal}\n\n` +
+    `BAGIAN TERAKHIR yang sudah tertulis:\n${akhir}\n\n` +
+    `ATURAN: tulis lanjutannya mulai dari baris tepat setelah baris terakhir di atas. Jangan mengulang bagian yang sudah ada, jangan membuka blok kode baru, dan jangan menulis kata pembuka. ` +
+    `Tulis kode saja sampai file selesai, lalu tutup blok kode dengan tiga tanda kutip terbalik, lalu beri penjelasan singkat. ` +
+    `Kalau file ini sudah terlalu panjang, selesaikan dengan rapi dan sebutkan bagian mana yang belum dikerjakan.`
+  );
+}
+
+async function mintaJawaban(
+  body: any,
+  signal: AbortSignal,
+  saatTeks: (t: string) => void
+): Promise<{ teks: string; sumber?: Sumber[]; terpotong: boolean }> {
+  const res = await fetch("/api/chat", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    signal,
+    body: JSON.stringify(body),
+  });
+  const tipe = res.headers.get("content-type") || "";
+
+  if (res.ok && tipe.includes("text/plain") && res.body) {
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    let buf = "";
+    let terakhir = 0;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      const kini = Date.now();
+      // Makin panjang teksnya, makin jarang layar diperbarui supaya tidak berat
+      if (kini - terakhir > (buf.length > 30000 ? 800 : 200)) {
+        terakhir = kini;
+        saatTeks(buf.split(PEMISAH)[0]);
+      }
+    }
+    buf += dec.decode();
+    const i = buf.indexOf(PEMISAH);
+    const teks = i === -1 ? buf : buf.slice(0, i);
+    let meta: any = {};
+    if (i !== -1) {
+      try {
+        meta = JSON.parse(buf.slice(i + 1));
+      } catch {}
+    }
+    return { teks, sumber: bersihkanSumber(meta?.sumber), terpotong: !!meta?.terpotong };
+  }
+
+  const data = await res.json();
+  const teks = data?.reply || data?.error || "Maaf, terjadi kesalahan.";
+  saatTeks(teks);
+  return { teks, sumber: bersihkanSumber(data?.sumber), terpotong: false };
+}
+
 // Potongan singkat dari obrolan lain (bukan incognito) untuk dikirim sebagai konteks
 function ringkasObrolanLain(daftar: Conversation[], idAktif: string): string[] {
   return daftar
@@ -82,6 +167,7 @@ export default function Home() {
   const [ukuranTeks, setUkuranTeks] = useState<"kecil" | "sedang" | "besar">("sedang");
   const [tema, setTema] = useState<"gelap" | "terang">("gelap");
   const [showSettings, setShowSettings] = useState(false);
+  const [bagianKode, setBagianKode] = useState(0);
   const abortRef = useRef<Record<string, AbortController>>({});
   const [showWebcam, setShowWebcam] = useState(false);
   const [memories, setMemories] = useState<Memori[]>([]);
@@ -132,6 +218,7 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    const penunda = setTimeout(() => {
     try {
       localStorage.setItem("myai-conversations", JSON.stringify(conversations.filter((c) => !c.incognito)));
     } catch {
@@ -144,6 +231,8 @@ export default function Home() {
         localStorage.setItem("myai-conversations", JSON.stringify(tanpaGambar));
       } catch {}
     }
+    }, 250);
+    return () => clearTimeout(penunda);
   }, [conversations]);
 
   useEffect(() => {
@@ -768,52 +857,114 @@ export default function Home() {
       )
     );
 
-    try {
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        signal: ctrl.signal,
-        body: JSON.stringify({
-          userId: "user-1",
-          message: pesanUntukAI,
-          images: gambarUntukDikirim.length > 0
-            ? gambarUntukDikirim.map((g) => ({ mimeType: g.mimeType, data: g.data }))
-            : undefined,
-          document:
-            dokUntukDikirim?.kind === "binary"
-              ? { name: dokUntukDikirim.name, mimeType: dokUntukDikirim.mimeType, data: dokUntukDikirim.data }
-              : undefined,
-          link: linkUntukDikirim || undefined,
-          mode: modeKode ? "kode" : "chat",
-          memories: memoriUntukAI,
-          obrolanLain: obrolanLainUntukAI,
-          webSearch: cariWebSekarang,
-          history: riwayatUntukAI,
-          ringkasanAwal,
-        }),
-      });
-      const data = await res.json();
+    // Jawaban dibuat sebagai satu pesan, lalu diisi pelan-pelan saat teks mengalir
+    let sudahAda = false;
+    let teksTerakhir = "";
+    const tulis = (teks: string, sumber?: Sumber[]) => {
+      const ada = sudahAda;
+      sudahAda = true;
+      teksTerakhir = teks;
+      setConversations((prev) =>
+        prev.map((c) => {
+          if (c.id !== convId) return c;
+          if (!ada) return { ...c, messages: [...c.messages, { role: "assistant", content: teks, sumber }] };
+          const pesan = [...c.messages];
+          const k = pesan.length - 1;
+          pesan[k] = { ...pesan[k], content: teks, sumber: sumber ?? pesan[k].sumber };
+          return { ...c, messages: pesan };
+        })
+      );
+    };
 
-      // Catat hal penting dari obrolan ini ke memori (diam-diam, tidak menghalangi jawaban)
-      if (memoriAktif && !incognito && !modeKode && teksInput.trim().length >= 20 && data?.reply) {
-        ingatDariObrolan(teksInput, data.reply, memories.map((m) => m.teks));
+    try {
+      const badan = {
+        userId: "user-1",
+        message: pesanUntukAI,
+        images: gambarUntukDikirim.length > 0
+          ? gambarUntukDikirim.map((g) => ({ mimeType: g.mimeType, data: g.data }))
+          : undefined,
+        document:
+          dokUntukDikirim?.kind === "binary"
+            ? { name: dokUntukDikirim.name, mimeType: dokUntukDikirim.mimeType, data: dokUntukDikirim.data }
+            : undefined,
+        link: linkUntukDikirim || undefined,
+        mode: modeKode ? "kode" : "chat",
+        memories: memoriUntukAI,
+        obrolanLain: obrolanLainUntukAI,
+        webSearch: cariWebSekarang,
+        history: riwayatUntukAI,
+        ringkasanAwal,
+        alir: modeKode && gambarUntukDikirim.length === 0,
+      };
+
+      const hasil = await mintaJawaban(badan, ctrl.signal, (t) => tulis(t));
+      let teksAkhir = hasil.teks;
+      tulis(teksAkhir, hasil.sumber);
+
+      // Kode terpotong oleh batas panjang: sambung otomatis (maksimal 10 bagian)
+      let bagian = 1;
+      while (modeKode && kodeTerbuka(teksAkhir) && bagian < 10 && !ctrl.signal.aborted) {
+        bagian += 1;
+        setBagianKode(bagian);
+        const dasar = potongBarisTerakhir(teksAkhir);
+        tulis(dasar);
+        const lanjut = await mintaJawaban(
+          {
+            userId: "user-1",
+            message: susunPerintahLanjut(dasar),
+            mode: "kode",
+            history: [...riwayatUntukAI, { role: "user", content: teksInput }],
+            memories: [],
+            ringkasanAwal: [],
+            alir: true,
+          },
+          ctrl.signal,
+          (t) => tulis(`${dasar}\n${bersihAwalLanjutan(t)}`)
+        );
+        if (/^Maaf, (AI sedang sibuk|terjadi kesalahan)/.test(lanjut.teks.trim())) {
+          tulis(teksAkhir);
+          break;
+        }
+        teksAkhir = `${dasar}\n${bersihAwalLanjutan(lanjut.teks)}`;
+        tulis(teksAkhir);
+      }
+      setBagianKode(0);
+
+      // Masih terpotong setelah semua bagian: tutup blok kode dan beri catatan
+      if (kodeTerbuka(teksAkhir)) {
+        teksAkhir += "\n```\n\n_Kode terpotong di sini karena batas panjang. Minta bagian berikutnya sebagai file terpisah ya._";
+        tulis(teksAkhir);
       }
 
-      setConversations((prev) =>
-        prev.map((c) =>
-          c.id === convId
-            ? { ...c, messages: [...c.messages, { role: "assistant", content: data.reply || data.error || "Maaf, terjadi kesalahan.", sumber: bersihkanSumber(data?.sumber) }] }
-            : c
-        )
-      );
+      // Catat hal penting dari obrolan ini ke memori (diam-diam, tidak menghalangi jawaban)
+      if (memoriAktif && !incognito && !modeKode && teksInput.trim().length >= 20 && teksAkhir) {
+        ingatDariObrolan(teksInput, teksAkhir, memories.map((m) => m.teks));
+      }
     } catch (err) {
-      setConversations((prev) =>
-        prev.map((c) =>
-          c.id === convId
-            ? { ...c, messages: [...c.messages, { role: "assistant", content: (err as Error).name === "AbortError" ? "Dihentikan." : "Maaf, terjadi kesalahan. Coba lagi ya." }] }
-            : c
-        )
-      );
+      setBagianKode(0);
+      const henti = (err as Error).name === "AbortError";
+      if (sudahAda) {
+        // Jawaban sebagian sudah tampil: biarkan, cukup tambah keterangan
+        const tutup = kodeTerbuka(teksTerakhir) ? "\n```" : "";
+        const catatan = henti ? "\n\n_Dihentikan._" : "\n\n_Koneksi terputus. Coba kirim lagi ya._";
+        setConversations((prev) =>
+          prev.map((c) => {
+            if (c.id !== convId) return c;
+            const pesan = [...c.messages];
+            const k = pesan.length - 1;
+            pesan[k] = { ...pesan[k], content: pesan[k].content + tutup + catatan };
+            return { ...c, messages: pesan };
+          })
+        );
+      } else {
+        setConversations((prev) =>
+          prev.map((c) =>
+            c.id === convId
+              ? { ...c, messages: [...c.messages, { role: "assistant", content: henti ? "Dihentikan." : "Maaf, terjadi kesalahan. Coba lagi ya." }] }
+              : c
+          )
+        );
+      }
     } finally {
       delete abortRef.current[convId];
       setLoadingIds((prev) => prev.filter((id) => id !== convId));
@@ -823,6 +974,7 @@ export default function Home() {
   // --- Tulisan status AI sesuai yang sedang dikerjakan ---
   const pesanTerakhirUser = [...(activeConversation?.messages || [])].reverse().find((m) => m.role === "user");
   const frasaStatus: string[] = [
+    ...(bagianKode > 1 ? [`Menyambung kode, bagian ${bagianKode}`] : []),
     ...(pesanTerakhirUser && ((pesanTerakhirUser.imagePreviews?.length ?? 0) > 0 || pesanTerakhirUser.imagePreview) ? ["Melihat gambar"] : []),
     ...(pesanTerakhirUser?.content.includes("🔗") ? ["Membuka link"] : []),
     ...(pesanTerakhirUser?.content.startsWith("📄") ? ["Membaca file"] : []),
