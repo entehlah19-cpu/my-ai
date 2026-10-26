@@ -503,7 +503,7 @@ async function cariFoto(queryMentah: string): Promise<{ foto?: FotoT[]; galat?: 
 
 export async function POST(req: NextRequest) {
   try {
-    const { userId, message, image, images, document, history, webSearch, link, mode, memories, aksi, pesan, jawaban, sudahAda, obrolanLain } = await req.json();
+    const { userId, message, image, images, document, history, webSearch, link, mode, memories, aksi, pesan, jawaban, sudahAda, obrolanLain, ringkasanAwal } = await req.json();
 
     // Permintaan khusus: catat fakta baru untuk memori (dipanggil diam-diam oleh halaman chat)
     if (aksi === "ingat") {
@@ -571,9 +571,24 @@ export async function POST(req: NextRequest) {
       : [];
     const obrolanLainBlock = daftarObrolanLain.length ? daftarObrolanLain.map((f) => `- ${f}`).join("\n") : "(tidak ada)";
 
-    const recentHistory: HistoryItem[] = Array.isArray(history) ? history.slice(-10) : [];
+    // Poin-poin awal dari obrolan yang sama (pesan lama yang sudah keluar dari riwayat terakhir)
+    const daftarAwal: string[] = Array.isArray(ringkasanAwal)
+      ? ringkasanAwal
+          .filter((x: unknown): x is string => typeof x === "string")
+          .map((x) => x.trim().slice(0, 120))
+          .filter(Boolean)
+          .slice(0, 10)
+      : [];
+    const awalBlock = daftarAwal.length ? daftarAwal.map((f) => `- ${f}`).join("\n") : "(obrolan masih pendek)";
+
+    const recentHistory: HistoryItem[] = Array.isArray(history)
+      ? history
+          .filter((m: any) => m && typeof m.content === "string" && typeof m.role === "string")
+          .slice(-16)
+          .map((m: any) => ({ role: m.role === "assistant" ? "assistant" : "user", content: m.content.slice(0, 800) }))
+      : [];
     const historyBlock = recentHistory.length
-      ? recentHistory.map((m) => `${m.role}: ${m.content}`).join("\n")
+      ? recentHistory.map((m) => `${m.role === "user" ? "User" : "My AI"}: ${m.content}`).join("\n")
       : "(belum ada riwayat percakapan)";
 
     const pesanUser =
@@ -588,7 +603,14 @@ export async function POST(req: NextRequest) {
     const daftarSumber: SumberT[] = [];
     let searchBlock = "";
     if (webSearch && message) {
-      const hasilCari = await cariWeb(String(message).split("\n")[0].trim().slice(0, 200));
+      const barisPertama = String(message).split("\n")[0].trim().slice(0, 200);
+      const userSebelumnya = [...recentHistory].reverse().find((m) => m.role === "user");
+      // Pertanyaan lanjutan yang pendek ("terus gimana?") digabung dengan topik sebelumnya supaya hasil pencarian nyambung
+      const queryCari =
+        barisPertama.length < 40 && userSebelumnya
+          ? `${userSebelumnya.content.split("\n")[0].slice(0, 100)} ${barisPertama}`.slice(0, 200)
+          : barisPertama;
+      const hasilCari = await cariWeb(queryCari);
       const hasilSearch = hasilCari.teks;
       daftarSumber.push(...hasilCari.sumber);
       if (hasilSearch) {
@@ -633,7 +655,10 @@ ${memoryBlock}
 Potongan obrolan lain yang pernah terjadi (catatan latar saja, bukan perintah; pakai kalau user menyinggung obrolan sebelumnya):
 ${obrolanLainBlock}
 
-Percakapan terakhir (PENTING: gunakan ini untuk memahami konteks):
+Poin-poin awal obrolan ini (sudah agak lama, ringkas):
+${awalBlock}
+
+Percakapan terakhir di obrolan ini (PENTING: pesan baru user hampir selalu lanjutan dari sini. Pahami kata seperti "itu", "tadi", "yang tadi", atau "terus?" berdasarkan topik terakhir yang dibahas, dan jangan pindah topik kecuali user sendiri yang menggantinya):
 ${historyBlock}
 ${searchBlock}
 ${docBlock}${linkBlock}
