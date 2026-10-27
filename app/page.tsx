@@ -265,6 +265,23 @@ export default function Home() {
     el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
   }, [input, activeId]);
 
+  // Kolom ketik langsung aktif (laptop): saat dibuka, ganti obrolan, dan setelah jawaban selesai
+  const fokusInput = () => {
+    if (typeof window === "undefined" || window.matchMedia("(pointer: coarse)").matches) return;
+    inputRef.current?.focus();
+  };
+
+  useEffect(() => {
+    const aktif = document.activeElement;
+    if (!aktif || aktif === document.body) fokusInput();
+  }, [activeId]);
+
+  useEffect(() => {
+    if (loading) return;
+    const aktif = document.activeElement;
+    if (!aktif || aktif === document.body) fokusInput();
+  }, [loading]);
+
   // Kamera laptop: buka webcam saat modal tampil, matikan saat ditutup
   useEffect(() => {
     if (!showWebcam) return;
@@ -596,6 +613,7 @@ export default function Home() {
 
   const tambahEmoji = (emoji: string) => {
     setInput((prev) => prev + emoji);
+    fokusInput();
   };
 
   const mulaiRekamSuara = () => {
@@ -838,6 +856,8 @@ export default function Home() {
     };
 
     setInput("");
+    setShowEmojiPicker(false);
+    fokusInput();
     setPendingImages([]);
     setPendingDoc(null);
     setPendingLink(null);
