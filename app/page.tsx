@@ -2759,6 +2759,148 @@ function KartuFoto({ query }: { query: string }) {
   );
 }
 
+// ---- Kuis pilihan ganda interaktif (dari blok "kuis") ----
+type SoalKuis = { kategori: string; tanya: string; pilihan: string[]; jawaban: number; penjelasan: string };
+
+function bacaKuis(data: any): { judul: string; soal: SoalKuis[] } | null {
+  const mentah: any[] = Array.isArray(data?.soal) ? data.soal : [];
+  const soal: SoalKuis[] = mentah
+    .slice(0, 20)
+    .map((s: any) => ({
+      kategori: typeof s?.kategori === "string" ? s.kategori.slice(0, 40) : "",
+      tanya: typeof s?.tanya === "string" ? s.tanya.slice(0, 500) : "",
+      pilihan: Array.isArray(s?.pilihan)
+        ? s.pilihan.filter((x: any) => typeof x === "string").map((x: string) => x.slice(0, 200)).slice(0, 6)
+        : [],
+      jawaban: Number.isInteger(s?.jawaban) ? s.jawaban : -1,
+      penjelasan: typeof s?.penjelasan === "string" ? s.penjelasan.slice(0, 600) : "",
+    }))
+    .filter((s: SoalKuis) => s.tanya && s.pilihan.length >= 2 && s.jawaban >= 0 && s.jawaban < s.pilihan.length);
+  if (soal.length === 0) return null;
+  return { judul: typeof data?.judul === "string" ? data.judul.slice(0, 60) : "Kuis", soal };
+}
+
+function KartuKuis({ kuis }: { kuis: { judul: string; soal: SoalKuis[] } }) {
+  const [no, setNo] = useState(0);
+  const [pilih, setPilih] = useState<number | null>(null);
+  const [dicek, setDicek] = useState(false);
+  const [skor, setSkor] = useState(0);
+  const [selesai, setSelesai] = useState(false);
+
+  const total = kuis.soal.length;
+  const soal = kuis.soal[no];
+  const huruf = (i: number) => String.fromCharCode(65 + i);
+
+  const cek = () => {
+    if (pilih === null || dicek) return;
+    setDicek(true);
+    if (pilih === soal.jawaban) setSkor((s) => s + 1);
+  };
+  const lanjut = () => {
+    if (no + 1 < total) {
+      setNo(no + 1);
+      setPilih(null);
+      setDicek(false);
+    } else {
+      setSelesai(true);
+    }
+  };
+  const ulang = () => {
+    setNo(0);
+    setPilih(null);
+    setDicek(false);
+    setSkor(0);
+    setSelesai(false);
+  };
+
+  const kartu: CSSProperties = { background: "#131313", borderRadius: 20, padding: "16px 18px 18px", margin: "12px 0", maxWidth: 640 };
+  const label = (
+    <span style={{ background: "rgba(168,85,247,0.2)", color: "#c9a7ff", fontSize: 11.5, fontWeight: 700, letterSpacing: 0.4, padding: "4px 10px", borderRadius: 999, textTransform: "uppercase" }}>
+      Kuis
+    </span>
+  );
+  const tombolBesar = (aktif: boolean): CSSProperties => ({
+    width: "100%", marginTop: 14, padding: "13px 16px", borderRadius: 14, border: "none", fontWeight: 700, fontSize: 14.5,
+    cursor: aktif ? "pointer" : "default",
+    background: aktif ? "linear-gradient(135deg, #ff7a18, #ff9d4d)" : "#1c1c1c",
+    color: aktif ? "#0a0a0a" : "#777",
+  });
+
+  if (selesai) {
+    const persen = Math.round((skor / total) * 100);
+    const komentar = persen === 100 ? "Sempurna, gila sih! 🔥" : persen >= 70 ? "Mantap, jago juga lu 👏" : persen >= 40 ? "Lumayan, bisa lebih bagus lagi 💪" : "Santai, coba lagi pasti naik 😄";
+    return (
+      <div style={kartu}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>{label}<span style={{ color: "#999", fontSize: 13 }}>Selesai</span></div>
+        <div style={{ fontSize: 22, fontWeight: 700, marginTop: 14 }}>{kuis.judul}</div>
+        <div style={{ fontSize: 40, fontWeight: 800, color: "#ff9d4d", marginTop: 8 }}>{skor} / {total}</div>
+        <div style={{ color: "#bbb", marginTop: 4 }}>{komentar}</div>
+        <button onClick={ulang} style={tombolBesar(true)}>Main lagi</button>
+      </div>
+    );
+  }
+
+  return (
+    <div style={kartu}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        {label}
+        <span style={{ color: "#aaa", fontSize: 13.5 }}>{no + 1} / {total}</span>
+      </div>
+      <div style={{ fontSize: 21, fontWeight: 700, marginTop: 14 }}>{soal.kategori || kuis.judul}</div>
+      <div style={{ color: "#999", fontSize: 13, marginTop: 6 }}>Soal {no + 1}</div>
+      <div style={{ fontSize: 16.5, fontWeight: 600, lineHeight: 1.5, marginTop: 12 }}>{soal.tanya}</div>
+
+      <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 6 }}>
+        {soal.pilihan.map((teks, i) => {
+          const dipilih = pilih === i;
+          const benar = dicek && i === soal.jawaban;
+          const salah = dicek && dipilih && i !== soal.jawaban;
+          return (
+            <button
+              key={i}
+              onClick={() => !dicek && setPilih(i)}
+              style={{
+                display: "flex", alignItems: "center", gap: 12, textAlign: "left", width: "100%",
+                padding: "10px 12px", borderRadius: 12, border: "none", cursor: dicek ? "default" : "pointer",
+                color: "#eee", fontSize: 15,
+                background: benar ? "rgba(52,211,153,0.18)" : salah ? "rgba(248,113,113,0.18)" : dipilih ? "#232323" : "transparent",
+              }}
+            >
+              <span
+                style={{
+                  width: 20, height: 20, borderRadius: "50%", flexShrink: 0,
+                  border: `2px solid ${benar ? "#34d399" : salah ? "#f87171" : dipilih ? "#ff9d4d" : "#555"}`,
+                  background: dipilih || benar ? (benar ? "#34d399" : salah ? "#f87171" : "#ff9d4d") : "transparent",
+                }}
+              />
+              <span>{huruf(i)}. {teks}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {dicek && (
+        <div style={{ marginTop: 12, padding: "12px 14px", borderRadius: 14, background: "#1a1a1a", lineHeight: 1.55, fontSize: 14.5 }}>
+          <div style={{ fontWeight: 700, color: pilih === soal.jawaban ? "#34d399" : "#f87171" }}>
+            {pilih === soal.jawaban ? "Bener! 🔥" : `Belum tepat. Jawabannya ${huruf(soal.jawaban)}.`}
+          </div>
+          {soal.penjelasan && <div style={{ color: "#ccc", marginTop: 4 }}>{soal.penjelasan}</div>}
+        </div>
+      )}
+
+      {!dicek ? (
+        <button onClick={cek} disabled={pilih === null} style={tombolBesar(pilih !== null)}>
+          {pilih === null ? "Pilih jawaban dulu, bro" : "Cek jawaban"}
+        </button>
+      ) : (
+        <button onClick={lanjut} style={tombolBesar(true)}>
+          {no + 1 < total ? "Soal berikutnya" : "Lihat hasil"}
+        </button>
+      )}
+    </div>
+  );
+}
+
 const komponenMarkdown: any = {
   pre: ({ children }: any) => <>{children}</>,
   a: ({ href, children }: any) => (
@@ -2768,6 +2910,14 @@ const komponenMarkdown: any = {
     const teks = String(children ?? "").replace(/\n$/, "");
     const bahasa = /language-([\w-]+)/.exec(className || "")?.[1];
     if (!bahasa && !teks.includes("\n")) return <code>{children}</code>;
+    if (bahasa === "kuis") {
+      try {
+        const kuis = bacaKuis(JSON.parse(teks));
+        if (kuis) return <KartuKuis kuis={kuis} />;
+      } catch {
+        // JSON belum lengkap (masih mengalir) atau salah: tampilkan sebagai blok kode biasa
+      }
+    }
     if (bahasa === "foto") {
       try {
         const d = JSON.parse(teks);
