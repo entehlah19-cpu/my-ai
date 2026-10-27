@@ -168,6 +168,7 @@ export default function Home() {
   const [tema, setTema] = useState<"gelap" | "terang">("gelap");
   const [showSettings, setShowSettings] = useState(false);
   const [bagianKode, setBagianKode] = useState(0);
+  const [sapaan, setSapaan] = useState("Mau ngobrolin apa?");
   const abortRef = useRef<Record<string, AbortController>>({});
   const [showWebcam, setShowWebcam] = useState(false);
   const [memories, setMemories] = useState<Memori[]>([]);
@@ -358,6 +359,19 @@ export default function Home() {
   const ukuranPx = ukuranTeks === "kecil" ? 14.5 : ukuranTeks === "besar" ? 19 : 16.5;
 
   const activeConversation = conversations.find((c) => c.id === activeId);
+  const kosong = (activeConversation?.messages.length ?? 0) === 0;
+
+  // Sapaan di layar awal mengikuti jam (tanpa menyebut nama)
+  useEffect(() => {
+    const jam = new Date().getHours();
+    setSapaan(
+      jam >= 22 || jam < 4 ? "Masih melek, bro?"
+        : jam < 11 ? "Pagi! Mau ngerjain apa?"
+        : jam < 15 ? "Siang, lagi mikirin apa?"
+        : jam < 18 ? "Sore, mau ngobrolin apa?"
+        : "Malam, lagi mikirin apa?"
+    );
+  }, [activeId]);
 
   // --- Obrolan ---
   const buatObrolanBaru = () => {
@@ -1509,11 +1523,13 @@ export default function Home() {
           </div>
         </header>
 
-        <div style={{ flex: 1, overflowY: "auto", padding: "16px" }}>
+        <div style={kosong ? { flex: "0 0 auto", marginTop: "auto", padding: "16px 16px 4px" } : { flex: 1, overflowY: "auto", padding: "16px" }}>
           {(activeConversation?.messages.length ?? 0) === 0 && (
-            <div style={{ textAlign: "center", marginTop: 70, color: "#777" }}>
-              <div style={{ display: "flex", justifyContent: "center", marginBottom: 14 }}><LogoMyAI size={56} animated /></div>
-              <div style={{ fontSize: 18, color: "#ddd", fontWeight: 600 }}>Halo, ada yang bisa kubantu?</div>
+            <div style={{ textAlign: "center", color: "#777", marginBottom: 8 }}>
+              <div style={{ display: "flex", justifyContent: "center", alignItems: "center", flexWrap: "wrap", gap: 14 }}>
+                <LogoMyAI size={46} animated />
+                <span style={{ fontFamily: "Georgia, 'Times New Roman', serif", fontSize: "clamp(24px, 6vw, 34px)", color: "#f0f0f0", fontWeight: 400 }}>{sapaan}</span>
+              </div>
               <div style={{ fontSize: 13, marginTop: 6, padding: "0 20px" }}>
                 {activeConversation?.incognito
                   ? "Mode incognito: obrolan ini tidak disimpan dan tidak masuk memori. Hilang kalau halaman dimuat ulang."
@@ -1579,7 +1595,7 @@ export default function Home() {
           <div ref={bottomRef} />
         </div>
 
-        <div style={{ padding: "12px 16px", position: "relative", paddingBottom: "calc(12px + env(safe-area-inset-bottom, 0px))" }}>
+        <div style={{ padding: "12px 16px", position: "relative", paddingBottom: kosong ? "12vh" : "calc(12px + env(safe-area-inset-bottom, 0px))", marginBottom: kosong ? "auto" : undefined }}>
           {pendingImages.length > 0 && (
             <div style={{ maxWidth: 800, margin: "0 auto 10px", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
               {pendingImages.map((img, idx) => (
@@ -2013,34 +2029,27 @@ function LogoMyAI({ size = 28, animated = false }: { size?: number; animated?: b
       <img src={LOGO_SRC} alt="My AI" width={size} height={size} className={animated ? "logo-img-anim" : undefined} style={{ borderRadius: size * 0.28, objectFit: "cover", display: "block" }} />
     );
   }
-  // Logo bawaan: cincin oranye berputar + garis miring (ganti dengan logomu sendiri lewat LOGO_SRC)
-  const kecepatan = animated ? "2.2s" : "8s";
+  // Logo bawaan: laptop + secangkir kopi (ganti dengan logomu sendiri lewat LOGO_SRC)
+  const uap = animated ? (
+    <>
+      <animate attributeName="opacity" values="0.15;1;0.15" dur="1.8s" repeatCount="indefinite" />
+    </>
+  ) : null;
   return (
     <svg width={size} height={size} viewBox="0 0 32 32" style={{ display: "block" }}>
-      <defs>
-        <radialGradient id="bhGlow" cx="50%" cy="50%" r="50%">
-          <stop offset="40%" stopColor="#ff7a18" stopOpacity="0" />
-          <stop offset="70%" stopColor="#ff9d4d" stopOpacity="0.35" />
-          <stop offset="100%" stopColor="#ff7a18" stopOpacity="0" />
-        </radialGradient>
-        <linearGradient id="bhRing" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#ff7a18" />
-          <stop offset="1" stopColor="#ffb36b" />
-        </linearGradient>
-        <linearGradient id="bhSlash" x1="0" y1="1" x2="1" y2="0">
-          <stop offset="0" stopColor="#ff9d4d" />
-          <stop offset="1" stopColor="#fff1e0" />
-        </linearGradient>
-      </defs>
       <rect width="32" height="32" rx="9" fill="#050505" stroke="#2a2a2a" strokeWidth="0.6" />
-      <circle cx="16" cy="16" r="15" fill="url(#bhGlow)" />
-      <circle cx="16" cy="16" r="12.2" fill="none" stroke="#ff9d4d" strokeOpacity="0.4" strokeWidth="0.8" strokeLinecap="round" strokeDasharray="5 11">
-        <animateTransform attributeName="transform" type="rotate" from="360 16 16" to="0 16 16" dur={kecepatan} repeatCount="indefinite" />
-      </circle>
-      <circle cx="16" cy="16" r="8.4" fill="none" stroke="url(#bhRing)" strokeWidth="3" strokeLinecap="round" strokeDasharray="40 12.8">
-        <animateTransform attributeName="transform" type="rotate" from="0 16 16" to="360 16 16" dur={kecepatan} repeatCount="indefinite" />
-      </circle>
-      <path d="M4.5 27.5 Q12.5 12.5 27.5 4.5 Q19.5 19.5 4.5 27.5 Z" fill="url(#bhSlash)" stroke="#050505" strokeWidth="1.3" strokeLinejoin="round" paintOrder="stroke" />
+      {/* laptop */}
+      <rect x="2.5" y="8.5" width="14.5" height="10" rx="1.6" fill="none" stroke="#ff9d4d" strokeWidth="1.6" />
+      <path d="M6 12.4l2 1.8-2 1.8" fill="none" stroke="#ffb36b" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M10 16.2h3" fill="none" stroke="#ffb36b" strokeWidth="1.3" strokeLinecap="round" />
+      <path d="M1 21.3h17.5" fill="none" stroke="#ff9d4d" strokeWidth="1.8" strokeLinecap="round" />
+      {/* cangkir kopi */}
+      <path d="M19.5 14.5H27V19Q27 23 23.25 23Q19.5 23 19.5 19Z" fill="none" stroke="#ff9d4d" strokeWidth="1.6" strokeLinejoin="round" />
+      <path d="M27 16h1.3a2.2 2.2 0 010 4.4H27" fill="none" stroke="#ff9d4d" strokeWidth="1.6" strokeLinecap="round" />
+      <path d="M18.5 25.5H28.5" fill="none" stroke="#ff9d4d" strokeWidth="1.6" strokeLinecap="round" />
+      {/* uap */}
+      <path d="M21.5 12.2q-1.2-1.4 0-2.8" fill="none" stroke="#ffd9b0" strokeWidth="1.2" strokeLinecap="round" opacity="0.85">{uap}</path>
+      <path d="M24.8 12.2q-1.2-1.4 0-2.8" fill="none" stroke="#ffd9b0" strokeWidth="1.2" strokeLinecap="round" opacity="0.85">{uap}</path>
     </svg>
   );
 }
