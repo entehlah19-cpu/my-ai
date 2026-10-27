@@ -2760,6 +2760,24 @@ function KartuFoto({ query }: { query: string }) {
 }
 
 // ---- Kuis pilihan ganda interaktif (dari blok "kuis") ----
+// Teks di dalam kuis: rumus seperti $7\times 8$ dirapikan jadi rumus beneran (hanya kalau memang terlihat seperti LaTeX)
+const pluginRemarkDolar: any[] = [[remarkMath, { singleDollarTextMath: true }]];
+function TeksSoal({ teks }: { teks: string }) {
+  const adaRumus = /\$[^$\n]*\\[a-zA-Z]+[^$\n]*\$/.test(teks) || /\\\(|\\\[/.test(teks) || teks.includes("$$");
+  if (!adaRumus) return <>{teks}</>;
+  return (
+    <span className="msg-content">
+      <ReactMarkdown
+        remarkPlugins={pluginRemarkDolar}
+        rehypePlugins={pluginRehype}
+        components={{ p: ({ children }: any) => <span>{children}</span> }}
+      >
+        {siapkanMatematika(teks)}
+      </ReactMarkdown>
+    </span>
+  );
+}
+
 type SoalKuis = { kategori: string; tanya: string; pilihan: string[]; jawaban: number; penjelasan: string };
 
 function bacaKuis(data: any): { judul: string; soal: SoalKuis[] } | null {
@@ -2848,7 +2866,7 @@ function KartuKuis({ kuis }: { kuis: { judul: string; soal: SoalKuis[] } }) {
       </div>
       <div style={{ fontSize: 21, fontWeight: 700, marginTop: 14 }}>{soal.kategori || kuis.judul}</div>
       <div style={{ color: "#999", fontSize: 13, marginTop: 6 }}>Soal {no + 1}</div>
-      <div style={{ fontSize: 16.5, fontWeight: 600, lineHeight: 1.5, marginTop: 12 }}>{soal.tanya}</div>
+      <div style={{ fontSize: 16.5, fontWeight: 600, lineHeight: 1.5, marginTop: 12 }}><TeksSoal teks={soal.tanya} /></div>
 
       <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 6 }}>
         {soal.pilihan.map((teks, i) => {
@@ -2873,7 +2891,7 @@ function KartuKuis({ kuis }: { kuis: { judul: string; soal: SoalKuis[] } }) {
                   background: dipilih || benar ? (benar ? "#34d399" : salah ? "#f87171" : "#ff9d4d") : "transparent",
                 }}
               />
-              <span>{huruf(i)}. {teks}</span>
+              <span>{huruf(i)}. <TeksSoal teks={teks} /></span>
             </button>
           );
         })}
@@ -2884,7 +2902,7 @@ function KartuKuis({ kuis }: { kuis: { judul: string; soal: SoalKuis[] } }) {
           <div style={{ fontWeight: 700, color: pilih === soal.jawaban ? "#34d399" : "#f87171" }}>
             {pilih === soal.jawaban ? "Bener! 🔥" : `Belum tepat. Jawabannya ${huruf(soal.jawaban)}.`}
           </div>
-          {soal.penjelasan && <div style={{ color: "#ccc", marginTop: 4 }}>{soal.penjelasan}</div>}
+          {soal.penjelasan && <div style={{ color: "#ccc", marginTop: 4 }}><TeksSoal teks={soal.penjelasan} /></div>}
         </div>
       )}
 
