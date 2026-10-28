@@ -1179,26 +1179,35 @@ export default function Home() {
         }
         .aksi-btn:hover { color: #ff9d4d; background: #1a1a1a; }
 
-        /* Titik-titik menunggu jawaban: 5 titik, 6 gaya animasi (dipilih acak tiap pesan) */
-        .pt-wadah { position: relative; width: 28px; height: 28px; display: inline-block; flex-shrink: 0; }
+        /* Titik-titik menunggu jawaban: 5 titik, 6 gaya animasi yang berganti-ganti */
+        .pt-wadah { position: relative; width: 30px; height: 30px; display: inline-block; flex-shrink: 0; }
         .pt-dalam { position: absolute; inset: 0; }
         .pt-titik {
           position: absolute; left: 50%; top: 50%; width: 5px; height: 5px; margin: -2.5px; border-radius: 50%; background: #ff9d4d;
-          transform: rotate(calc(var(--i) * 72deg)) translateY(-10px);
+          transform: rotate(calc(var(--i) * 72deg)) translateY(var(--r, -10px));
         }
-        .pt-v0 { animation: pt-spin 1.1s linear infinite; }
-        .pt-v1 { animation: pt-spin 1.4s cubic-bezier(.65, 0, .35, 1) infinite; }
-        .pt-v2 .pt-titik { animation: pt-kedip 1.2s ease-in-out infinite; animation-delay: calc(var(--i) * 0.2s); }
-        .pt-v3 { animation: pt-spin 2.6s linear infinite; }
-        .pt-v3 .pt-dalam { animation: pt-napas 1.3s ease-in-out infinite; }
+        /* 0: komet berputar */
+        .pt-v0 { animation: pt-spin 1s linear infinite; }
+        /* 1: titik berdenyut bergantian di lingkaran */
+        .pt-v1 .pt-titik { animation: pt-kedip 1.2s ease-in-out infinite; animation-delay: calc(var(--i) * 0.2s); }
+        /* 2: titik melompat berurutan di satu baris */
+        .pt-v2 .pt-titik { transform: translateX(calc((var(--i) - 2) * 6.5px)); animation: pt-lompat 0.9s ease-in-out infinite; animation-delay: calc(var(--i) * 0.11s); }
+        /* 3: berputar sambil membesar dan mengecil */
+        .pt-v3 { animation: pt-spin 2.4s linear infinite; }
+        .pt-v3 .pt-dalam { animation: pt-napas 1.2s ease-in-out infinite; }
+        /* 4: berputar patah-patah */
         .pt-v4 { animation: pt-spin 1.5s steps(5) infinite; }
-        .pt-v5 { animation: pt-spin 0.8s linear infinite; }
-        .pt-v5 .pt-titik { animation: pt-kedip 1.6s ease-in-out infinite; animation-delay: calc(var(--i) * 0.15s); }
+        /* 5: spiral berputar */
+        .pt-v5 { animation: pt-spin 1.3s linear infinite; }
         @keyframes pt-spin { to { transform: rotate(360deg); } }
         @keyframes pt-napas { 0%, 100% { transform: scale(0.8); } 50% { transform: scale(1.25); } }
         @keyframes pt-kedip {
           0%, 100% { opacity: 0.2; transform: rotate(calc(var(--i) * 72deg)) translateY(-10px) scale(0.6); }
           50% { opacity: 1; transform: rotate(calc(var(--i) * 72deg)) translateY(-10px) scale(1.35); }
+        }
+        @keyframes pt-lompat {
+          0%, 100% { transform: translateX(calc((var(--i) - 2) * 6.5px)) translateY(3px); opacity: 0.5; }
+          50% { transform: translateX(calc((var(--i) - 2) * 6.5px)) translateY(-5px); opacity: 1; }
         }
 
         /* Tema terang: warna seluruh halaman dibalik, lalu foto, video, dan pratinjau dibalik lagi supaya tampil normal */
@@ -1564,7 +1573,7 @@ export default function Home() {
           {(activeConversation?.messages.length ?? 0) === 0 && (
             <div style={{ textAlign: "center", color: "#777", marginBottom: 8 }}>
               <div style={{ display: "flex", justifyContent: "center", alignItems: "center", flexWrap: "wrap", gap: 14 }}>
-                <LogoMyAI size={46} animated />
+                <LogoOrb size={54} />
                 <span style={{ fontFamily: "Georgia, 'Times New Roman', serif", fontSize: "clamp(24px, 6vw, 34px)", color: "#f0f0f0", fontWeight: 400 }}>{sapaan}</span>
               </div>
               <div style={{ fontSize: 13, marginTop: 6, padding: "0 20px" }}>
@@ -2112,6 +2121,43 @@ function IconSpark() {
   );
 }
 
+// Logo layar sapaan: bola kilau dengan 5 titik yang mengorbit (beda dari logo M di sidebar)
+function LogoOrb({ size = 54 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 64 64" style={{ display: "block" }} aria-hidden="true">
+      <defs>
+        <radialGradient id="orbGlow" cx="50%" cy="50%" r="50%">
+          <stop offset="55%" stopColor="#ff7a18" stopOpacity="0.35" />
+          <stop offset="100%" stopColor="#ff7a18" stopOpacity="0" />
+        </radialGradient>
+        <linearGradient id="orbInti" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#ff7a18" />
+          <stop offset="1" stopColor="#ffc58a" />
+        </linearGradient>
+      </defs>
+      <circle cx="32" cy="32" r="31" fill="url(#orbGlow)" />
+      <circle cx="32" cy="32" r="13.5" fill="url(#orbInti)" />
+      <path d="M32 24.5L33.9 30.1L39.5 32L33.9 33.9L32 39.5L30.1 33.9L24.5 32L30.1 30.1Z" fill="#0a0a0a" />
+      <g>
+        {[0, 1, 2, 3, 4].map((i) => {
+          const sudut = ((i * 72 - 90) * Math.PI) / 180;
+          return (
+            <circle
+              key={i}
+              cx={(32 + 23 * Math.cos(sudut)).toFixed(2)}
+              cy={(32 + 23 * Math.sin(sudut)).toFixed(2)}
+              r="2.4"
+              fill="#ff9d4d"
+              opacity={0.45 + i * 0.14}
+            />
+          );
+        })}
+        <animateTransform attributeName="transform" type="rotate" from="0 32 32" to="360 32 32" dur="14s" repeatCount="indefinite" />
+      </g>
+    </svg>
+  );
+}
+
 // Lima titik yang berputar; gaya animasinya beda-beda (varian 0 sampai 5)
 let varianTerakhir = -1;
 function TitikBerputar({ varian }: { varian: number }) {
@@ -2119,7 +2165,7 @@ function TitikBerputar({ varian }: { varian: number }) {
     <span className={`pt-wadah pt-v${varian}`} aria-hidden="true">
       <span className="pt-dalam">
         {[0, 1, 2, 3, 4].map((i) => (
-          <span key={i} className="pt-titik" style={{ "--i": i, opacity: 0.4 + i * 0.15 } as CSSProperties} />
+          <span key={i} className="pt-titik" style={{ "--i": i, "--r": varian === 5 ? `${-(3 + i * 2.4)}px` : undefined, opacity: 0.4 + i * 0.15 } as CSSProperties} />
         ))}
       </span>
     </span>
@@ -2130,19 +2176,21 @@ function TitikBerputar({ varian }: { varian: number }) {
 function IndikatorMengetik({ frasa }: { frasa: string[] }) {
   const [idx, setIdx] = useState(0);
   // Tiap pesan baru dapat gaya animasi yang berbeda dari sebelumnya
-  const [varian] = useState(() => {
+  const [awal] = useState(() => {
     let v = Math.floor(Math.random() * 6);
     while (v === varianTerakhir) v = Math.floor(Math.random() * 6);
     varianTerakhir = v;
     return v;
   });
+  // Berganti gaya tiap kali tulisan status berganti, jadi terus berubah selama menunggu
+  const varian = (awal + idx) % 6;
   useEffect(() => {
     const t = setInterval(() => setIdx((i) => i + 1), 2200);
     return () => clearInterval(t);
   }, []);
   return (
     <div className="myai-typing">
-      <span className="icon"><TitikBerputar varian={varian} /></span>
+      <span className="icon"><TitikBerputar key={varian} varian={varian} /></span>
       <span key={idx} className="teks">
         {frasa[idx % frasa.length]}
         <span className="dots" />
