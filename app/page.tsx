@@ -168,6 +168,7 @@ export default function Home() {
   const [tema, setTema] = useState<"gelap" | "terang">("gelap");
   const [showSettings, setShowSettings] = useState(false);
   const [bagianKode, setBagianKode] = useState(0);
+  const [pikirDalam, setPikirDalam] = useState(false);
   const [sapaan, setSapaan] = useState("Mau ngobrolin apa?");
   const abortRef = useRef<Record<string, AbortController>>({});
   const [showWebcam, setShowWebcam] = useState(false);
@@ -355,6 +356,18 @@ export default function Home() {
       localStorage.setItem("myai-tema", tema);
     } catch {}
   }, [tema]);
+
+  useEffect(() => {
+    try {
+      if (localStorage.getItem("myai-dalam") === "1") setPikirDalam(true);
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("myai-dalam", pikirDalam ? "1" : "0");
+    } catch {}
+  }, [pikirDalam]);
 
   const ukuranPx = ukuranTeks === "kecil" ? 14.5 : ukuranTeks === "besar" ? 19 : 16.5;
 
@@ -928,7 +941,8 @@ export default function Home() {
         webSearch: cariWebSekarang,
         history: riwayatUntukAI,
         ringkasanAwal,
-        alir: modeKode && gambarUntukDikirim.length === 0,
+        alir: (modeKode || pikirDalam) && gambarUntukDikirim.length === 0,
+        dalam: pikirDalam,
       };
 
       const hasil = await mintaJawaban(badan, ctrl.signal, (t) => tulis(t));
@@ -1008,6 +1022,7 @@ export default function Home() {
   // --- Tulisan status AI sesuai yang sedang dikerjakan ---
   const pesanTerakhirUser = [...(activeConversation?.messages || [])].reverse().find((m) => m.role === "user");
   const frasaStatus: string[] = [
+    ...(pikirDalam ? ["Berpikir dalam"] : []),
     ...(bagianKode > 1 ? [`Menyambung kode, bagian ${bagianKode}`] : []),
     ...(pesanTerakhirUser && ((pesanTerakhirUser.imagePreviews?.length ?? 0) > 0 || pesanTerakhirUser.imagePreview) ? ["Melihat gambar"] : []),
     ...(pesanTerakhirUser?.content.includes("🔗") ? ["Membuka link"] : []),
@@ -1163,6 +1178,28 @@ export default function Home() {
           display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
         }
         .aksi-btn:hover { color: #ff9d4d; background: #1a1a1a; }
+
+        /* Titik-titik menunggu jawaban: 5 titik, 6 gaya animasi (dipilih acak tiap pesan) */
+        .pt-wadah { position: relative; width: 28px; height: 28px; display: inline-block; flex-shrink: 0; }
+        .pt-dalam { position: absolute; inset: 0; }
+        .pt-titik {
+          position: absolute; left: 50%; top: 50%; width: 5px; height: 5px; margin: -2.5px; border-radius: 50%; background: #ff9d4d;
+          transform: rotate(calc(var(--i) * 72deg)) translateY(-10px);
+        }
+        .pt-v0 { animation: pt-spin 1.1s linear infinite; }
+        .pt-v1 { animation: pt-spin 1.4s cubic-bezier(.65, 0, .35, 1) infinite; }
+        .pt-v2 .pt-titik { animation: pt-kedip 1.2s ease-in-out infinite; animation-delay: calc(var(--i) * 0.2s); }
+        .pt-v3 { animation: pt-spin 2.6s linear infinite; }
+        .pt-v3 .pt-dalam { animation: pt-napas 1.3s ease-in-out infinite; }
+        .pt-v4 { animation: pt-spin 1.5s steps(5) infinite; }
+        .pt-v5 { animation: pt-spin 0.8s linear infinite; }
+        .pt-v5 .pt-titik { animation: pt-kedip 1.6s ease-in-out infinite; animation-delay: calc(var(--i) * 0.15s); }
+        @keyframes pt-spin { to { transform: rotate(360deg); } }
+        @keyframes pt-napas { 0%, 100% { transform: scale(0.8); } 50% { transform: scale(1.25); } }
+        @keyframes pt-kedip {
+          0%, 100% { opacity: 0.2; transform: rotate(calc(var(--i) * 72deg)) translateY(-10px) scale(0.6); }
+          50% { opacity: 1; transform: rotate(calc(var(--i) * 72deg)) translateY(-10px) scale(1.35); }
+        }
 
         /* Tema terang: warna seluruh halaman dibalik, lalu foto, video, dan pratinjau dibalik lagi supaya tampil normal */
         html.tema-terang { filter: invert(1) hue-rotate(180deg); }
@@ -1859,6 +1896,16 @@ export default function Home() {
 
           <div className="sheet-row" style={{ cursor: "default" }}>
             <div>
+              <div style={{ fontWeight: 500 }}>Pikir dalam</div>
+              <div style={{ fontSize: 12, color: "#888" }}>Lebih teliti untuk soal susah, tapi lebih lambat</div>
+            </div>
+            <button className="toggle" onClick={() => setPikirDalam((v) => !v)} style={{ background: pikirDalam ? "#ff7a18" : "#333" }}>
+              <span className="knob" style={{ left: pikirDalam ? 21 : 3 }} />
+            </button>
+          </div>
+
+          <div className="sheet-row" style={{ cursor: "default" }}>
+            <div>
               <div style={{ fontWeight: 500 }}>Memori</div>
               <div style={{ fontSize: 12, color: "#888" }}>{memoriAktif ? `Aktif · ${memories.length} hal diingat` : "Nonaktif"}</div>
             </div>
@@ -2029,27 +2076,20 @@ function LogoMyAI({ size = 28, animated = false }: { size?: number; animated?: b
       <img src={LOGO_SRC} alt="My AI" width={size} height={size} className={animated ? "logo-img-anim" : undefined} style={{ borderRadius: size * 0.28, objectFit: "cover", display: "block" }} />
     );
   }
-  // Logo bawaan: laptop + secangkir kopi (ganti dengan logomu sendiri lewat LOGO_SRC)
-  const uap = animated ? (
-    <>
-      <animate attributeName="opacity" values="0.15;1;0.15" dur="1.8s" repeatCount="indefinite" />
-    </>
-  ) : null;
+  // Logo bawaan: huruf M modern dengan kilau AI (ganti dengan logomu sendiri lewat LOGO_SRC)
   return (
     <svg width={size} height={size} viewBox="0 0 32 32" style={{ display: "block" }}>
-      <rect width="32" height="32" rx="9" fill="#050505" stroke="#2a2a2a" strokeWidth="0.6" />
-      {/* laptop */}
-      <rect x="2.5" y="8.5" width="14.5" height="10" rx="1.6" fill="none" stroke="#ff9d4d" strokeWidth="1.6" />
-      <path d="M6 12.4l2 1.8-2 1.8" fill="none" stroke="#ffb36b" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M10 16.2h3" fill="none" stroke="#ffb36b" strokeWidth="1.3" strokeLinecap="round" />
-      <path d="M1 21.3h17.5" fill="none" stroke="#ff9d4d" strokeWidth="1.8" strokeLinecap="round" />
-      {/* cangkir kopi */}
-      <path d="M19.5 14.5H27V19Q27 23 23.25 23Q19.5 23 19.5 19Z" fill="none" stroke="#ff9d4d" strokeWidth="1.6" strokeLinejoin="round" />
-      <path d="M27 16h1.3a2.2 2.2 0 010 4.4H27" fill="none" stroke="#ff9d4d" strokeWidth="1.6" strokeLinecap="round" />
-      <path d="M18.5 25.5H28.5" fill="none" stroke="#ff9d4d" strokeWidth="1.6" strokeLinecap="round" />
-      {/* uap */}
-      <path d="M21.5 12.2q-1.2-1.4 0-2.8" fill="none" stroke="#ffd9b0" strokeWidth="1.2" strokeLinecap="round" opacity="0.85">{uap}</path>
-      <path d="M24.8 12.2q-1.2-1.4 0-2.8" fill="none" stroke="#ffd9b0" strokeWidth="1.2" strokeLinecap="round" opacity="0.85">{uap}</path>
+      <defs>
+        <linearGradient id="logoLatar" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#ff7a18" />
+          <stop offset="1" stopColor="#ffb36b" />
+        </linearGradient>
+      </defs>
+      <rect width="32" height="32" rx="9" fill="url(#logoLatar)" />
+      <path d="M8 24.5V14l8 7 8-7v10.5" fill="none" stroke="#0a0a0a" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M24.5 4.8L25.4 6.7L27.3 7.6L25.4 8.5L24.5 10.4L23.6 8.5L21.7 7.6L23.6 6.7Z" fill="#0a0a0a">
+        {animated && <animate attributeName="opacity" values="1;0.2;1" dur="1.4s" repeatCount="indefinite" />}
+      </path>
     </svg>
   );
 }
@@ -2072,16 +2112,37 @@ function IconSpark() {
   );
 }
 
-// Animasi saat AI bekerja: ikon bergerak + tulisan yang berganti sesuai pekerjaan
+// Lima titik yang berputar; gaya animasinya beda-beda (varian 0 sampai 5)
+let varianTerakhir = -1;
+function TitikBerputar({ varian }: { varian: number }) {
+  return (
+    <span className={`pt-wadah pt-v${varian}`} aria-hidden="true">
+      <span className="pt-dalam">
+        {[0, 1, 2, 3, 4].map((i) => (
+          <span key={i} className="pt-titik" style={{ "--i": i, opacity: 0.4 + i * 0.15 } as CSSProperties} />
+        ))}
+      </span>
+    </span>
+  );
+}
+
+// Animasi saat AI bekerja: titik berputar + tulisan yang berganti sesuai pekerjaan
 function IndikatorMengetik({ frasa }: { frasa: string[] }) {
   const [idx, setIdx] = useState(0);
+  // Tiap pesan baru dapat gaya animasi yang berbeda dari sebelumnya
+  const [varian] = useState(() => {
+    let v = Math.floor(Math.random() * 6);
+    while (v === varianTerakhir) v = Math.floor(Math.random() * 6);
+    varianTerakhir = v;
+    return v;
+  });
   useEffect(() => {
     const t = setInterval(() => setIdx((i) => i + 1), 2200);
     return () => clearInterval(t);
   }, []);
   return (
     <div className="myai-typing">
-      <span className="icon"><LogoMyAI size={26} animated /></span>
+      <span className="icon"><TitikBerputar varian={varian} /></span>
       <span key={idx} className="teks">
         {frasa[idx % frasa.length]}
         <span className="dots" />
