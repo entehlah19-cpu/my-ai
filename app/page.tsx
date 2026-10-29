@@ -2085,7 +2085,7 @@ function LogoMyAI({ size = 28, animated = false }: { size?: number; animated?: b
       <img src={LOGO_SRC} alt="My AI" width={size} height={size} className={animated ? "logo-img-anim" : undefined} style={{ borderRadius: size * 0.28, objectFit: "cover", display: "block" }} />
     );
   }
-  // Logo bawaan: huruf M modern dengan kilau AI (ganti dengan logomu sendiri lewat LOGO_SRC)
+  // Logo bawaan: maskot robot kecil dalam lingkaran (ganti dengan logomu sendiri lewat LOGO_SRC)
   return (
     <svg width={size} height={size} viewBox="0 0 32 32" style={{ display: "block" }}>
       <defs>
@@ -2094,11 +2094,19 @@ function LogoMyAI({ size = 28, animated = false }: { size?: number; animated?: b
           <stop offset="1" stopColor="#ffb36b" />
         </linearGradient>
       </defs>
-      <rect width="32" height="32" rx="9" fill="url(#logoLatar)" />
-      <path d="M8 24.5V14l8 7 8-7v10.5" fill="none" stroke="#0a0a0a" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M24.5 4.8L25.4 6.7L27.3 7.6L25.4 8.5L24.5 10.4L23.6 8.5L21.7 7.6L23.6 6.7Z" fill="#0a0a0a">
-        {animated && <animate attributeName="opacity" values="1;0.2;1" dur="1.4s" repeatCount="indefinite" />}
-      </path>
+      <circle cx="16" cy="16" r="16" fill="url(#logoLatar)" />
+      <rect x="15.2" y="6.2" width="1.6" height="4.3" fill="#0a0a0a" />
+      <circle cx="16" cy="5" r="2.1" fill="#0a0a0a">
+        {animated && <animate attributeName="opacity" values="1;0.3;1" dur="1.2s" repeatCount="indefinite" />}
+      </circle>
+      <rect x="3.6" y="14.5" width="3" height="6" rx="1.2" fill="#0a0a0a" />
+      <rect x="25.4" y="14.5" width="3" height="6" rx="1.2" fill="#0a0a0a" />
+      <rect x="5.8" y="9.8" width="20.4" height="16" rx="6" fill="#0a0a0a" />
+      <circle cx="12" cy="16.3" r="3.4" fill="#ffecd6" />
+      <circle cx="20" cy="16.3" r="3.4" fill="#ffecd6" />
+      <circle cx="12.4" cy="16.5" r="1.5" fill="#0a0a0a" />
+      <circle cx="20.4" cy="16.5" r="1.5" fill="#0a0a0a" />
+      <rect x="12" y="21.6" width="8" height="1.7" rx="0.8" fill="#ffa046" />
     </svg>
   );
 }
