@@ -1573,7 +1573,7 @@ export default function Home() {
           {(activeConversation?.messages.length ?? 0) === 0 && (
             <div style={{ textAlign: "center", color: "#777", marginBottom: 8 }}>
               <div style={{ display: "flex", justifyContent: "center", alignItems: "center", flexWrap: "wrap", gap: 14 }}>
-                <LogoOrb size={54} />
+                <LogoAnyaman size={62} />
                 <span style={{ fontFamily: "Georgia, 'Times New Roman', serif", fontSize: "clamp(24px, 6vw, 34px)", color: "#f0f0f0", fontWeight: 400 }}>{sapaan}</span>
               </div>
               <div style={{ fontSize: 13, marginTop: 6, padding: "0 20px" }}>
@@ -2121,38 +2121,41 @@ function IconSpark() {
   );
 }
 
-// Logo layar sapaan: bola kilau dengan 5 titik yang mengorbit (beda dari logo M di sidebar)
-function LogoOrb({ size = 54 }: { size?: number }) {
+// Logo layar sapaan: dua kurva lima cuping yang saling menganyam (desain asli My AI)
+const ANYAMAN = (() => {
+  const r0 = 14;
+  const amp = 8;
+  const titik = (off: number, a0: number, a1: number, langkah: number) => {
+    const hasil: string[] = [];
+    for (let k = a0; k <= a1 + 1e-9; k += langkah) {
+      const t = (k * Math.PI) / 180;
+      const r = r0 + amp * Math.cos((5 * (k - off) * Math.PI) / 180);
+      hasil.push(`${(32 + r * Math.cos(t)).toFixed(2)} ${(32 + r * Math.sin(t)).toFixed(2)}`);
+    }
+    return "M" + hasil.join("L");
+  };
+  // Di 10 titik silang, kurva yang di atas bergantian (oranye, lalu krem, dan seterusnya)
+  const jendela = Array.from({ length: 10 }, (_, k) => ({
+    d: titik(k % 2 === 0 ? 0 : 36, 18 + 36 * k - 6, 18 + 36 * k + 6, 0.5),
+    atas: k % 2 === 0 ? "A" : "B",
+  }));
+  return { A: titik(0, 0, 360, 1), B: titik(36, 0, 360, 1), jendela };
+})();
+
+function LogoAnyaman({ size = 62 }: { size?: number }) {
+  const warna: Record<string, string> = { A: "#ff7a18", B: "#ffc58a" };
   return (
     <svg width={size} height={size} viewBox="0 0 64 64" style={{ display: "block" }} aria-hidden="true">
-      <defs>
-        <radialGradient id="orbGlow" cx="50%" cy="50%" r="50%">
-          <stop offset="55%" stopColor="#ff7a18" stopOpacity="0.35" />
-          <stop offset="100%" stopColor="#ff7a18" stopOpacity="0" />
-        </radialGradient>
-        <linearGradient id="orbInti" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#ff7a18" />
-          <stop offset="1" stopColor="#ffc58a" />
-        </linearGradient>
-      </defs>
-      <circle cx="32" cy="32" r="31" fill="url(#orbGlow)" />
-      <circle cx="32" cy="32" r="13.5" fill="url(#orbInti)" />
-      <path d="M32 24.5L33.9 30.1L39.5 32L33.9 33.9L32 39.5L30.1 33.9L24.5 32L30.1 30.1Z" fill="#0a0a0a" />
       <g>
-        {[0, 1, 2, 3, 4].map((i) => {
-          const sudut = ((i * 72 - 90) * Math.PI) / 180;
-          return (
-            <circle
-              key={i}
-              cx={(32 + 23 * Math.cos(sudut)).toFixed(2)}
-              cy={(32 + 23 * Math.sin(sudut)).toFixed(2)}
-              r="2.4"
-              fill="#ff9d4d"
-              opacity={0.45 + i * 0.14}
-            />
-          );
-        })}
-        <animateTransform attributeName="transform" type="rotate" from="0 32 32" to="360 32 32" dur="14s" repeatCount="indefinite" />
+        <path d={ANYAMAN.A} fill="none" stroke={warna.A} strokeWidth="3" strokeLinecap="round" />
+        <path d={ANYAMAN.B} fill="none" stroke={warna.B} strokeWidth="3" strokeLinecap="round" />
+        {ANYAMAN.jendela.map((j, i) => (
+          <g key={i} fill="none">
+            <path d={j.d} stroke="#0a0a0a" strokeWidth="5" />
+            <path d={j.d} stroke={warna[j.atas]} strokeWidth="3" />
+          </g>
+        ))}
+        <animateTransform attributeName="transform" type="rotate" from="0 32 32" to="360 32 32" dur="30s" repeatCount="indefinite" />
       </g>
     </svg>
   );
