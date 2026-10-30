@@ -179,6 +179,7 @@ export default function Home() {
   const [isListening, setIsListening] = useState(false);
   const recognitionRef = useRef<any>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const docInputRef = useRef<HTMLInputElement>(null);
@@ -256,7 +257,10 @@ export default function Home() {
   }, [memoriAktif]);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    const el = listRef.current;
+    const dekat = !el || el.scrollHeight - el.scrollTop - el.clientHeight < 220;
+    if (loading && !dekat) return; // lagi baca ke atas saat jawaban mengalir: jangan ditarik ke bawah
+    bottomRef.current?.scrollIntoView({ behavior: loading ? "auto" : "smooth" });
   }, [conversations, activeId]);
 
   // Kolom ketik tumbuh ke bawah mengikuti isi (maksimal 200px, lalu bisa digulir)
@@ -791,12 +795,26 @@ export default function Home() {
     const ctrl = new AbortController();
     abortRef.current[convId] = ctrl;
 
+    // Jawaban baru dibuat sebagai satu pesan, lalu diisi pelan-pelan
+    let sudahAda = false;
+    const tulis = (teks: string, sumber?: Sumber[]) => {
+      const ada = sudahAda;
+      sudahAda = true;
+      setConversations((prev) =>
+        prev.map((c) => {
+          if (c.id !== convId) return c;
+          if (!ada) return { ...c, messages: [...c.messages, { role: "assistant", content: teks, sumber }] };
+          const pesan = [...c.messages];
+          const k = pesan.length - 1;
+          pesan[k] = { ...pesan[k], content: teks, sumber: sumber ?? pesan[k].sumber };
+          return { ...c, messages: pesan };
+        })
+      );
+    };
+
     try {
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        signal: ctrl.signal,
-        body: JSON.stringify({
+      const hasil = await mintaJawaban(
+        {
           userId: "user-1",
           message: teksUser,
           mode: modeKode ? "kode" : "chat",
@@ -805,24 +823,35 @@ export default function Home() {
           webSearch: perluCariWeb(teksUser) && !teksUser.includes("🔗"),
           history: riwayat,
           ringkasanAwal,
-        }),
-      });
-      const data = await res.json();
-      setConversations((prev) =>
-        prev.map((c) =>
-          c.id === convId
-            ? { ...c, messages: [...c.messages, { role: "assistant", content: data.reply || data.error || "Maaf, terjadi kesalahan.", sumber: bersihkanSumber(data?.sumber) }] }
-            : c
-        )
+          alir: true,
+        },
+        ctrl.signal,
+        (t) => tulis(t)
       );
+      tulis(hasil.teks, hasil.sumber);
     } catch (err) {
-      setConversations((prev) =>
-        prev.map((c) =>
-          c.id === convId
-            ? { ...c, messages: [...c.messages, { role: "assistant", content: (err as Error).name === "AbortError" ? "Dihentikan." : "Maaf, terjadi kesalahan. Coba lagi ya." }] }
-            : c
-        )
-      );
+      const henti = (err as Error).name === "AbortError";
+      if (sudahAda) {
+        const catatan = henti ? "\n\n_Dihentikan._" : "\n\n_Koneksi terputus. Coba kirim lagi ya._";
+        setConversations((prev) =>
+          prev.map((c) => {
+            if (c.id !== convId) return c;
+            const pesan = [...c.messages];
+            const k = pesan.length - 1;
+            const tutup = kodeTerbuka(pesan[k].content) ? "\n```" : "";
+            pesan[k] = { ...pesan[k], content: pesan[k].content + tutup + catatan };
+            return { ...c, messages: pesan };
+          })
+        );
+      } else {
+        setConversations((prev) =>
+          prev.map((c) =>
+            c.id === convId
+              ? { ...c, messages: [...c.messages, { role: "assistant", content: henti ? "Dihentikan." : "Maaf, terjadi kesalahan. Coba lagi ya." }] }
+              : c
+          )
+        );
+      }
     } finally {
       delete abortRef.current[convId];
       setLoadingIds((prev) => prev.filter((id) => id !== convId));
@@ -941,7 +970,7 @@ export default function Home() {
         webSearch: cariWebSekarang,
         history: riwayatUntukAI,
         ringkasanAwal,
-        alir: (modeKode || pikirDalam) && gambarUntukDikirim.length === 0,
+        alir: gambarUntukDikirim.length === 0,
         dalam: pikirDalam,
       };
 
@@ -1569,7 +1598,7 @@ export default function Home() {
           </div>
         </header>
 
-        <div style={kosong ? { flex: "0 0 auto", marginTop: "auto", padding: "16px 16px 4px" } : { flex: 1, overflowY: "auto", padding: "16px" }}>
+        <div ref={listRef} style={kosong ? { flex: "0 0 auto", marginTop: "auto", padding: "16px 16px 4px" } : { flex: 1, overflowY: "auto", padding: "16px" }}>
           {(activeConversation?.messages.length ?? 0) === 0 && (
             <div style={{ textAlign: "center", color: "#777", marginBottom: 8 }}>
               <div style={{ display: "flex", justifyContent: "center", alignItems: "center", flexWrap: "wrap", gap: 14 }}>
@@ -1637,7 +1666,7 @@ export default function Home() {
               </div>
             )
           )}
-          {loading && <IndikatorMengetik frasa={frasaStatus} />}
+          {loading && (bagianKode > 1 || activeConversation?.messages[activeConversation.messages.length - 1]?.role !== "assistant") && <IndikatorMengetik frasa={frasaStatus} />}
           <div ref={bottomRef} />
         </div>
 
