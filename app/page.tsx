@@ -2079,34 +2079,40 @@ function gambarKeJpeg(img: HTMLImageElement, sisiMaks: number, kualitas: number)
   return canvas.toDataURL("image/jpeg", kualitas);
 }
 
+// Logo My AI: lima busur membulat yang membentuk cincin, dengan kilau di tengah
+const BUSUR_LOGO = Array.from({ length: 5 }, (_, i) => {
+  const titik = (derajat: number) => {
+    const t = (derajat * Math.PI) / 180;
+    return `${(16 + 10.5 * Math.cos(t)).toFixed(2)} ${(16 + 10.5 * Math.sin(t)).toFixed(2)}`;
+  };
+  const awal = -90 + i * 72;
+  return `M${titik(awal)}A10.5 10.5 0 0 1 ${titik(awal + 37)}`;
+});
+
 function LogoMyAI({ size = 28, animated = false }: { size?: number; animated?: boolean }) {
   if (LOGO_SRC) {
     return (
       <img src={LOGO_SRC} alt="My AI" width={size} height={size} className={animated ? "logo-img-anim" : undefined} style={{ borderRadius: size * 0.28, objectFit: "cover", display: "block" }} />
     );
   }
-  // Logo bawaan: maskot robot kecil dalam lingkaran (ganti dengan logomu sendiri lewat LOGO_SRC)
+  // Logo bawaan: cincin lima busur dengan kilau di tengah (ganti dengan logomu sendiri lewat LOGO_SRC)
   return (
     <svg width={size} height={size} viewBox="0 0 32 32" style={{ display: "block" }}>
       <defs>
-        <linearGradient id="logoLatar" x1="0" y1="0" x2="1" y2="1">
+        <linearGradient id="logoGrad" gradientUnits="userSpaceOnUse" x1="4" y1="4" x2="28" y2="28">
           <stop offset="0" stopColor="#ff7a18" />
           <stop offset="1" stopColor="#ffb36b" />
         </linearGradient>
       </defs>
-      <circle cx="16" cy="16" r="16" fill="url(#logoLatar)" />
-      <rect x="15.2" y="6.2" width="1.6" height="4.3" fill="#0a0a0a" />
-      <circle cx="16" cy="5" r="2.1" fill="#0a0a0a">
-        {animated && <animate attributeName="opacity" values="1;0.3;1" dur="1.2s" repeatCount="indefinite" />}
-      </circle>
-      <rect x="3.6" y="14.5" width="3" height="6" rx="1.2" fill="#0a0a0a" />
-      <rect x="25.4" y="14.5" width="3" height="6" rx="1.2" fill="#0a0a0a" />
-      <rect x="5.8" y="9.8" width="20.4" height="16" rx="6" fill="#0a0a0a" />
-      <circle cx="12" cy="16.3" r="3.4" fill="#ffecd6" />
-      <circle cx="20" cy="16.3" r="3.4" fill="#ffecd6" />
-      <circle cx="12.4" cy="16.5" r="1.5" fill="#0a0a0a" />
-      <circle cx="20.4" cy="16.5" r="1.5" fill="#0a0a0a" />
-      <rect x="12" y="21.6" width="8" height="1.7" rx="0.8" fill="#ffa046" />
+      <g fill="none" stroke="url(#logoGrad)" strokeWidth="5" strokeLinecap="round">
+        {BUSUR_LOGO.map((d, i) => (
+          <path key={i} d={d} />
+        ))}
+        {animated && <animateTransform attributeName="transform" type="rotate" from="0 16 16" to="360 16 16" dur="6s" repeatCount="indefinite" />}
+      </g>
+      <path d="M16 11.4L17.15 14.85L20.6 16L17.15 17.15L16 20.6L14.85 17.15L11.4 16L14.85 14.85Z" fill="url(#logoGrad)">
+        {animated && <animate attributeName="opacity" values="1;0.35;1" dur="1.4s" repeatCount="indefinite" />}
+      </path>
     </svg>
   );
 }
