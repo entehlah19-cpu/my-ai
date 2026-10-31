@@ -141,6 +141,31 @@ function ringkasObrolanLain(daftar: Conversation[], idAktif: string): string[] {
     .filter((x) => x.length > 5);
 }
 
+// Sapaan layar awal: dipilih sesuai jam, lalu berganti-ganti selama obrolan masih kosong
+const SAPAAN_WAKTU: Record<string, string[]> = {
+  larut: ["Masih melek, bro?", "Begadang lagi nih?", "Jam segini lagi mikirin apa?", "Insom ya? Cerita aja.", "Malam-malam gini ada ide apa?"],
+  pagi: ["Pagi! Mau ngerjain apa?", "Semangat pagi! Mulai dari mana?", "Pagi, udah sarapan belum?", "Hari baru, ide baru. Apa nih?", "Pagi, lagi mikirin apa?"],
+  siang: ["Siang, lagi mikirin apa?", "Siang! Ada yang pengen dicoba?", "Lagi istirahat? Ngobrol yuk.", "Siang-siang gini mau bahas apa?", "Butuh bantuan apa siang ini?"],
+  sore: ["Sore, mau ngobrolin apa?", "Sore santai, ada cerita apa?", "Hampir malam, masih ada tugas?", "Sore! Lagi ngerjain apa?", "Ada yang bisa kita beresin sore ini?"],
+  malam: ["Malam, lagi mikirin apa?", "Malam! Ada ide apa hari ini?", "Gimana harimu? Cerita yuk.", "Malam santai, mau bahas apa?", "Lagi belajar atau lagi iseng?"],
+};
+const TIPS_AWAL = [
+  "Ketik pesan, kirim foto, atau tempel link.",
+  "Coba: “buatin kuis matematika 5 soal”",
+  "Coba: “kasih foto Candi Borobudur”",
+  "Coba: “buatin animasi bola memantul”",
+  "Coba nyalain tombol kode buat bikin file lengkap.",
+  "Tempel link artikel, nanti gue rangkumin.",
+  "Coba: “jelasin cara kerja internet”",
+];
+function kelompokSapaan(jam: number): string[] {
+  if (jam >= 22 || jam < 4) return SAPAAN_WAKTU.larut;
+  if (jam < 11) return SAPAAN_WAKTU.pagi;
+  if (jam < 15) return SAPAAN_WAKTU.siang;
+  if (jam < 18) return SAPAAN_WAKTU.sore;
+  return SAPAAN_WAKTU.malam;
+}
+
 export default function Home() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [projects, setProjects] = useState<ProjectT[]>([]);
@@ -170,6 +195,7 @@ export default function Home() {
   const [bagianKode, setBagianKode] = useState(0);
   const [pikirDalam, setPikirDalam] = useState(false);
   const [sapaan, setSapaan] = useState("Mau ngobrolin apa?");
+  const [tips, setTips] = useState(TIPS_AWAL[0]);
   const abortRef = useRef<Record<string, AbortController>>({});
   const [showWebcam, setShowWebcam] = useState(false);
   const [memories, setMemories] = useState<Memori[]>([]);
@@ -378,17 +404,29 @@ export default function Home() {
   const activeConversation = conversations.find((c) => c.id === activeId);
   const kosong = (activeConversation?.messages.length ?? 0) === 0;
 
-  // Sapaan di layar awal mengikuti jam (tanpa menyebut nama)
+  // Sapaan di layar awal: dipilih acak sesuai jam, lalu berganti tiap beberapa detik (berhenti saat kamu mulai mengetik)
+  const sedangMengetik = input.length > 0;
   useEffect(() => {
-    const jam = new Date().getHours();
-    setSapaan(
-      jam >= 22 || jam < 4 ? "Masih melek, bro?"
-        : jam < 11 ? "Pagi! Mau ngerjain apa?"
-        : jam < 15 ? "Siang, lagi mikirin apa?"
-        : jam < 18 ? "Sore, mau ngobrolin apa?"
-        : "Malam, lagi mikirin apa?"
-    );
-  }, [activeId]);
+    if (!kosong || sedangMengetik) return;
+    const kelompok = kelompokSapaan(new Date().getHours());
+    let terakhirS = -1;
+    let terakhirT = -1;
+    const acak = (panjang: number, terakhir: number) => {
+      if (panjang < 2) return 0;
+      let i = Math.floor(Math.random() * panjang);
+      while (i === terakhir) i = Math.floor(Math.random() * panjang);
+      return i;
+    };
+    const ganti = () => {
+      terakhirS = acak(kelompok.length, terakhirS);
+      terakhirT = acak(TIPS_AWAL.length, terakhirT);
+      setSapaan(kelompok[terakhirS]);
+      setTips(TIPS_AWAL[terakhirT]);
+    };
+    ganti();
+    const t = setInterval(ganti, 5500);
+    return () => clearInterval(t);
+  }, [activeId, kosong, sedangMengetik]);
 
   // --- Obrolan ---
   const buatObrolanBaru = () => {
@@ -1286,12 +1324,13 @@ export default function Home() {
         .conv-menu-dropdown {
           position: absolute; right: 0; top: 28px; z-index: 50;
           background: var(--n222222); border: none; border-radius: 14px;
-          min-width: 170px; overflow: hidden; box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+          min-width: 240px; max-width: calc(100vw - 24px); overflow: hidden; box-shadow: 0 8px 20px rgba(0,0,0,0.4);
         }
         .conv-menu-item {
-          display: flex; align-items: center; gap: 8px; width: 100%; padding: 10px 12px;
-          background: none; border: none; color: var(--neeeeee); font-size: 13px; cursor: pointer; text-align: left;
+          display: flex; align-items: center; gap: 12px; width: 100%; padding: 11px 14px; white-space: nowrap;
+          background: none; border: none; color: var(--neeeeee); font-size: 13.5px; cursor: pointer; text-align: left;
         }
+        .conv-menu-item svg { width: 18px; height: 18px; flex-shrink: 0; }
         .conv-menu-item:hover { background: var(--n2a2a2a); }
         .conv-menu-item.danger { color: #ff6b6b; }
 
@@ -1323,6 +1362,8 @@ export default function Home() {
         .aksi-btn:hover { color: var(--aksen); background: var(--n1a1a1a); }
 
         /* Titik-titik menunggu jawaban: 5 titik, 6 gaya animasi yang berganti-ganti */
+        .sapaan-teks { animation: sapaan-masuk 0.6s ease both; }
+        @keyframes sapaan-masuk { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
         .pt-wadah { position: relative; width: 30px; height: 30px; display: inline-block; flex-shrink: 0; }
         .pt-dalam { position: absolute; inset: 0; }
         .pt-titik {
@@ -1688,10 +1729,10 @@ export default function Home() {
               {showHeaderMenu && activeConversation && (
                 <div className="conv-menu-dropdown" style={{ top: 38 }} onClick={(e) => e.stopPropagation()}>
                   <button className="conv-menu-item" onClick={() => setUkuranTeks((u) => (u === "kecil" ? "sedang" : u === "sedang" ? "besar" : "kecil"))}>
-                    <span style={{ width: 15, textAlign: "center", color: "var(--ncccccc)", fontWeight: 700 }}>Aa</span> Ukuran tulisan: {ukuranTeks}
+                    <span style={{ width: 18, textAlign: "center", color: "var(--ncccccc)", fontWeight: 700, fontSize: 13, flexShrink: 0 }}>Aa</span> Ukuran tulisan: {ukuranTeks}
                   </button>
                   <button className="conv-menu-item" onClick={() => setTema((t) => (t === "gelap" ? "terang" : "gelap"))}>
-                    <span style={{ width: 15, textAlign: "center" }}>{tema === "gelap" ? "☀️" : "🌙"}</span> Ganti ke tema {tema === "gelap" ? "terang" : "gelap"}
+                    {tema === "gelap" ? <IconMatahari /> : <IconBulan />} Ganti ke tema {tema === "gelap" ? "terang" : "gelap"}
                   </button>
                   <button className="conv-menu-item" onClick={buatObrolanIncognito}><IconIncognito /> Obrolan incognito</button>
                   <button className="conv-menu-item" onClick={() => { gantiNamaObrolan(activeConversation.id); setShowHeaderMenu(false); }}><IconEdit /> Ganti nama</button>
@@ -1712,12 +1753,12 @@ export default function Home() {
             <div style={{ textAlign: "center", color: "var(--n777777)", marginBottom: 8 }}>
               <div style={{ display: "flex", justifyContent: "center", alignItems: "center", flexWrap: "wrap", gap: 14 }}>
                 <LogoAnyaman size={62} />
-                <span style={{ fontFamily: "Georgia, 'Times New Roman', serif", fontSize: "clamp(24px, 6vw, 34px)", color: "var(--nf0f0f0)", fontWeight: 400 }}>{sapaan}</span>
+                <span key={sapaan} className="sapaan-teks" style={{ fontFamily: "Georgia, 'Times New Roman', serif", fontSize: "clamp(24px, 6vw, 34px)", color: "var(--nf0f0f0)", fontWeight: 400 }}>{sapaan}</span>
               </div>
-              <div style={{ fontSize: 13, marginTop: 6, padding: "0 20px" }}>
+              <div key={activeConversation?.incognito ? "inc" : tips} className="sapaan-teks" style={{ fontSize: 13, marginTop: 6, padding: "0 20px" }}>
                 {activeConversation?.incognito
                   ? "Mode incognito: obrolan ini tidak disimpan dan tidak masuk memori. Hilang kalau halaman dimuat ulang."
-                  : "Ketik pesan, kirim foto, atau tempel link."}
+                  : tips}
               </div>
             </div>
           )}
@@ -3476,6 +3517,21 @@ function IconMenu() {
       <path d="M4 7h16" />
       <path d="M4 12h16" />
       <path d="M4 17h9" />
+    </svg>
+  );
+}
+function IconMatahari() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="var(--ncccccc)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+    </svg>
+  );
+}
+function IconBulan() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="var(--ncccccc)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" />
     </svg>
   );
 }
