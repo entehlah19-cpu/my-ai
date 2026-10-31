@@ -1072,15 +1072,129 @@ export default function Home() {
   const obrolanTanpaProyek = urutkanPinned(conversationsTerfilter.filter((c) => !c.projectId));
 
   return (
-    <div style={{ display: "flex", height: "100dvh", background: "#0a0a0a", color: "#f5f5f5", fontFamily: "system-ui, -apple-system, sans-serif", overflow: "hidden" }}>
+    <div style={{ display: "flex", height: "100dvh", background: "var(--bg)", color: "var(--nf5f5f5)", fontFamily: "system-ui, -apple-system, sans-serif", overflow: "hidden" }}>
       <style>{`
+        :root {
+          color-scheme: dark;
+          --bg: #0a0a0a;
+          --aksen: #ff9d4d;
+          --kode-latar: rgba(255,255,255,0.1);
+          --pre-latar: rgba(0,0,0,0.3);
+          --anyam-b: #ffc58a;
+          --n0d0d0d: #0d0d0d;
+          --n101010: #101010;
+          --n111111: #111111;
+          --n131313: #131313;
+          --n141414: #141414;
+          --n161616: #161616;
+          --n1a1a1a: #1a1a1a;
+          --n1c1c1c: #1c1c1c;
+          --n1f1f1f: #1f1f1f;
+          --n222222: #222222;
+          --n232323: #232323;
+          --n262626: #262626;
+          --n2a2a2a: #2a2a2a;
+          --n2f2f2f: #2f2f2f;
+          --n333333: #333333;
+          --nf5f5f5: #f5f5f5;
+          --nf0f0f0: #f0f0f0;
+          --neeeeee: #eeeeee;
+          --ndddddd: #dddddd;
+          --ncfcfcf: #cfcfcf;
+          --ncccccc: #cccccc;
+          --nbbbbbb: #bbbbbb;
+          --naaaaaa: #aaaaaa;
+          --n999999: #999999;
+          --n888888: #888888;
+          --n777777: #777777;
+          --n666666: #666666;
+          --n555555: #555555;
+          --n2a2015: #2a2015;
+          --n2a1515: #2a1515;
+          --n2a1a05: #2a1a05;
+        }
+        html.tema-terang {
+          color-scheme: light;
+          --bg: #fbfaf8;
+          --aksen: #d9540b;
+          --kode-latar: rgba(0,0,0,0.07);
+          --pre-latar: rgba(0,0,0,0.04);
+          --anyam-b: #f2a057;
+          --n0d0d0d: #f8f7f4;
+          --n101010: #f5f4f1;
+          --n111111: #f4f3f0;
+          --n131313: #f2f1ee;
+          --n141414: #f0efec;
+          --n161616: #eeedea;
+          --n1a1a1a: #eae9e6;
+          --n1c1c1c: #e8e7e4;
+          --n1f1f1f: #e5e4e1;
+          --n222222: #e2e1de;
+          --n232323: #e1e0dd;
+          --n262626: #deddda;
+          --n2a2a2a: #d9d8d5;
+          --n2f2f2f: #d4d3d0;
+          --n333333: #d0cfcc;
+          --nf5f5f5: #1d1d1b;
+          --nf0f0f0: #22211f;
+          --neeeeee: #262522;
+          --ndddddd: #33312e;
+          --ncfcfcf: #3b3936;
+          --ncccccc: #3d3b38;
+          --nbbbbbb: #4a4743;
+          --naaaaaa: #57534e;
+          --n999999: #625e58;
+          --n888888: #6f6a63;
+          --n777777: #7a756d;
+          --n666666: #8a857d;
+          --n555555: #9a958d;
+          --n2a2015: #ffe9d6;
+          --n2a1515: #ffe0e0;
+          --n2a1a05: #ffe9d6;
+        }
+        /* Bagian yang selalu gelap (misalnya tampilan foto besar) memakai warna gelap walau tema terang */
+        .selalu-gelap {
+          color-scheme: dark;
+          --aksen: #ff9d4d;
+          --n0d0d0d: #0d0d0d;
+          --n101010: #101010;
+          --n111111: #111111;
+          --n131313: #131313;
+          --n141414: #141414;
+          --n161616: #161616;
+          --n1a1a1a: #1a1a1a;
+          --n1c1c1c: #1c1c1c;
+          --n1f1f1f: #1f1f1f;
+          --n222222: #222222;
+          --n232323: #232323;
+          --n262626: #262626;
+          --n2a2a2a: #2a2a2a;
+          --n2f2f2f: #2f2f2f;
+          --n333333: #333333;
+          --nf5f5f5: #f5f5f5;
+          --nf0f0f0: #f0f0f0;
+          --neeeeee: #eeeeee;
+          --ndddddd: #dddddd;
+          --ncfcfcf: #cfcfcf;
+          --ncccccc: #cccccc;
+          --nbbbbbb: #bbbbbb;
+          --naaaaaa: #aaaaaa;
+          --n999999: #999999;
+          --n888888: #888888;
+          --n777777: #777777;
+          --n666666: #666666;
+          --n555555: #555555;
+          --n2a2015: #2a2015;
+          --n2a1515: #2a1515;
+          --n2a1a05: #2a1a05;
+        }
         * { box-sizing: border-box; }
         input, button, textarea { outline: none; -webkit-tap-highlight-color: transparent; }
         input:focus, button:focus, textarea:focus { outline: none; box-shadow: none; }
-        html, body { background: #0a0a0a; margin: 0; padding: 0; }
+        html, body { background: var(--bg); margin: 0; padding: 0; }
 
         .sidebar {
-          width: 260px; background: #111111; border-right: none;
+          width: 260px; background: var(--n111111); border-right: none;
           display: flex; flex-direction: column; padding: 12px; flex-shrink: 0;
           transition: transform 0.25s ease;
         }
@@ -1091,17 +1205,17 @@ export default function Home() {
           border-radius: 8px; padding: 10px 14px; font-weight: 600; cursor: pointer; font-size: 14px;
         }
         .header-icon-btn {
-          width: 34px; height: 34px; border-radius: 8px; border: none; background: transparent;
-          color: #aaa; display: flex; align-items: center; justify-content: center; cursor: pointer;
+          width: 36px; height: 36px; border-radius: 12px; border: none; background: transparent;
+          color: var(--naaaaaa); display: flex; align-items: center; justify-content: center; cursor: pointer;
         }
-        .header-icon-btn:hover { background: #1a1a1a; color: #ff9d4d; }
+        .header-icon-btn:hover { background: var(--n1a1a1a); color: var(--aksen); }
         .nav-item {
           display: flex; align-items: center; gap: 12px; padding: 9px 8px;
-          border-radius: 12px; cursor: pointer; font-size: 14.5px; color: #ddd;
+          border-radius: 12px; cursor: pointer; font-size: 14.5px; color: var(--ndddddd);
         }
-        .nav-item:hover { background: #1a1a1a; }
+        .nav-item:hover { background: var(--n1a1a1a); }
         .sidebar-btn-secondary {
-          background: #1a1a1a; color: #ff9d4d; border: 1px solid #333;
+          background: var(--n1a1a1a); color: var(--aksen); border: 1px solid var(--n333333);
           border-radius: 8px; padding: 8px 14px; font-weight: 600; cursor: pointer; font-size: 13px;
         }
 
@@ -1109,22 +1223,22 @@ export default function Home() {
           display: flex; align-items: center; justify-content: space-between;
           padding: 9px 8px; cursor: pointer; border-radius: 8px; margin-top: 6px;
         }
-        .project-header:hover { background: #1a1a1a; }
-        .project-header-left { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; color: #eee; }
+        .project-header:hover { background: var(--n1a1a1a); }
+        .project-header-left { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; color: var(--neeeeee); }
         .project-children { padding-left: 12px; margin-left: 6px; }
-        .project-delete-btn { background: none; border: none; color: #555; cursor: pointer; font-size: 12px; padding: 2px 4px; }
+        .project-delete-btn { background: none; border: none; color: var(--n555555); cursor: pointer; font-size: 12px; padding: 2px 4px; }
         .project-delete-btn:hover { color: #ff5555; }
 
         .conv-item {
           display: flex; align-items: center; justify-content: space-between;
           padding: 10px 12px; border-radius: 12px; margin-bottom: 3px; cursor: pointer; font-size: 13.5px;
         }
-        .conv-item:hover { background: #1a1a1a; }
+        .conv-item:hover { background: var(--n1a1a1a); }
         .conv-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
-        .conv-delete-btn { background: none; border: none; color: #666; cursor: pointer; font-size: 14px; padding: 3px 5px; flex-shrink: 0; border-radius: 6px; }
-        .conv-delete-btn:hover { color: #ff5555; background: #2a1515; }
+        .conv-delete-btn { background: none; border: none; color: var(--n666666); cursor: pointer; font-size: 14px; padding: 3px 5px; flex-shrink: 0; border-radius: 6px; }
+        .conv-delete-btn:hover { color: #ff5555; background: var(--n2a1515); }
 
-        .confirm-box { background: #1f1f1f; border: 1px solid #ff5555; border-radius: 8px; padding: 8px; margin-bottom: 4px; font-size: 13px; }
+        .confirm-box { background: var(--n1f1f1f); border: 1px solid #ff5555; border-radius: 8px; padding: 8px; margin-bottom: 4px; font-size: 13px; }
         .confirm-actions { display: flex; gap: 8px; margin-top: 6px; }
         .confirm-actions button { flex: 1; padding: 5px; border-radius: 6px; border: none; cursor: pointer; font-size: 12px; font-weight: 600; }
 
@@ -1135,34 +1249,34 @@ export default function Home() {
         }
         .sheet-backdrop.open { opacity: 1; pointer-events: auto; }
         .sheet {
-          background: #161616; width: 100%; max-width: 480px;
+          background: var(--n161616); width: 100%; max-width: 480px;
           border-radius: 20px 20px 0 0; padding: 20px;
           transform: translateY(100%); transition: transform 0.25s ease;
           border: none;
           max-height: 80dvh; overflow-y: auto;
         }
         .sheet-backdrop.open .sheet { transform: translateY(0); }
-        .sheet-handle { width: 40px; height: 4px; background: #333; border-radius: 2px; margin: 0 auto 14px auto; }
+        .sheet-handle { width: 40px; height: 4px; background: var(--n333333); border-radius: 2px; margin: 0 auto 14px auto; }
         .sheet-grid { display: flex; gap: 12px; margin-bottom: 8px; }
         .sheet-grid-item {
-          flex: 1; background: #1f1f1f; border-radius: 16px; padding: 16px 8px;
+          flex: 1; background: var(--n1f1f1f); border-radius: 16px; padding: 16px 8px;
           display: flex; flex-direction: column; align-items: center; gap: 8px;
-          cursor: pointer; border: none; color: #f5f5f5; transition: background 0.15s ease, transform 0.1s ease;
+          cursor: pointer; border: none; color: var(--nf5f5f5); transition: background 0.15s ease, transform 0.1s ease;
         }
         .sheet-grid-item:active { transform: scale(0.96); }
         .sheet-grid-item .icon-circle {
-          width: 44px; height: 44px; border-radius: 50%; background: #2a2a2a;
+          width: 44px; height: 44px; border-radius: 50%; background: var(--n2a2a2a);
           display: flex; align-items: center; justify-content: center; font-size: 20px;
         }
         .sheet-row {
           display: flex; align-items: center; justify-content: space-between;
-          padding: 14px 16px; margin-bottom: 8px; background: #1a1a1a; border-radius: 16px;
+          padding: 14px 16px; margin-bottom: 8px; background: var(--n1a1a1a); border-radius: 16px;
           transition: background 0.15s ease; cursor: pointer;
         }
-        .sheet-row:hover { background: #222222; }
+        .sheet-row:hover { background: var(--n222222); }
         .sheet-row-left { display: flex; align-items: center; gap: 12px; }
         .sheet-row .icon-circle-sm {
-          width: 36px; height: 36px; border-radius: 50%; background: #2a2a2a;
+          width: 36px; height: 36px; border-radius: 50%; background: var(--n2a2a2a);
           display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0;
         }
         .toggle { width: 44px; height: 26px; border-radius: 13px; position: relative; border: none; cursor: pointer; transition: background 0.2s; }
@@ -1171,24 +1285,24 @@ export default function Home() {
         .conv-menu-wrap { position: relative; }
         .conv-menu-dropdown {
           position: absolute; right: 0; top: 28px; z-index: 50;
-          background: #222222; border: none; border-radius: 14px;
+          background: var(--n222222); border: none; border-radius: 14px;
           min-width: 170px; overflow: hidden; box-shadow: 0 8px 20px rgba(0,0,0,0.4);
         }
         .conv-menu-item {
           display: flex; align-items: center; gap: 8px; width: 100%; padding: 10px 12px;
-          background: none; border: none; color: #eee; font-size: 13px; cursor: pointer; text-align: left;
+          background: none; border: none; color: var(--neeeeee); font-size: 13px; cursor: pointer; text-align: left;
         }
-        .conv-menu-item:hover { background: #2a2a2a; }
+        .conv-menu-item:hover { background: var(--n2a2a2a); }
         .conv-menu-item.danger { color: #ff6b6b; }
 
         .project-picker-item {
           display: flex; align-items: center; justify-content: space-between;
-          padding: 12px 10px; border-radius: 10px; cursor: pointer; margin-bottom: 4px; background: #1a1a1a;
+          padding: 12px 10px; border-radius: 10px; cursor: pointer; margin-bottom: 4px; background: var(--n1a1a1a);
         }
-        .project-picker-item:hover { background: #222; }
+        .project-picker-item:hover { background: var(--n222222); }
         .project-picker-input {
           flex: 1; padding: 10px 14px; border-radius: 14px; border: none;
-          background: #1a1a1a; color: #fff; font-size: 14px;
+          background: var(--n1a1a1a); color: #fff; font-size: 14px;
         }
 
         .msg-content p { margin: 0 0 8px 0; }
@@ -1196,23 +1310,23 @@ export default function Home() {
         .msg-content strong { color: inherit; font-weight: 700; }
         .msg-content ul, .msg-content ol { margin: 4px 0; padding-left: 20px; }
         .msg-content li { margin-bottom: 4px; }
-        .msg-content code { background: rgba(255,255,255,0.1); padding: 2px 5px; border-radius: 4px; font-size: 0.9em; }
-        .msg-content pre { background: rgba(0,0,0,0.3); padding: 10px; border-radius: 8px; overflow-x: auto; margin: 8px 0; }
+        .msg-content code { background: var(--kode-latar); padding: 2px 5px; border-radius: 4px; font-size: 0.9em; }
+        .msg-content pre { background: var(--pre-latar); padding: 10px; border-radius: 8px; overflow-x: auto; margin: 8px 0; }
         .msg-content pre code { background: none; padding: 0; }
         .msg-content h1, .msg-content h2, .msg-content h3 { margin: 8px 0 4px 0; }
-        .msg-content a { color: #ff9d4d; text-decoration: underline; text-underline-offset: 2px; word-break: break-all; }
+        .msg-content a { color: var(--aksen); text-decoration: underline; text-underline-offset: 2px; word-break: break-all; }
         .msg-content a:hover { color: #ffb36b; }
         .aksi-btn {
-          width: 32px; height: 32px; border-radius: 8px; border: none; background: none; color: #888;
+          width: 32px; height: 32px; border-radius: 8px; border: none; background: none; color: var(--n888888);
           display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
         }
-        .aksi-btn:hover { color: #ff9d4d; background: #1a1a1a; }
+        .aksi-btn:hover { color: var(--aksen); background: var(--n1a1a1a); }
 
         /* Titik-titik menunggu jawaban: 5 titik, 6 gaya animasi yang berganti-ganti */
         .pt-wadah { position: relative; width: 30px; height: 30px; display: inline-block; flex-shrink: 0; }
         .pt-dalam { position: absolute; inset: 0; }
         .pt-titik {
-          position: absolute; left: 50%; top: 50%; width: 5px; height: 5px; margin: -2.5px; border-radius: 50%; background: #ff9d4d;
+          position: absolute; left: 50%; top: 50%; width: 5px; height: 5px; margin: -2.5px; border-radius: 50%; background: var(--aksen);
           transform: rotate(calc(var(--i) * 72deg)) translateY(var(--r, -10px));
         }
         /* 0: komet berputar */
@@ -1239,12 +1353,6 @@ export default function Home() {
           50% { transform: translateX(calc((var(--i) - 2) * 6.5px)) translateY(-5px); opacity: 1; }
         }
 
-        /* Tema terang: warna seluruh halaman dibalik, lalu foto, video, dan pratinjau dibalik lagi supaya tampil normal */
-        html.tema-terang { filter: invert(1) hue-rotate(180deg); }
-        html.tema-terang img,
-        html.tema-terang video,
-        html.tema-terang iframe[title="Animasi"],
-        html.tema-terang iframe[title="Pratinjau"] { filter: invert(1) hue-rotate(180deg); }
 
         @media (max-width: 768px) {
           .sidebar { position: fixed; top: 0; left: 0; height: 100dvh; z-index: 100; transform: translateX(-100%); }
@@ -1255,22 +1363,22 @@ export default function Home() {
         .hamburger { display: none; }
 
         .input-card {
-          max-width: 800px; margin: 0 auto; background: #1a1a1a;
+          max-width: 800px; margin: 0 auto; background: var(--n1a1a1a);
           border: none; border-radius: 22px; padding: 10px 12px 8px 12px;
         }
         .input-icon-btn {
           width: 34px; height: 34px; border-radius: "50%"; border: none;
-          color: #ff9d4d; font-size: 16px; cursor: pointer; display: flex;
+          color: var(--aksen); font-size: 16px; cursor: pointer; display: flex;
           align-items: center; justify-content: center; border-radius: 50%;
         }
-        .input-icon-btn:hover { background: #222 !important; }
+        .input-icon-btn:hover { background: var(--n222222) !important; }
 
-        .code-block { background: #0d0d0d; border: 1px solid #2a2a2a; border-radius: 12px; margin: 10px 0; overflow: hidden; }
-        .code-head { display: flex; justify-content: space-between; align-items: center; padding: 6px 12px; background: #161616; font-size: 12px; color: #888; }
-        .code-head button { background: none; border: 1px solid #333; color: #ff9d4d; border-radius: 6px; padding: 3px 10px; font-size: 12px; cursor: pointer; }
+        .code-block { background: var(--n0d0d0d); border: 1px solid var(--n2a2a2a); border-radius: 12px; margin: 10px 0; overflow: hidden; }
+        .code-head { display: flex; justify-content: space-between; align-items: center; padding: 6px 12px; background: var(--n161616); font-size: 12px; color: var(--n888888); }
+        .code-head button { background: none; border: 1px solid var(--n333333); color: var(--aksen); border-radius: 6px; padding: 3px 10px; font-size: 12px; cursor: pointer; }
         .msg-content .code-block pre { margin: 0; background: transparent; padding: 12px; overflow-x: auto; font-size: 13.5px; line-height: 1.5; }
 
-        .myai-typing { display: flex; align-items: center; gap: 10px; color: #ff9d4d; font-size: 15px; margin: 4px 0 16px 0; }
+        .myai-typing { display: flex; align-items: center; gap: 10px; color: var(--aksen); font-size: 15px; margin: 4px 0 16px 0; }
         .myai-typing .icon { display: inline-flex; }
         .myai-typing .teks { animation: myai-fade 0.4s ease; }
         .myai-typing .dots::after { content: ""; animation: myai-dots 1.2s steps(1) infinite; }
@@ -1296,31 +1404,31 @@ export default function Home() {
           50% { transform: translateY(-3px) scale(1.1); filter: drop-shadow(0 0 6px rgba(255,157,77,0.7)); }
         }
 
-        .memori-item { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; padding: 10px 12px; background: #1a1a1a; border-radius: 10px; margin-bottom: 6px; font-size: 14px; line-height: 1.45; }
-        .memori-item button { background: none; border: none; color: #888; cursor: pointer; font-size: 14px; flex-shrink: 0; }
+        .memori-item { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; padding: 10px 12px; background: var(--n1a1a1a); border-radius: 10px; margin-bottom: 6px; font-size: 14px; line-height: 1.45; }
+        .memori-item button { background: none; border: none; color: var(--n888888); cursor: pointer; font-size: 14px; flex-shrink: 0; }
         .memori-item button:hover { color: #ff6b6b; }
 
         .msg-content .katex { font-size: 1.08em; }
         .msg-content .katex-display { overflow-x: auto; overflow-y: hidden; padding: 4px 0; margin: 10px 0; }
         .msg-content table { border-collapse: collapse; margin: 10px 0; display: block; overflow-x: auto; max-width: 100%; }
-        .msg-content th, .msg-content td { border: 1px solid #2f2f2f; padding: 6px 10px; font-size: 14.5px; }
-        .msg-content th { background: #1a1a1a; }
+        .msg-content th, .msg-content td { border: 1px solid var(--n2f2f2f); padding: 6px 10px; font-size: 14.5px; }
+        .msg-content th { background: var(--n1a1a1a); }
 
-        .kartu-hasil { border: 1px solid #2a2a2a; border-radius: 14px; background: #101010; margin: 12px 0; overflow: hidden; }
-        .kartu-head { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; border-bottom: 1px solid #222; font-weight: 700; font-size: 17px; }
+        .kartu-hasil { border: 1px solid var(--n2a2a2a); border-radius: 14px; background: var(--n101010); margin: 12px 0; overflow: hidden; }
+        .kartu-head { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; border-bottom: 1px solid var(--n222222); font-weight: 700; font-size: 17px; }
         .kartu-item { display: flex; gap: 12px; padding: 12px 16px; }
         .kartu-item-ikon { flex-shrink: 0; margin-top: 1px; display: inline-flex; }
         .kartu-item-judul { font-weight: 700; font-size: 15.5px; }
-        .kartu-item-teks { color: #cfcfcf; font-size: 15px; line-height: 1.55; margin-top: 2px; }
-        .kartu-ringkasan { padding: 12px 16px 14px; border-top: 1px solid #222; color: #cfcfcf; font-size: 15px; line-height: 1.55; }
+        .kartu-item-teks { color: var(--ncfcfcf); font-size: 15px; line-height: 1.55; margin-top: 2px; }
+        .kartu-ringkasan { padding: 12px 16px 14px; border-top: 1px solid var(--n222222); color: var(--ncfcfcf); font-size: 15px; line-height: 1.55; }
 
-        .grafik-box { height: 400px; border: 1px solid #2a2a2a; border-radius: 12px; overflow: hidden; margin: 12px 0; background: #0d0d0d; }
+        .grafik-box { height: 400px; border: 1px solid var(--n2a2a2a); border-radius: 12px; overflow: hidden; margin: 12px 0; background: var(--n0d0d0d); }
         .grafik-sumber { height: 24px; font-size: 11px; text-align: right; padding: 4px 10px 0 0; }
         .grafik-sumber a { color: #6b7280; text-decoration: none; }
 
         .emoji-picker {
-          max-width: 800px; margin: 0 auto 8px auto; background: #161616;
-          border: 1px solid #333; border-radius: 14px; padding: 10px;
+          max-width: 800px; margin: 0 auto 8px auto; background: var(--n161616);
+          border: 1px solid var(--n333333); border-radius: 14px; padding: 10px;
           display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px;
           max-height: 160px; overflow-y: auto;
         }
@@ -1328,14 +1436,14 @@ export default function Home() {
           background: none; border: none; font-size: 20px; padding: 6px;
           cursor: pointer; border-radius: 8px;
         }
-        .emoji-item:hover { background: #262626; }
+        .emoji-item:hover { background: var(--n262626); }
 
         .webcam-backdrop {
           position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 300;
           display: flex; align-items: center; justify-content: center; padding: 16px;
         }
         .webcam-box {
-          background: #161616; border: 1px solid #2a2a2a; border-radius: 18px;
+          background: var(--n161616); border: 1px solid var(--n2a2a2a); border-radius: 18px;
           padding: 14px; width: 100%; max-width: 520px;
         }
         .webcam-box video { width: 100%; border-radius: 12px; background: #000; display: block; }
@@ -1358,42 +1466,42 @@ export default function Home() {
 
         <div
           className="nav-item"
-          style={{ background: activeNav === "obrolan" ? "#1f1f1f" : "transparent" }}
+          style={{ background: activeNav === "obrolan" ? "var(--n1f1f1f)" : "transparent" }}
           onClick={() => {
             setActiveNav("obrolan");
             setCollapsedProjects({});
             setSearchQuery("");
           }}
         >
-          <span style={{ color: activeNav === "obrolan" ? "#ff9d4d" : "#aaa", display: "inline-flex" }}><IconChatBubble /></span>
-          <span style={{ color: activeNav === "obrolan" ? "#ff9d4d" : "#ddd" }}>Obrolan</span>
+          <span style={{ color: activeNav === "obrolan" ? "var(--aksen)" : "var(--naaaaaa)", display: "inline-flex" }}><IconChatBubble /></span>
+          <span style={{ color: activeNav === "obrolan" ? "var(--aksen)" : "var(--ndddddd)" }}>Obrolan</span>
         </div>
         <div
           className="nav-item"
-          style={{ background: activeNav === "proyek" ? "#1f1f1f" : "transparent" }}
+          style={{ background: activeNav === "proyek" ? "var(--n1f1f1f)" : "transparent" }}
           onClick={() => {
             setActiveNav("proyek");
             setShowProjectPicker(true);
           }}
         >
-          <span style={{ color: activeNav === "proyek" ? "#ff9d4d" : "#aaa", display: "inline-flex" }}><IconFolder /></span>
-          <span style={{ color: activeNav === "proyek" ? "#ff9d4d" : "#ddd" }}>Proyek</span>
+          <span style={{ color: activeNav === "proyek" ? "var(--aksen)" : "var(--naaaaaa)", display: "inline-flex" }}><IconFolder /></span>
+          <span style={{ color: activeNav === "proyek" ? "var(--aksen)" : "var(--ndddddd)" }}>Proyek</span>
         </div>
         <div
           className="nav-item"
-          style={{ background: modeKode ? "#1f1f1f" : "transparent" }}
+          style={{ background: modeKode ? "var(--n1f1f1f)" : "transparent" }}
           onClick={() => { setModeKode((v) => !v); setSidebarOpen(false); }}
         >
-          <span style={{ color: modeKode ? "#ff9d4d" : "#aaa", display: "inline-flex" }}><IconCode /></span>
-          <span style={{ color: modeKode ? "#ff9d4d" : "#ddd" }}>Kode</span>
+          <span style={{ color: modeKode ? "var(--aksen)" : "var(--naaaaaa)", display: "inline-flex" }}><IconCode /></span>
+          <span style={{ color: modeKode ? "var(--aksen)" : "var(--ndddddd)" }}>Kode</span>
         </div>
         <div className="nav-item" onClick={buatObrolanIncognito}>
-          <span style={{ color: "#aaa", display: "inline-flex" }}><IconIncognito /></span>
-          <span style={{ color: "#ddd" }}>Incognito</span>
+          <span style={{ color: "var(--naaaaaa)", display: "inline-flex" }}><IconIncognito /></span>
+          <span style={{ color: "var(--ndddddd)" }}>Incognito</span>
         </div>
 
         <div style={{ position: "relative", margin: "6px 2px 4px 2px" }}>
-          <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "#777" }}>
+          <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "var(--n777777)" }}>
             <IconSearch />
           </span>
           <input
@@ -1402,12 +1510,12 @@ export default function Home() {
             placeholder="Cari obrolan..."
             style={{
               width: "100%", padding: "8px 10px 8px 32px", borderRadius: 12, border: "none",
-              background: "#1a1a1a", color: "#f5f5f5", fontSize: 13, outline: "none",
+              background: "var(--n1a1a1a)", color: "var(--nf5f5f5)", fontSize: 13, outline: "none",
             }}
           />
         </div>
 
-        <div style={{ fontSize: 11, color: "#666", textTransform: "uppercase", letterSpacing: 0.5, padding: "14px 6px 8px 6px" }}>
+        <div style={{ fontSize: 11, color: "var(--n666666)", textTransform: "uppercase", letterSpacing: 0.5, padding: "14px 6px 8px 6px" }}>
           Terbaru
         </div>
 
@@ -1436,7 +1544,7 @@ export default function Home() {
                 {!tertutup && (
                   <div className="project-children">
                     {obrolanProyek.length === 0 && (
-                      <div style={{ fontSize: 12, color: "#555", padding: "6px 10px" }}>Belum ada obrolan</div>
+                      <div style={{ fontSize: 12, color: "var(--n555555)", padding: "6px 10px" }}>Belum ada obrolan</div>
                     )}
                     {obrolanProyek.map((c) =>
                       confirmDeleteId === c.id ? (
@@ -1444,7 +1552,7 @@ export default function Home() {
                           <div>Hapus obrolan ini?</div>
                           <div className="confirm-actions">
                             <button onClick={() => hapusObrolan(c.id)} style={{ background: "#ff5555", color: "#fff" }}>Hapus</button>
-                            <button onClick={() => setConfirmDeleteId(null)} style={{ background: "#333", color: "#fff" }}>Batal</button>
+                            <button onClick={() => setConfirmDeleteId(null)} style={{ background: "var(--n333333)", color: "#fff" }}>Batal</button>
                           </div>
                         </div>
                       ) : (
@@ -1452,10 +1560,10 @@ export default function Home() {
                           key={c.id}
                           className="conv-item"
                           style={{
-                            background: c.id === activeId ? "#262626" : undefined,
+                            background: c.id === activeId ? "var(--n262626)" : undefined,
                           }}
                         >
-                          <span className="conv-title" onClick={() => pilihObrolan(c.id)} style={{ color: c.id === activeId ? "#ff9d4d" : "#ccc" }}>
+                          <span className="conv-title" onClick={() => pilihObrolan(c.id)} style={{ color: c.id === activeId ? "var(--aksen)" : "var(--ncccccc)" }}>
                             {c.incognito && "🕶️ "}{c.pinned && "📌 "}{c.title || "Obrolan Baru"}
                           </span>
                           <div className="conv-menu-wrap">
@@ -1482,7 +1590,7 @@ export default function Home() {
 
           {/* Obrolan tanpa proyek */}
           {projects.length > 0 && obrolanTanpaProyek.length > 0 && (
-            <div style={{ fontSize: 12, color: "#555", margin: "14px 0 6px 6px" }}>Obrolan lainnya</div>
+            <div style={{ fontSize: 12, color: "var(--n555555)", margin: "14px 0 6px 6px" }}>Obrolan lainnya</div>
           )}
           {obrolanTanpaProyek.map((c) =>
             confirmDeleteId === c.id ? (
@@ -1490,7 +1598,7 @@ export default function Home() {
                 <div>Hapus obrolan ini?</div>
                 <div className="confirm-actions">
                   <button onClick={() => hapusObrolan(c.id)} style={{ background: "#ff5555", color: "#fff" }}>Hapus</button>
-                  <button onClick={() => setConfirmDeleteId(null)} style={{ background: "#333", color: "#fff" }}>Batal</button>
+                  <button onClick={() => setConfirmDeleteId(null)} style={{ background: "var(--n333333)", color: "#fff" }}>Batal</button>
                 </div>
               </div>
             ) : (
@@ -1498,10 +1606,10 @@ export default function Home() {
                 key={c.id}
                 className="conv-item"
                 style={{
-                  background: c.id === activeId ? "#262626" : undefined,
+                  background: c.id === activeId ? "var(--n262626)" : undefined,
                 }}
               >
-                <span className="conv-title" onClick={() => pilihObrolan(c.id)} style={{ color: c.id === activeId ? "#ff9d4d" : "#ccc" }}>
+                <span className="conv-title" onClick={() => pilihObrolan(c.id)} style={{ color: c.id === activeId ? "var(--aksen)" : "var(--ncccccc)" }}>
                   {c.incognito && "🕶️ "}{c.pinned && "📌 "}{c.title || "Obrolan Baru"}
                 </span>
                 <div className="conv-menu-wrap">
@@ -1534,7 +1642,7 @@ export default function Home() {
             onClick={() => { setShowSettings(true); setSidebarOpen(false); }}
             title="Pengaturan"
             aria-label="Pengaturan"
-            style={{ width: 46, height: 46, borderRadius: "50%", border: "none", background: "#1a1a1a", color: "#ff9d4d", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}
+            style={{ width: 46, height: 46, borderRadius: "50%", border: "none", background: "var(--n1a1a1a)", color: "var(--aksen)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}
           >
             <IconSettings />
           </button>
@@ -1547,19 +1655,20 @@ export default function Home() {
           <button
             className="hamburger"
             onClick={() => setSidebarOpen(true)}
-            style={{ background: "none", border: "1px solid #333", borderRadius: 8, color: "#f5f5f5", width: 36, height: 36, fontSize: 18, cursor: "pointer" }}
+            aria-label="Menu"
+            style={{ background: "none", border: "none", borderRadius: 12, color: "var(--nf5f5f5)", width: 40, height: 40, cursor: "pointer", alignItems: "center", justifyContent: "center" }}
           >
-            ☰
+            <IconMenu />
           </button>
           <span><span style={{ color: "#ff7a18" }}>My</span> AI</span>
           {activeConversation?.projectId && (
-            <span style={{ fontSize: 11, background: "#1f1f1f", color: "#aaa", padding: "3px 10px", borderRadius: 12, display: "inline-flex", alignItems: "center", gap: 5 }}>
+            <span style={{ fontSize: 11, background: "var(--n1f1f1f)", color: "var(--naaaaaa)", padding: "3px 10px", borderRadius: 12, display: "inline-flex", alignItems: "center", gap: 5 }}>
               <IconFolderMini /> {projects.find((p) => p.id === activeConversation.projectId)?.name}
             </span>
           )}
 
           {activeConversation?.incognito && (
-            <span style={{ fontSize: 11, background: "#1f1f1f", color: "#ff9d4d", padding: "3px 10px", borderRadius: 12 }}>Incognito</span>
+            <span style={{ fontSize: 11, background: "var(--n1f1f1f)", color: "var(--aksen)", padding: "3px 10px", borderRadius: 12 }}>Incognito</span>
           )}
 
           <div style={{ display: "flex", gap: 4, marginLeft: "auto" }}>
@@ -1579,7 +1688,7 @@ export default function Home() {
               {showHeaderMenu && activeConversation && (
                 <div className="conv-menu-dropdown" style={{ top: 38 }} onClick={(e) => e.stopPropagation()}>
                   <button className="conv-menu-item" onClick={() => setUkuranTeks((u) => (u === "kecil" ? "sedang" : u === "sedang" ? "besar" : "kecil"))}>
-                    <span style={{ width: 15, textAlign: "center", color: "#ccc", fontWeight: 700 }}>Aa</span> Ukuran tulisan: {ukuranTeks}
+                    <span style={{ width: 15, textAlign: "center", color: "var(--ncccccc)", fontWeight: 700 }}>Aa</span> Ukuran tulisan: {ukuranTeks}
                   </button>
                   <button className="conv-menu-item" onClick={() => setTema((t) => (t === "gelap" ? "terang" : "gelap"))}>
                     <span style={{ width: 15, textAlign: "center" }}>{tema === "gelap" ? "☀️" : "🌙"}</span> Ganti ke tema {tema === "gelap" ? "terang" : "gelap"}
@@ -1600,10 +1709,10 @@ export default function Home() {
 
         <div ref={listRef} style={kosong ? { flex: "0 0 auto", marginTop: "auto", padding: "16px 16px 4px" } : { flex: 1, overflowY: "auto", padding: "16px" }}>
           {(activeConversation?.messages.length ?? 0) === 0 && (
-            <div style={{ textAlign: "center", color: "#777", marginBottom: 8 }}>
+            <div style={{ textAlign: "center", color: "var(--n777777)", marginBottom: 8 }}>
               <div style={{ display: "flex", justifyContent: "center", alignItems: "center", flexWrap: "wrap", gap: 14 }}>
                 <LogoAnyaman size={62} />
-                <span style={{ fontFamily: "Georgia, 'Times New Roman', serif", fontSize: "clamp(24px, 6vw, 34px)", color: "#f0f0f0", fontWeight: 400 }}>{sapaan}</span>
+                <span style={{ fontFamily: "Georgia, 'Times New Roman', serif", fontSize: "clamp(24px, 6vw, 34px)", color: "var(--nf0f0f0)", fontWeight: 400 }}>{sapaan}</span>
               </div>
               <div style={{ fontSize: 13, marginTop: 6, padding: "0 20px" }}>
                 {activeConversation?.incognito
@@ -1632,7 +1741,7 @@ export default function Home() {
                             maxWidth: "100%",
                             objectFit: "cover",
                             borderRadius: 14,
-                            border: "1px solid #2a2a2a",
+                            border: "1px solid var(--n2a2a2a)",
                             display: "block",
                           }}
                         />
@@ -1654,7 +1763,7 @@ export default function Home() {
               </div>
             ) : (
               <div key={i} style={{ marginBottom: 20 }}>
-                <div className="msg-content" style={{ fontSize: ukuranPx, lineHeight: 1.65, color: "#f0f0f0", wordBreak: "break-word" }}>
+                <div className="msg-content" style={{ fontSize: ukuranPx, lineHeight: 1.65, color: "var(--nf0f0f0)", wordBreak: "break-word" }}>
                   <ReactMarkdown remarkPlugins={pluginRemark} rehypePlugins={pluginRehype} components={komponenMarkdown}>{siapkanMatematika(m.content)}</ReactMarkdown>
                 </div>
                 <BarisAksi
@@ -1680,7 +1789,7 @@ export default function Home() {
                     onClick={() => hapusGambarPending(idx)}
                     style={{
                       position: "absolute", top: -6, right: -6, width: 20, height: 20, borderRadius: "50%",
-                      background: "#333", color: "#fff", border: "1px solid #555", fontSize: 11, lineHeight: 1,
+                      background: "var(--n333333)", color: "#fff", border: "1px solid var(--n555555)", fontSize: 11, lineHeight: 1,
                       cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0,
                     }}
                     title="Hapus gambar"
@@ -1689,20 +1798,20 @@ export default function Home() {
                   </button>
                 </div>
               ))}
-              <span style={{ fontSize: 12, color: "#888" }}>{pendingImages.length}/{MAX_IMAGES} gambar</span>
+              <span style={{ fontSize: 12, color: "var(--n888888)" }}>{pendingImages.length}/{MAX_IMAGES} gambar</span>
             </div>
           )}
           {pendingLink && (
             <div style={{ maxWidth: 800, margin: "0 auto 10px", display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ display: "inline-flex", color: "#ff9d4d" }}><IconLink /></span>
-              <span style={{ fontSize: 13, color: "#aaa", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "70%" }}>{pendingLink}</span>
+              <span style={{ display: "inline-flex", color: "var(--aksen)" }}><IconLink /></span>
+              <span style={{ fontSize: 13, color: "var(--naaaaaa)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "70%" }}>{pendingLink}</span>
               <button onClick={() => setPendingLink(null)} style={{ background: "none", border: "none", color: "#ff7a18", cursor: "pointer", fontSize: 13 }}>Hapus</button>
             </div>
           )}
           {pendingDoc && (
             <div style={{ maxWidth: 800, margin: "0 auto 10px", display: "flex", alignItems: "center", gap: 10 }}>
               <span style={{ fontSize: 20 }}>📄</span>
-              <span style={{ fontSize: 13, color: "#aaa" }}>{pendingDoc.name} siap dikirim</span>
+              <span style={{ fontSize: 13, color: "var(--naaaaaa)" }}>{pendingDoc.name} siap dikirim</span>
               <button onClick={() => setPendingDoc(null)} style={{ background: "none", border: "none", color: "#ff7a18", cursor: "pointer", fontSize: 13 }}>Hapus</button>
             </div>
           )}
@@ -1759,13 +1868,13 @@ export default function Home() {
                 }}
                 placeholder="Ketik pesan..."
                 style={{
-                  width: "100%", padding: "4px 4px 10px 4px", border: "none", background: "transparent", color: "#f5f5f5",
+                  width: "100%", padding: "4px 4px 10px 4px", border: "none", background: "transparent", color: "var(--nf5f5f5)",
                   outline: "none", fontSize: 16, lineHeight: 1.5, resize: "none", overflowY: "auto", maxHeight: 200,
                   fontFamily: "inherit", display: "block",
                 }}
               />
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <button onClick={() => setShowEmojiPicker((v) => !v)} className="input-icon-btn" style={{ background: showEmojiPicker ? "#2a2015" : "transparent" }}>
+                <button onClick={() => setShowEmojiPicker((v) => !v)} className="input-icon-btn" style={{ background: showEmojiPicker ? "var(--n2a2015)" : "transparent" }}>
                   😊
                 </button>
                 <button onClick={() => setShowAttachSheet(true)} className="input-icon-btn" style={{ fontSize: 20 }}>
@@ -1783,7 +1892,7 @@ export default function Home() {
                   onClick={() => setModeKode((v) => !v)}
                   className="input-icon-btn"
                   title={modeKode ? "Mode Kode menyala" : "Nyalakan Mode Kode"}
-                  style={{ background: modeKode ? "rgba(255,122,24,0.22)" : "transparent", color: modeKode ? "#ff9d4d" : "#888" }}
+                  style={{ background: modeKode ? "rgba(255,122,24,0.22)" : "transparent", color: modeKode ? "var(--aksen)" : "var(--n888888)" }}
                 >
                   <IconCode />
                 </button>
@@ -1808,7 +1917,7 @@ export default function Home() {
                 </button>
               </div>
             </div>
-            <div style={{ textAlign: "center", fontSize: 11.5, color: "#666", marginTop: 8 }}>
+            <div style={{ textAlign: "center", fontSize: 11.5, color: "var(--n666666)", marginTop: 8 }}>
               My AI adalah AI dan dapat membuat kesalahan. Periksa info penting.
             </div>
           </div>
@@ -1860,7 +1969,7 @@ export default function Home() {
               <div className="icon-circle-sm"><IconFolder /></div>
               <div>
                 <div style={{ fontWeight: 500 }}>Tambahkan ke proyek</div>
-                <div style={{ fontSize: 12, color: "#888" }}>
+                <div style={{ fontSize: 12, color: "var(--n888888)" }}>
                   {activeConversation?.projectId ? projects.find((p) => p.id === activeConversation.projectId)?.name : "Tidak ada"}
                 </div>
               </div>
@@ -1873,7 +1982,7 @@ export default function Home() {
               <div className="icon-circle-sm"><IconLink /></div>
               <div>
                 <div style={{ fontWeight: 500 }}>Konektor</div>
-                <div style={{ fontSize: 12, color: "#888" }}>Baca isi halaman dari link</div>
+                <div style={{ fontSize: 12, color: "var(--n888888)" }}>Baca isi halaman dari link</div>
               </div>
             </div>
             <IconChevron />
@@ -1884,13 +1993,13 @@ export default function Home() {
               <div className="icon-circle-sm"><IconBrain /></div>
               <div>
                 <div style={{ fontWeight: 500 }}>Memori</div>
-                <div style={{ fontSize: 12, color: "#888" }}>{memoriAktif ? `Aktif · ${memories.length} hal diingat` : "Nonaktif"}</div>
+                <div style={{ fontSize: 12, color: "var(--n888888)" }}>{memoriAktif ? `Aktif · ${memories.length} hal diingat` : "Nonaktif"}</div>
               </div>
             </div>
             <button
               className="toggle"
               onClick={(e) => { e.stopPropagation(); setMemoriAktif((v) => !v); }}
-              style={{ background: memoriAktif ? "#ff7a18" : "#333" }}
+              style={{ background: memoriAktif ? "#ff7a18" : "var(--n333333)" }}
             >
               <span className="knob" style={{ left: memoriAktif ? 21 : 3 }} />
             </button>
@@ -1925,9 +2034,9 @@ export default function Home() {
           <div className="sheet-row" style={{ cursor: "default" }}>
             <div>
               <div style={{ fontWeight: 500 }}>Mode Kode</div>
-              <div style={{ fontSize: 12, color: "#888" }}>Jawaban berupa file kode lengkap</div>
+              <div style={{ fontSize: 12, color: "var(--n888888)" }}>Jawaban berupa file kode lengkap</div>
             </div>
-            <button className="toggle" onClick={() => setModeKode((v) => !v)} style={{ background: modeKode ? "#ff7a18" : "#333" }}>
+            <button className="toggle" onClick={() => setModeKode((v) => !v)} style={{ background: modeKode ? "#ff7a18" : "var(--n333333)" }}>
               <span className="knob" style={{ left: modeKode ? 21 : 3 }} />
             </button>
           </div>
@@ -1935,9 +2044,9 @@ export default function Home() {
           <div className="sheet-row" style={{ cursor: "default" }}>
             <div>
               <div style={{ fontWeight: 500 }}>Pikir dalam</div>
-              <div style={{ fontSize: 12, color: "#888" }}>Lebih teliti untuk soal susah, tapi lebih lambat</div>
+              <div style={{ fontSize: 12, color: "var(--n888888)" }}>Lebih teliti untuk soal susah, tapi lebih lambat</div>
             </div>
-            <button className="toggle" onClick={() => setPikirDalam((v) => !v)} style={{ background: pikirDalam ? "#ff7a18" : "#333" }}>
+            <button className="toggle" onClick={() => setPikirDalam((v) => !v)} style={{ background: pikirDalam ? "#ff7a18" : "var(--n333333)" }}>
               <span className="knob" style={{ left: pikirDalam ? 21 : 3 }} />
             </button>
           </div>
@@ -1945,9 +2054,9 @@ export default function Home() {
           <div className="sheet-row" style={{ cursor: "default" }}>
             <div>
               <div style={{ fontWeight: 500 }}>Memori</div>
-              <div style={{ fontSize: 12, color: "#888" }}>{memoriAktif ? `Aktif · ${memories.length} hal diingat` : "Nonaktif"}</div>
+              <div style={{ fontSize: 12, color: "var(--n888888)" }}>{memoriAktif ? `Aktif · ${memories.length} hal diingat` : "Nonaktif"}</div>
             </div>
-            <button className="toggle" onClick={() => setMemoriAktif((v) => !v)} style={{ background: memoriAktif ? "#ff7a18" : "#333" }}>
+            <button className="toggle" onClick={() => setMemoriAktif((v) => !v)} style={{ background: memoriAktif ? "#ff7a18" : "var(--n333333)" }}>
               <span className="knob" style={{ left: memoriAktif ? 21 : 3 }} />
             </button>
           </div>
@@ -1979,11 +2088,11 @@ export default function Home() {
         <div className="sheet" onClick={(e) => e.stopPropagation()}>
           <div className="sheet-handle" />
           <div style={{ textAlign: "center", fontWeight: 700, fontSize: 17, marginBottom: 6 }}>Memori My AI</div>
-          <div style={{ textAlign: "center", fontSize: 13, color: "#888", marginBottom: 14 }}>
+          <div style={{ textAlign: "center", fontSize: 13, color: "var(--n888888)", marginBottom: 14 }}>
             Hal-hal yang diingat dari obrolanmu supaya jawaban nyambung di obrolan baru. Tersimpan hanya di browser ini, dan bisa kamu hapus kapan saja.
           </div>
           {memories.length === 0 && (
-            <div style={{ textAlign: "center", color: "#666", padding: 16, fontSize: 14 }}>Belum ada yang diingat.</div>
+            <div style={{ textAlign: "center", color: "var(--n666666)", padding: 16, fontSize: 14 }}>Belum ada yang diingat.</div>
           )}
           {memories.map((m) => (
             <div key={m.id} className="memori-item">
@@ -2008,7 +2117,7 @@ export default function Home() {
         <div className="sheet" onClick={(e) => e.stopPropagation()}>
           <div className="sheet-handle" />
           <div style={{ textAlign: "center", fontWeight: 700, fontSize: 17, marginBottom: 6 }}>Konektor link</div>
-          <div style={{ textAlign: "center", fontSize: 13, color: "#888", marginBottom: 16 }}>
+          <div style={{ textAlign: "center", fontSize: 13, color: "var(--n888888)", marginBottom: 16 }}>
             Tempel link artikel atau halaman web, lalu tanya apa saja soal isinya.
           </div>
           <div style={{ display: "flex", gap: 8 }}>
@@ -2039,7 +2148,7 @@ export default function Home() {
           {projects.map((p) => (
             <div key={p.id} className="project-picker-item" onClick={() => pindahKeProyek(p.id)}>
               <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><IconFolderMini /> {p.name}</span>
-              {activeConversation?.projectId === p.id && <span style={{ color: "#ff9d4d" }}>✓</span>}
+              {activeConversation?.projectId === p.id && <span style={{ color: "var(--aksen)" }}>✓</span>}
             </div>
           ))}
 
@@ -2060,18 +2169,18 @@ export default function Home() {
 }
 
 /* ---- Ikon SVG ---- */
-const iconProps = { width: 20, height: 20, viewBox: "0 0 24 24", fill: "none", stroke: "#ff9d4d", strokeWidth: 1.8, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
+const iconProps = { width: 20, height: 20, viewBox: "0 0 24 24", fill: "none", stroke: "var(--aksen)", strokeWidth: 1.8, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
 
 function IconFolderMini() {
   return (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#aaa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--naaaaaa)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
     </svg>
   );
 }
 function IconChatBubble() {
   return (
-    <svg {...iconProps} stroke="#aaa">
+    <svg {...iconProps} stroke="var(--naaaaaa)">
       <path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" />
     </svg>
   );
@@ -2147,7 +2256,7 @@ function LogoMyAI({ size = 28, animated = false }: { size?: number; animated?: b
 }
 
 function IconWeb({ aktif }: { aktif?: boolean }) {
-  const warna = aktif ? "#4da3ff" : "#ff9d4d";
+  const warna = aktif ? "#4da3ff" : "var(--aksen)";
   return (
     <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke={warna} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="12" cy="12" r="9" />
@@ -2158,7 +2267,7 @@ function IconWeb({ aktif }: { aktif?: boolean }) {
 
 function IconSpark() {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="#ff9d4d">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="var(--aksen)">
       <path d="M12 2l2.2 6.8L21 11l-6.8 2.2L12 20l-2.2-6.8L3 11l6.8-2.2z" />
     </svg>
   );
@@ -2186,7 +2295,7 @@ const ANYAMAN = (() => {
 })();
 
 function LogoAnyaman({ size = 62 }: { size?: number }) {
-  const warna: Record<string, string> = { A: "#ff7a18", B: "#ffc58a" };
+  const warna: Record<string, string> = { A: "#ff7a18", B: "var(--anyam-b)" };
   return (
     <svg width={size} height={size} viewBox="0 0 64 64" style={{ display: "block" }} aria-hidden="true">
       <g>
@@ -2194,7 +2303,7 @@ function LogoAnyaman({ size = 62 }: { size?: number }) {
         <path d={ANYAMAN.B} fill="none" stroke={warna.B} strokeWidth="3" strokeLinecap="round" />
         {ANYAMAN.jendela.map((j, i) => (
           <g key={i} fill="none">
-            <path d={j.d} stroke="#0a0a0a" strokeWidth="5" />
+            <path d={j.d} stroke="var(--bg)" strokeWidth="5" />
             <path d={j.d} stroke={warna[j.atas]} strokeWidth="3" />
           </g>
         ))}
@@ -2271,8 +2380,8 @@ function ChipSumber({ sumber }: { sumber: Sumber[] }) {
       <button
         onClick={() => setBuka((v) => !v)}
         style={{
-          display: "inline-flex", alignItems: "center", gap: 6, background: "#1f1f1f", color: "#bbb",
-          border: "1px solid #333", borderRadius: 999, padding: "4px 12px 4px 8px", fontSize: 12.5, cursor: "pointer",
+          display: "inline-flex", alignItems: "center", gap: 6, background: "var(--n1f1f1f)", color: "var(--nbbbbbb)",
+          border: "1px solid var(--n333333)", borderRadius: 999, padding: "4px 12px 4px 8px", fontSize: 12.5, cursor: "pointer",
         }}
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4da3ff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -2282,7 +2391,7 @@ function ChipSumber({ sumber }: { sumber: Sumber[] }) {
         {domainDari(sumber[0].link)}{sisa > 0 ? ` +${sisa}` : ""}
       </button>
       {buka && (
-        <div style={{ flexBasis: "100%", background: "#141414", border: "1px solid #2a2a2a", borderRadius: 12, padding: 6 }}>
+        <div style={{ flexBasis: "100%", background: "var(--n141414)", border: "1px solid var(--n2a2a2a)", borderRadius: 12, padding: 6 }}>
           {sumber.map((s, i) => (
             <a
               key={i}
@@ -2291,8 +2400,8 @@ function ChipSumber({ sumber }: { sumber: Sumber[] }) {
               rel="noopener noreferrer"
               style={{ display: "block", padding: "8px 10px", borderRadius: 8, textDecoration: "none" }}
             >
-              <div style={{ color: "#eee", fontSize: 14, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.judul}</div>
-              <div style={{ color: "#777", fontSize: 12 }}>{domainDari(s.link)}</div>
+              <div style={{ color: "var(--neeeeee)", fontSize: 14, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.judul}</div>
+              <div style={{ color: "var(--n777777)", fontSize: 12 }}>{domainDari(s.link)}</div>
             </a>
           ))}
         </div>
@@ -2310,7 +2419,7 @@ function bisaDiulang(pesan: Message[], i: number): boolean {
 
 function TombolIkon({ judul, onClick, aktif, children }: { judul: string; onClick: () => void; aktif?: boolean; children: ReactNode }) {
   return (
-    <button className="aksi-btn" title={judul} aria-label={judul} onClick={onClick} style={aktif ? { color: "#ff9d4d" } : undefined}>
+    <button className="aksi-btn" title={judul} aria-label={judul} onClick={onClick} style={aktif ? { color: "var(--aksen)" } : undefined}>
       {children}
     </button>
   );
@@ -2420,7 +2529,7 @@ function TombolSalin({ teks }: { teks: string }) {
   return (
     <button
       onClick={salin}
-      style={{ background: "none", border: "none", color: tersalin ? "#ff9d4d" : "#777", fontSize: 12.5, cursor: "pointer", padding: "4px 0", marginTop: 4 }}
+      style={{ background: "none", border: "none", color: tersalin ? "var(--aksen)" : "var(--n777777)", fontSize: 12.5, cursor: "pointer", padding: "4px 0", marginTop: 4 }}
     >
       {tersalin ? "Tersalin ✓" : "Salin jawaban"}
     </button>
@@ -2494,16 +2603,16 @@ function BlokKode({ bahasa, teks, namaFile }: { bahasa?: string; teks: string; n
 
   return (
     <div className="code-block">
-      <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", background: "#161616" }}>
-        <div style={{ width: 42, height: 42, borderRadius: 10, background: "#2a1a05", color: "#ff9d4d", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", background: "var(--n161616)" }}>
+        <div style={{ width: 42, height: 42, borderRadius: 10, background: "var(--n2a1a05)", color: "var(--aksen)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
           <IconCode />
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 600, fontSize: 15, color: "#f0f0f0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{nama}</div>
-          <div style={{ fontSize: 12.5, color: "#888" }}>Kode · {(bahasa || ext).toUpperCase()} · {jumlahBaris} baris</div>
+          <div style={{ fontWeight: 600, fontSize: 15, color: "var(--nf0f0f0)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{nama}</div>
+          <div style={{ fontSize: 12.5, color: "var(--n888888)" }}>Kode · {(bahasa || ext).toUpperCase()} · {jumlahBaris} baris</div>
         </div>
       </div>
-      <div style={{ display: "flex", gap: 8, padding: "0 14px 12px", flexWrap: "wrap", background: "#161616" }}>
+      <div style={{ display: "flex", gap: 8, padding: "0 14px 12px", flexWrap: "wrap", background: "var(--n161616)" }}>
         <button className="sidebar-btn-secondary" style={kecil} onClick={salin}>{tersalin ? "Tersalin ✓" : "Salin"}</button>
         <button className="sidebar-btn-secondary" style={kecil} onClick={unduh}>Unduh</button>
         {bisaPratinjau && (
@@ -2520,7 +2629,7 @@ function BlokKode({ bahasa, teks, namaFile }: { bahasa?: string; teks: string; n
           title="Pratinjau"
           sandbox="allow-scripts"
           srcDoc={dokumenSandbox(teks)}
-          style={{ width: "100%", height: 340, border: "none", borderTop: "1px solid #2a2a2a", background: "#0d0d0d", display: "block" }}
+          style={{ width: "100%", height: 340, border: "none", borderTop: "1px solid var(--n2a2a2a)", background: "var(--n0d0d0d)", display: "block" }}
         />
       )}
       {terbuka && <pre><code>{teks}</code></pre>}
@@ -2574,7 +2683,7 @@ function GrafikTradingView({ simbol, interval }: { simbol: string; interval: str
       symbol: simbol,
       interval,
       timezone: "Asia/Jakarta",
-      theme: "dark",
+      theme: document.documentElement.classList.contains("tema-terang") ? "light" : "dark",
       style: "1",
       locale: "id",
       allow_symbol_change: false,
@@ -2711,20 +2820,20 @@ function KartuGambar({ prompt }: { prompt: string }) {
   };
 
   return (
-    <div style={{ border: "1px solid #2a2a2a", borderRadius: 14, background: "#101010", margin: "12px 0", padding: 12, maxWidth: 420 }}>
+    <div style={{ border: "1px solid var(--n2a2a2a)", borderRadius: 14, background: "var(--n101010)", margin: "12px 0", padding: 12, maxWidth: 420 }}>
       {src ? (
         <>
           <img src={src} alt={prompt} style={{ width: "100%", borderRadius: 10, display: "block" }} />
           <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
             <a href={src} download="gambar-my-ai.jpg" style={tombol}>Simpan</a>
-            <button onClick={buat} disabled={proses} style={{ ...tombol, background: "#1f1f1f", color: "#ff9d4d", border: "1px solid #333" }}>
+            <button onClick={buat} disabled={proses} style={{ ...tombol, background: "var(--n1f1f1f)", color: "var(--aksen)", border: "1px solid var(--n333333)" }}>
               {proses ? "Membuat..." : "Buat ulang"}
             </button>
           </div>
         </>
       ) : (
         <>
-          <div style={{ fontSize: 13, color: "#999", lineHeight: 1.5, marginBottom: 10, wordBreak: "break-word" }}>{prompt}</div>
+          <div style={{ fontSize: 13, color: "var(--n999999)", lineHeight: 1.5, marginBottom: 10, wordBreak: "break-word" }}>{prompt}</div>
           <button onClick={buat} disabled={proses} style={tombol}>
             {proses ? "Membuat gambar..." : "Buat gambar"}
           </button>
@@ -2765,20 +2874,20 @@ function KartuAnimasi({ kode }: { kode: string }) {
     fontSize: 14,
     cursor: "pointer",
   };
-  const tombolKedua: CSSProperties = { ...tombol, background: "#1f1f1f", color: "#ff9d4d", border: "1px solid #333" };
+  const tombolKedua: CSSProperties = { ...tombol, background: "var(--n1f1f1f)", color: "var(--aksen)", border: "1px solid var(--n333333)" };
 
   return (
-    <div style={{ border: "1px solid #2a2a2a", borderRadius: 14, background: "#101010", margin: "12px 0", padding: 12, maxWidth: 520 }}>
+    <div style={{ border: "1px solid var(--n2a2a2a)", borderRadius: 14, background: "var(--n101010)", margin: "12px 0", padding: 12, maxWidth: 520 }}>
       {jalan ? (
         <iframe
           key={putaran}
           title="Animasi"
           sandbox="allow-scripts"
           srcDoc={dokumen}
-          style={{ width: "100%", height: 340, border: "none", borderRadius: 10, background: "#0d0d0d", display: "block" }}
+          style={{ width: "100%", height: 340, border: "none", borderRadius: 10, background: "var(--n0d0d0d)", display: "block" }}
         />
       ) : (
-        <div style={{ fontSize: 13, color: "#999", lineHeight: 1.5, marginBottom: 4 }}>
+        <div style={{ fontSize: 13, color: "var(--n999999)", lineHeight: 1.5, marginBottom: 4 }}>
           Animasi siap. Klik Putar untuk menjalankannya.
         </div>
       )}
@@ -2853,13 +2962,13 @@ function KartuFoto({ query }: { query: string }) {
 
   if (status === "memuat") {
     return (
-      <div style={{ height: 120, borderRadius: 14, background: "#101010", border: "1px solid #2a2a2a", margin: "12px 0", display: "flex", alignItems: "center", justifyContent: "center", color: "#777", fontSize: 14 }}>
+      <div style={{ height: 120, borderRadius: 14, background: "var(--n101010)", border: "1px solid var(--n2a2a2a)", margin: "12px 0", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--n777777)", fontSize: 14 }}>
         Mencari foto...
       </div>
     );
   }
   if (status === "gagal" || !foto) {
-    return <div style={{ color: "#777", fontSize: 13, margin: "8px 0" }}>{galat || "Foto tidak bisa dimuat."}</div>;
+    return <div style={{ color: "var(--n777777)", fontSize: 13, margin: "8px 0" }}>{galat || "Foto tidak bisa dimuat."}</div>;
   }
 
   const tampil = foto.slice(0, 3);
@@ -2884,7 +2993,7 @@ function KartuFoto({ query }: { query: string }) {
             key={i}
             onClick={() => setTerbuka(i)}
             style={{
-              position: "relative", padding: 0, border: "none", background: "#161616", cursor: "pointer", overflow: "hidden",
+              position: "relative", padding: 0, border: "none", background: "var(--n161616)", cursor: "pointer", overflow: "hidden",
               gridRow: i === 0 && tampil.length >= 3 ? "1 / span 2" : undefined,
             }}
           >
@@ -2902,10 +3011,11 @@ function KartuFoto({ query }: { query: string }) {
           </button>
         ))}
       </div>
-      <div style={{ fontSize: 12, color: "#666", marginTop: 6 }}>Foto dari hasil pencarian web. Klik untuk memperbesar.</div>
+      <div style={{ fontSize: 12, color: "var(--n666666)", marginTop: 6 }}>Foto dari hasil pencarian web. Klik untuk memperbesar.</div>
 
       {aktif && terbuka !== null && (
         <div
+          className="selalu-gelap"
           onClick={() => setTerbuka(null)}
           style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.9)", zIndex: 400, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 16, gap: 12 }}
         >
@@ -2925,9 +3035,9 @@ function KartuFoto({ query }: { query: string }) {
             style={{ maxWidth: "92vw", maxHeight: "68vh", objectFit: "contain", borderRadius: 10 }}
           />
           <div onClick={(e) => e.stopPropagation()} style={{ textAlign: "center", maxWidth: "92vw" }}>
-            <div style={{ color: "#ddd", fontSize: 14 }}>{aktif.judul}</div>
+            <div style={{ color: "var(--ndddddd)", fontSize: 14 }}>{aktif.judul}</div>
             {aktif.link && (
-              <a href={aktif.link} target="_blank" rel="noopener noreferrer" style={{ color: "#ff9d4d", fontSize: 13 }}>
+              <a href={aktif.link} target="_blank" rel="noopener noreferrer" style={{ color: "var(--aksen)", fontSize: 13 }}>
                 Buka sumber{aktif.sumber ? ` (${aktif.sumber})` : ""}
               </a>
             )}
@@ -3015,7 +3125,7 @@ function KartuKuis({ kuis }: { kuis: { judul: string; soal: SoalKuis[] } }) {
     setSelesai(false);
   };
 
-  const kartu: CSSProperties = { background: "#131313", borderRadius: 20, padding: "16px 18px 18px", margin: "12px 0", maxWidth: 640 };
+  const kartu: CSSProperties = { background: "var(--n131313)", borderRadius: 20, padding: "16px 18px 18px", margin: "12px 0", maxWidth: 640 };
   const label = (
     <span style={{ background: "rgba(168,85,247,0.2)", color: "#c9a7ff", fontSize: 11.5, fontWeight: 700, letterSpacing: 0.4, padding: "4px 10px", borderRadius: 999, textTransform: "uppercase" }}>
       Kuis
@@ -3024,8 +3134,8 @@ function KartuKuis({ kuis }: { kuis: { judul: string; soal: SoalKuis[] } }) {
   const tombolBesar = (aktif: boolean): CSSProperties => ({
     width: "100%", marginTop: 14, padding: "13px 16px", borderRadius: 14, border: "none", fontWeight: 700, fontSize: 14.5,
     cursor: aktif ? "pointer" : "default",
-    background: aktif ? "linear-gradient(135deg, #ff7a18, #ff9d4d)" : "#1c1c1c",
-    color: aktif ? "#0a0a0a" : "#777",
+    background: aktif ? "linear-gradient(135deg, #ff7a18, #ff9d4d)" : "var(--n1c1c1c)",
+    color: aktif ? "#0a0a0a" : "var(--n777777)",
   });
 
   if (selesai) {
@@ -3033,10 +3143,10 @@ function KartuKuis({ kuis }: { kuis: { judul: string; soal: SoalKuis[] } }) {
     const komentar = persen === 100 ? "Sempurna, gila sih! 🔥" : persen >= 70 ? "Mantap, jago juga lu 👏" : persen >= 40 ? "Lumayan, bisa lebih bagus lagi 💪" : "Santai, coba lagi pasti naik 😄";
     return (
       <div style={kartu}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>{label}<span style={{ color: "#999", fontSize: 13 }}>Selesai</span></div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>{label}<span style={{ color: "var(--n999999)", fontSize: 13 }}>Selesai</span></div>
         <div style={{ fontSize: 22, fontWeight: 700, marginTop: 14 }}>{kuis.judul}</div>
-        <div style={{ fontSize: 40, fontWeight: 800, color: "#ff9d4d", marginTop: 8 }}>{skor} / {total}</div>
-        <div style={{ color: "#bbb", marginTop: 4 }}>{komentar}</div>
+        <div style={{ fontSize: 40, fontWeight: 800, color: "var(--aksen)", marginTop: 8 }}>{skor} / {total}</div>
+        <div style={{ color: "var(--nbbbbbb)", marginTop: 4 }}>{komentar}</div>
         <button onClick={ulang} style={tombolBesar(true)}>Main lagi</button>
       </div>
     );
@@ -3046,10 +3156,10 @@ function KartuKuis({ kuis }: { kuis: { judul: string; soal: SoalKuis[] } }) {
     <div style={kartu}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         {label}
-        <span style={{ color: "#aaa", fontSize: 13.5 }}>{no + 1} / {total}</span>
+        <span style={{ color: "var(--naaaaaa)", fontSize: 13.5 }}>{no + 1} / {total}</span>
       </div>
       <div style={{ fontSize: 21, fontWeight: 700, marginTop: 14 }}>{soal.kategori || kuis.judul}</div>
-      <div style={{ color: "#999", fontSize: 13, marginTop: 6 }}>Soal {no + 1}</div>
+      <div style={{ color: "var(--n999999)", fontSize: 13, marginTop: 6 }}>Soal {no + 1}</div>
       <div style={{ fontSize: 16.5, fontWeight: 600, lineHeight: 1.5, marginTop: 12 }}><TeksSoal teks={soal.tanya} /></div>
 
       <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 6 }}>
@@ -3064,15 +3174,15 @@ function KartuKuis({ kuis }: { kuis: { judul: string; soal: SoalKuis[] } }) {
               style={{
                 display: "flex", alignItems: "center", gap: 12, textAlign: "left", width: "100%",
                 padding: "10px 12px", borderRadius: 12, border: "none", cursor: dicek ? "default" : "pointer",
-                color: "#eee", fontSize: 15,
-                background: benar ? "rgba(52,211,153,0.18)" : salah ? "rgba(248,113,113,0.18)" : dipilih ? "#232323" : "transparent",
+                color: "var(--neeeeee)", fontSize: 15,
+                background: benar ? "rgba(52,211,153,0.18)" : salah ? "rgba(248,113,113,0.18)" : dipilih ? "var(--n232323)" : "transparent",
               }}
             >
               <span
                 style={{
                   width: 20, height: 20, borderRadius: "50%", flexShrink: 0,
-                  border: `2px solid ${benar ? "#34d399" : salah ? "#f87171" : dipilih ? "#ff9d4d" : "#555"}`,
-                  background: dipilih || benar ? (benar ? "#34d399" : salah ? "#f87171" : "#ff9d4d") : "transparent",
+                  border: `2px solid ${benar ? "#34d399" : salah ? "#f87171" : dipilih ? "var(--aksen)" : "var(--n555555)"}`,
+                  background: dipilih || benar ? (benar ? "#34d399" : salah ? "#f87171" : "var(--aksen)") : "transparent",
                 }}
               />
               <span>{huruf(i)}. <TeksSoal teks={teks} /></span>
@@ -3082,11 +3192,11 @@ function KartuKuis({ kuis }: { kuis: { judul: string; soal: SoalKuis[] } }) {
       </div>
 
       {dicek && (
-        <div style={{ marginTop: 12, padding: "12px 14px", borderRadius: 14, background: "#1a1a1a", lineHeight: 1.55, fontSize: 14.5 }}>
+        <div style={{ marginTop: 12, padding: "12px 14px", borderRadius: 14, background: "var(--n1a1a1a)", lineHeight: 1.55, fontSize: 14.5 }}>
           <div style={{ fontWeight: 700, color: pilih === soal.jawaban ? "#34d399" : "#f87171" }}>
             {pilih === soal.jawaban ? "Bener! 🔥" : `Belum tepat. Jawabannya ${huruf(soal.jawaban)}.`}
           </div>
-          {soal.penjelasan && <div style={{ color: "#ccc", marginTop: 4 }}><TeksSoal teks={soal.penjelasan} /></div>}
+          {soal.penjelasan && <div style={{ color: "var(--ncccccc)", marginTop: 4 }}><TeksSoal teks={soal.penjelasan} /></div>}
         </div>
       )}
 
@@ -3218,7 +3328,7 @@ function IconDots() {
   );
 }
 function IconMic({ active }: { active?: boolean }) {
-  const color = active ? "#fff" : "#ff9d4d";
+  const color = active ? "#fff" : "var(--aksen)";
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
       <rect x="9" y="2" width="6" height="12" rx="3" />
@@ -3230,7 +3340,7 @@ function IconMic({ active }: { active?: boolean }) {
 }
 function IconDownload() {
   return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#ccc" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--ncccccc)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
       <path d="M12 3v12" />
       <path d="M7 11l5 5 5-5" />
       <path d="M5 21h14" />
@@ -3239,7 +3349,7 @@ function IconDownload() {
 }
 function IconUpload() {
   return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#ccc" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--ncccccc)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
       <path d="M12 16V4" />
       <path d="M7 8l5-5 5 5" />
       <path d="M5 21h14" />
@@ -3248,7 +3358,7 @@ function IconUpload() {
 }
 function IconEdit() {
   return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#ccc" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--ncccccc)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
       <path d="M12 20h9" />
       <path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z" />
     </svg>
@@ -3256,7 +3366,7 @@ function IconEdit() {
 }
 function IconPin() {
   return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#ccc" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--ncccccc)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
       <path d="M12 2l1.5 5.5L19 9l-4 3 1 6-4-3-4 3 1-6-4-3 5.5-1.5z" />
     </svg>
   );
@@ -3342,7 +3452,7 @@ function IconSettings() {
 // Tombol pilihan bergeser (segmen) untuk pengaturan
 function Segmen<T extends string>({ nilai, pilihan, onPilih }: { nilai: T; pilihan: { nilai: T; label: string }[]; onPilih: (v: T) => void }) {
   return (
-    <div style={{ display: "flex", background: "#2a2a2a", borderRadius: 10, padding: 3, gap: 2 }}>
+    <div style={{ display: "flex", background: "var(--n2a2a2a)", borderRadius: 10, padding: 3, gap: 2 }}>
       {pilihan.map((o) => (
         <button
           key={o.nilai}
@@ -3350,7 +3460,7 @@ function Segmen<T extends string>({ nilai, pilihan, onPilih }: { nilai: T; pilih
           style={{
             border: "none", borderRadius: 8, padding: "6px 12px", fontSize: 13, fontWeight: 600, cursor: "pointer",
             background: o.nilai === nilai ? "linear-gradient(135deg, #ff7a18, #ff9d4d)" : "transparent",
-            color: o.nilai === nilai ? "#0a0a0a" : "#aaa",
+            color: o.nilai === nilai ? "#0a0a0a" : "var(--naaaaaa)",
           }}
         >
           {o.label}
@@ -3360,9 +3470,18 @@ function Segmen<T extends string>({ nilai, pilihan, onPilih }: { nilai: T; pilih
   );
 }
 
+function IconMenu() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round">
+      <path d="M4 7h16" />
+      <path d="M4 12h16" />
+      <path d="M4 17h9" />
+    </svg>
+  );
+}
 function IconIncognito() {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#aaa" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--naaaaaa)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
       <path d="M3 11h18" />
       <path d="M5 11l1.5-6h11L19 11" />
       <circle cx="8" cy="16.5" r="2.5" />
@@ -3383,7 +3502,7 @@ function IconShare() {
 }
 function IconChevron() {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#666" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--n666666)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M9 6l6 6-6 6" />
     </svg>
   );
