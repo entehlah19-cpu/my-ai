@@ -3,6 +3,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 
 const KUNCI_PIN = "myai-pin";
+const PERISTIWA_PIN = "myai-butuh-pin";
 
 function pinTersimpan(): string {
   try {
@@ -13,24 +14,40 @@ function pinTersimpan(): string {
 }
 
 // Semua permintaan ke /api/chat otomatis membawa PIN yang tersimpan (header x-pin).
+// Kalau server membalas 401 dengan perluPin, layar PIN dimunculkan.
 // Dipasang sekali saat halaman dimuat, jadi app/page.tsx tidak perlu diubah.
 if (typeof window !== "undefined") {
   const w = window as any;
   if (!w.__myaiFetchTerpasang) {
     w.__myaiFetchTerpasang = true;
     const asli = window.fetch.bind(window);
-    window.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
+    window.fetch = (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
       const alamat = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
-      if (alamat.includes("/api/chat")) {
-        const pin = pinTersimpan();
-        if (pin) {
-          const awal = typeof input === "string" || input instanceof URL ? undefined : input.headers;
-          const headers = new Headers(init?.headers || awal);
-          headers.set("x-pin", pin);
-          return asli(input, { ...init, headers });
-        }
+      if (!alamat.includes("/api/chat")) return asli(input, init);
+
+      let permintaan: Promise<Response>;
+      const pin = pinTersimpan();
+      if (pin) {
+        const awal = typeof input === "string" || input instanceof URL ? undefined : input.headers;
+        const headers = new Headers(init?.headers || awal);
+        headers.set("x-pin", pin);
+        permintaan = asli(input, { ...init, headers });
+      } else {
+        permintaan = asli(input, init);
       }
-      return asli(input, init);
+
+      return permintaan.then((res) => {
+        if (res.status === 401) {
+          res
+            .clone()
+            .json()
+            .then((d) => {
+              if (d?.perluPin === true) window.dispatchEvent(new Event(PERISTIWA_PIN));
+            })
+            .catch(() => {});
+        }
+        return res;
+      });
     };
   }
 }
@@ -65,6 +82,9 @@ export default function PinGate({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     periksa().then((h) => setTerkunci(h.perluPin));
+    const bukaLayar = () => setTerkunci(true);
+    window.addEventListener(PERISTIWA_PIN, bukaLayar);
+    return () => window.removeEventListener(PERISTIWA_PIN, bukaLayar);
   }, []);
 
   const masuk = async (e: { preventDefault: () => void }) => {
@@ -112,7 +132,9 @@ export default function PinGate({ children }: { children: ReactNode }) {
             <div style={{ fontSize: 28, fontWeight: 800, marginBottom: 6 }}>
               <span style={{ color: "#ff7a18" }}>My</span> AI
             </div>
-            <div style={{ fontSize: 14, color: "#999999", marginBottom: 18 }}>Masukkan PIN untuk lanjut.</div>
+            <div style={{ fontSize: 14, color: "#999999", marginBottom: 18, lineHeight: 1.5 }}>
+              Jatah gratis hari ini sudah habis. Masukkan PIN untuk lanjut.
+            </div>
             <input
               type="password"
               value={pin}
@@ -151,6 +173,13 @@ export default function PinGate({ children }: { children: ReactNode }) {
               }}
             >
               {sibuk ? "Memeriksa..." : "Masuk"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setTerkunci(false)}
+              style={{ marginTop: 12, background: "none", border: "none", color: "#777777", fontSize: 13.5, cursor: "pointer" }}
+            >
+              Nanti saja
             </button>
           </form>
         </div>
