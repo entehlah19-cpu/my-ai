@@ -466,18 +466,10 @@ export default function Home() {
     setOpenMenuId(null);
   };
 
-  const eksporObrolan = () => {
+   const eksporObrolan = async () => {
     if (!activeConversation) return;
-    const isi = activeConversation.messages
-      .map((m) => `${m.role === "user" ? "Kamu" : "My AI"}: ${m.content}`)
-      .join("\n\n");
-    const blob = new Blob([isi], { type: "text/plain;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${activeConversation.title || "obrolan"}.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
+    const { menuEkspor } = await import("../lib/ekspor");
+    menuEkspor(activeConversation.title || "obrolan", activeConversation.messages);
   };
 
   // Bagikan isi obrolan lewat menu share bawaan HP/laptop (tanpa link publik, tanpa server)
