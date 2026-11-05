@@ -1728,6 +1728,22 @@ export default function Home() {
                   </button>
                   <button className="conv-menu-item" onClick={buatObrolanIncognito}><IconIncognito /> Obrolan incognito</button>
                   <button className="conv-menu-item" onClick={() => { gantiNamaObrolan(activeConversation.id); setShowHeaderMenu(false); }}><IconEdit /> Ganti nama</button>
+                                    <button className="conv-menu-item" onClick={() => {
+                    setShowHeaderMenu(false);
+                    if (!activeConversation || loading) return;
+                    const pesanChat = activeConversation.messages;
+                    let idx = pesanChat.length - 1;
+                    while (idx >= 0 && pesanChat[idx].role !== "user") idx -= 1;
+                    if (idx < 0) return;
+                    const target = pesanChat[idx];
+                    if (target.content.startsWith("📄") || target.content.includes("🔗") || !!target.imagePreview || (target.imagePreviews?.length ?? 0) > 0) {
+                      alert("Pesan yang ada gambar, file, atau link belum bisa diedit.");
+                      return;
+                    }
+                    setInput(target.content);
+                    setConversations((prev) => prev.map((c) => (c.id === activeId ? { ...c, messages: c.messages.slice(0, idx) } : c)));
+                    fokusInput();
+                  }}><IconEdit /> Edit pesan terakhir</button>
                   <button className="conv-menu-item" onClick={() => { toggleSematkan(activeConversation.id); setShowHeaderMenu(false); }}><IconPin /> {activeConversation.pinned ? "Lepas sematan" : "Sematkan"}</button>
                   <button className="conv-menu-item" onClick={() => { setShowHeaderMenu(false); tambahKeProyekDari(activeConversation.id); }}><IconFolder /> Tambahkan ke proyek</button>
                   <button className="conv-menu-item" onClick={eksporRiwayat}><IconDownload /> Cadangkan semua obrolan</button>
