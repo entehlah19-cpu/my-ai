@@ -13,6 +13,21 @@ function pinTersimpan(): string {
   }
 }
 
+// Pesan galat yang jelas supaya kamu tahu harus ngapain (bukan sekadar "terjadi kesalahan")
+function pesanGalat(status: number): string {
+  if (status === 413) return "File atau gambarnya terlalu besar untuk dikirim. Coba yang lebih kecil ya.";
+  if (status === 408 || status === 504) return "Server kelamaan merespons. Coba kirim lagi, atau pakai pertanyaan yang lebih singkat.";
+  if (status >= 500) return `Server lagi bermasalah (kode ${status}). Tunggu sebentar lalu coba lagi ya.`;
+  return "";
+}
+
+function galatJson(pesan: string, status: number): Response {
+  return new Response(JSON.stringify({ error: pesan, reply: pesan }), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
 // Semua permintaan ke /api/chat otomatis membawa PIN yang tersimpan (header x-pin).
 // Kalau server membalas 401 dengan perluPin, layar PIN dimunculkan.
 // Dipasang sekali saat halaman dimuat, jadi app/page.tsx tidak perlu diubah.
@@ -36,18 +51,38 @@ if (typeof window !== "undefined") {
         permintaan = asli(input, init);
       }
 
-      return permintaan.then((res) => {
-        if (res.status === 401) {
-          res
-            .clone()
-            .json()
-            .then((d) => {
-              if (d?.perluPin === true) window.dispatchEvent(new Event(PERISTIWA_PIN));
-            })
-            .catch(() => {});
+      return permintaan.then(
+        (res) => {
+          if (res.status === 401) {
+            res
+              .clone()
+              .json()
+              .then((d) => {
+                if (d?.perluPin === true) window.dispatchEvent(new Event(PERISTIWA_PIN));
+              })
+              .catch(() => {});
+          }
+          if (!res.ok && res.status !== 401 && res.status !== 429) {
+            const tipe = res.headers.get("content-type") || "";
+            if (res.status >= 500 || res.status === 413 || res.status === 408 || !tipe.includes("application/json")) {
+              const pesan = pesanGalat(res.status);
+              if (pesan) return galatJson(pesan, res.status);
+            }
+          }
+          return res;
+        },
+        (err: unknown) => {
+          // Dihentikan oleh pengguna: biarkan seperti biasa
+          if ((err as Error)?.name === "AbortError") throw err;
+          const offline = typeof navigator !== "undefined" && navigator.onLine === false;
+          return galatJson(
+            offline
+              ? "Kamu lagi offline. Sambungkan internet lalu kirim lagi ya."
+              : "Koneksi ke server terputus. Cek internetmu lalu kirim lagi ya.",
+            503
+          );
         }
-        return res;
-      });
+      );
     };
   }
 }
