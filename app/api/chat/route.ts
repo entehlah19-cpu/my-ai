@@ -635,6 +635,26 @@ function strimJawaban(prompt: string, mode: "chat" | "kode", sumber: SumberT[], 
 export async function POST(req: NextRequest) {
   try {
     const { userId, message, image, images, document, history, webSearch, link, mode, memories, aksi, pesan, jawaban, sudahAda, obrolanLain, ringkasanAwal, alir, dalam } = await req.json();
+        if (aksi === "ingat" && mode === "judul") {
+      const daftarJudul = await urutanModel(KANDIDAT_TEKS);
+      for (const model of daftarJudul.slice(0, 2)) {
+        try {
+          const mentah = await panggilOllamaModel(
+            model,
+            `Pesan user:\n"""${String(pesan || "").slice(0, 600)}"""\n\nBalasan AI:\n"""${String(jawaban || "").slice(0, 600)}"""`,
+            "Buat judul singkat untuk obrolan ini: maksimal 5 kata, Bahasa Indonesia, tanpa tanda kutip, tanpa titik di akhir. Balas HANYA judulnya.",
+            [],
+            15000,
+            undefined,
+            "low"
+          );
+          return NextResponse.json({ judul: mentah.split("\n")[0].trim().slice(0, 60) });
+        } catch (err) {
+          console.log("Judul gagal:", (err as Error).message);
+        }
+      }
+      return NextResponse.json({ judul: "" });
+    }
 
     // Permintaan khusus: catat fakta baru untuk memori (dipanggil diam-diam oleh halaman chat)
     if (aksi === "ingat") {
