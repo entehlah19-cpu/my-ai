@@ -6,6 +6,7 @@ import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import "katex/dist/katex.min.css";
+import { muatSemua, simpanSemua, bersihkanLama, mintaPermanen, cariIngatan } from "../lib/penyimpanan";
 
 type Sumber = { judul: string; link: string };
 type Message = { role: string; content: string; imagePreviews?: string[]; imagePreview?: string; sumber?: Sumber[] };
@@ -130,7 +131,7 @@ async function mintaJawaban(
 function ringkasObrolanLain(daftar: Conversation[], idAktif: string): string[] {
   return daftar
     .filter((c) => c.id !== idAktif && !c.incognito && c.messages.length > 0)
-    .slice(0, 5)
+    .slice(0, 8)
     .map((c) => {
       const ucapan = c.messages
         .filter((m) => m.role === "user" && m.content)
@@ -139,6 +140,20 @@ function ringkasObrolanLain(daftar: Conversation[], idAktif: string): string[] {
       return `${c.title}: ${ucapan.join(" / ")}`.slice(0, 250);
     })
     .filter((x) => x.length > 5);
+}
+
+// Ingatan lintas obrolan: cari potongan yang paling nyambung dengan pesan baru (maks 8),
+// lalu tambal dengan ringkasan obrolan terbaru kalau hasilnya masih kurang
+function ingatanUntukAI(daftar: Conversation[], idAktif: string, pesanBaru: string): string[] {
+  let hasil: string[] = [];
+  try {
+    hasil = cariIngatan(daftar, idAktif, pesanBaru, 8);
+  } catch {
+    hasil = [];
+  }
+  if (hasil.length >= 4) return hasil.slice(0, 8);
+  const tambal = ringkasObrolanLain(daftar, idAktif).slice(0, 8 - hasil.length);
+  return [...hasil, ...tambal].slice(0, 8);
 }
 
 // Sapaan layar awal: dipilih sesuai jam, lalu berganti-ganti selama obrolan masih kosong
@@ -168,6 +183,7 @@ function kelompokSapaan(jam: number): string[] {
 
 export default function Home() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [siapSimpan, setSiapSimpan] = useState(false);
   const [projects, setProjects] = useState<ProjectT[]>([]);
   const [activeId, setActiveId] = useState<string>("");
   const [input, setInput] = useState("");
@@ -215,23 +231,33 @@ export default function Home() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  // --- Load & save data di localStorage ---
+  // --- Load & save data: obrolan di IndexedDB, sisanya di localStorage ---
   useEffect(() => {
-    let berhasilMuat = false;
-    try {
-      const savedConv = localStorage.getItem("myai-conversations");
-      if (savedConv) {
-        const parsed: Conversation[] = JSON.parse(savedConv);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setConversations(parsed);
-          setActiveId(parsed[0].id);
+    let batal = false;
+    (async () => {
+      let berhasilMuat = false;
+      try {
+        const { daftar, dariLama } = await muatSemua<Conversation>();
+        if (batal) return;
+        if (daftar.length > 0) {
+          setConversations(daftar);
+          setActiveId(daftar[0].id);
           berhasilMuat = true;
+          // Migrasi sekali jalan dari localStorage lama: salinan lama dibuang hanya kalau penyimpanan baru berhasil
+          if (dariLama) {
+            simpanSemua(daftar).then((ok) => {
+              if (ok) bersihkanLama();
+            });
+          }
         }
+      } catch {
+        // data rusak: mulai dari obrolan kosong
       }
-    } catch {
-      // data rusak: mulai dari obrolan kosong
-    }
-    if (!berhasilMuat) buatObrolanBaru();
+      if (batal) return;
+      if (!berhasilMuat) buatObrolanBaru();
+      setSiapSimpan(true);
+    })();
+    mintaPermanen();
     try {
       const savedProj = localStorage.getItem("myai-projects");
       if (savedProj) setProjects(JSON.parse(savedProj));
@@ -244,25 +270,34 @@ export default function Home() {
       }
       if (localStorage.getItem("myai-memori-aktif") === "0") setMemoriAktif(false);
     } catch {}
+    return () => {
+      batal = true;
+    };
   }, []);
 
   useEffect(() => {
-    const penunda = setTimeout(() => {
-    try {
-      localStorage.setItem("myai-conversations", JSON.stringify(conversations.filter((c) => !c.incognito)));
-    } catch {
-      // Penyimpanan browser penuh: simpan tanpa gambar supaya aplikasi tidak crash
+    // Jangan menyimpan sebelum data lama selesai dimuat, supaya obrolan tidak terhapus
+    if (!siapSimpan) return;
+    const penunda = setTimeout(async () => {
+      const daftar = conversations.filter((c) => !c.incognito);
+      const ok = await simpanSemua(daftar);
+      if (ok) return;
+      // IndexedDB gagal: simpan ke localStorage seperti dulu
       try {
-        const tanpaGambar = conversations.filter((c) => !c.incognito).map((c) => ({
-          ...c,
-          messages: c.messages.map((m) => ({ ...m, imagePreviews: undefined, imagePreview: undefined })),
-        }));
-        localStorage.setItem("myai-conversations", JSON.stringify(tanpaGambar));
-      } catch {}
-    }
+        localStorage.setItem("myai-conversations", JSON.stringify(daftar));
+      } catch {
+        // Penyimpanan browser penuh: simpan tanpa gambar supaya aplikasi tidak crash
+        try {
+          const tanpaGambar = daftar.map((c) => ({
+            ...c,
+            messages: c.messages.map((m) => ({ ...m, imagePreviews: undefined, imagePreview: undefined })),
+          }));
+          localStorage.setItem("myai-conversations", JSON.stringify(tanpaGambar));
+        } catch {}
+      }
     }, 250);
     return () => clearTimeout(penunda);
-  }, [conversations]);
+  }, [conversations, siapSimpan]);
 
   useEffect(() => {
     try {
@@ -466,7 +501,7 @@ export default function Home() {
     setOpenMenuId(null);
   };
 
-   const eksporObrolan = async () => {
+  const eksporObrolan = async () => {
     if (!activeConversation) return;
     const { menuEkspor } = await import("../lib/ekspor");
     menuEkspor(activeConversation.title || "obrolan", activeConversation.messages);
@@ -732,6 +767,9 @@ export default function Home() {
     a.download = `cadangan-my-ai-${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
+    try {
+      localStorage.setItem("myai-cadangan-terakhir", String(Date.now()));
+    } catch {}
     setShowHeaderMenu(false);
   };
 
@@ -799,6 +837,30 @@ export default function Home() {
     }
   };
 
+  // Judul otomatis: setelah jawaban pertama selesai, minta AI membuat judul pendek.
+  // Hanya mengganti judul kalau belum diganti manual (masih sama dengan potongan pesan awal).
+  const buatJudulOtomatis = async (convId: string, judulAwal: string, pesan: string, jawaban: string) => {
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ aksi: "ingat", mode: "judul", pesan: pesan.slice(0, 600), jawaban: jawaban.slice(0, 600) }),
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      const judul = String(data?.judul || "")
+        .replace(/["“”'`*#]/g, "")
+        .replace(/[.。]+$/, "")
+        .replace(/\s+/g, " ")
+        .trim()
+        .slice(0, 40);
+      if (judul.length < 3) return;
+      setConversations((prev) => prev.map((c) => (c.id === convId && c.title === judulAwal ? { ...c, title: judul } : c)));
+    } catch {
+      // judul gagal dibuat: pakai potongan pesan saja
+    }
+  };
+
   // --- Kirim pesan ---
   // Buat ulang jawaban terakhir (hanya untuk pesan teks biasa)
   const ulangiJawaban = async () => {
@@ -818,7 +880,7 @@ export default function Home() {
       .slice(-10)
       .map((m) => m.content.replace(/\s+/g, " ").slice(0, 100));
     const memoriUntukAI = memoriAktif && !conv.incognito ? memories.slice(-40).map((m) => m.teks) : [];
-    const obrolanLainUntukAI = memoriAktif && !conv.incognito ? ringkasObrolanLain(conversations, convId) : [];
+    const obrolanLainUntukAI = memoriAktif && !conv.incognito ? ingatanUntukAI(conversations, convId, teksUser) : [];
 
     setConversations((prev) => prev.map((c) => (c.id === convId ? { ...c, messages: c.messages.slice(0, -1) } : c)));
     setLoadingIds((prev) => [...prev, convId]);
@@ -913,7 +975,7 @@ export default function Home() {
     const teksInput = input;
     const incognito = !!conversations.find((c) => c.id === convId)?.incognito;
     const memoriUntukAI = memoriAktif && !incognito ? memories.slice(-40).map((m) => m.teks) : [];
-    const obrolanLainUntukAI = memoriAktif && !incognito ? ringkasObrolanLain(conversations, convId) : [];
+    const obrolanLainUntukAI = memoriAktif && !incognito ? ingatanUntukAI(conversations, convId, teksInput) : [];
 
     // Perintah "ingat ..." langsung disimpan ke memori
     const perintahIngat = /^\s*(tolong\s+)?ingat(kan)?(\s+ya|\s+bahwa)?[\s:,]+(.{6,})/i.exec(teksInput);
@@ -941,6 +1003,10 @@ export default function Home() {
       imagePreviews: gambarUntukDikirim.length > 0 ? gambarUntukDikirim.map((g) => g.preview) : undefined,
     };
 
+    // Judul awal dari potongan pesan; nanti diganti judul AI kalau belum diubah manual
+    const judulAwal = (teksInput || dokUntukDikirim?.name || linkUntukDikirim || "Gambar").slice(0, 30);
+    const pesanPertama = semuaPesan.length === 0;
+
     setInput("");
     setShowEmojiPicker(false);
     fokusInput();
@@ -956,7 +1022,7 @@ export default function Home() {
         c.id === convId
           ? {
               ...c,
-              title: c.messages.length === 0 && !c.incognito ? (teksInput || dokUntukDikirim?.name || linkUntukDikirim || "Gambar").slice(0, 30) : c.title,
+              title: c.messages.length === 0 && !c.incognito ? judulAwal : c.title,
               messages: [...c.messages, pesanUser],
             }
           : c
@@ -1041,6 +1107,20 @@ export default function Home() {
       if (kodeTerbuka(teksAkhir)) {
         teksAkhir += "\n```\n\n_Kode terpotong di sini karena batas panjang. Minta bagian berikutnya sebagai file terpisah ya._";
         tulis(teksAkhir);
+      }
+
+      // Judul otomatis (diam-diam): hanya setelah jawaban pertama, bukan incognito, pesan teks biasa
+      if (
+        pesanPertama &&
+        !incognito &&
+        !dokUntukDikirim &&
+        !linkUntukDikirim &&
+        gambarUntukDikirim.length === 0 &&
+        teksInput.trim() &&
+        teksAkhir &&
+        !/^Maaf, /.test(teksAkhir.trim())
+      ) {
+        buatJudulOtomatis(convId, judulAwal, teksInput, teksAkhir);
       }
 
       // Catat hal penting dari obrolan ini ke memori (diam-diam, tidak menghalangi jawaban)
@@ -1728,7 +1808,7 @@ export default function Home() {
                   </button>
                   <button className="conv-menu-item" onClick={buatObrolanIncognito}><IconIncognito /> Obrolan incognito</button>
                   <button className="conv-menu-item" onClick={() => { gantiNamaObrolan(activeConversation.id); setShowHeaderMenu(false); }}><IconEdit /> Ganti nama</button>
-                                    <button className="conv-menu-item" onClick={() => {
+                  <button className="conv-menu-item" onClick={() => {
                     setShowHeaderMenu(false);
                     if (!activeConversation || loading) return;
                     const pesanChat = activeConversation.messages;
