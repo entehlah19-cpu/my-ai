@@ -635,7 +635,7 @@ function strimJawaban(prompt: string, mode: "chat" | "kode", sumber: SumberT[], 
 export async function POST(req: NextRequest) {
   try {
     const { userId, message, image, images, document, history, webSearch, link, mode, memories, aksi, pesan, jawaban, sudahAda, obrolanLain, ringkasanAwal, alir, dalam } = await req.json();
-        if (aksi === "ingat" && mode === "judul") {
+    if (aksi === "ingat" && mode === "judul") {
       const daftarJudul = await urutanModel(KANDIDAT_TEKS);
       for (const model of daftarJudul.slice(0, 2)) {
         try {
@@ -716,9 +716,9 @@ export async function POST(req: NextRequest) {
     const daftarObrolanLain: string[] = Array.isArray(obrolanLain)
       ? obrolanLain
           .filter((x: unknown): x is string => typeof x === "string")
-          .map((x) => x.trim().slice(0, 260))
+          .map((x) => x.trim().slice(0, 400))
           .filter(Boolean)
-          .slice(0, 5)
+          .slice(0, 8)
       : [];
     const obrolanLainBlock = daftarObrolanLain.length ? daftarObrolanLain.map((f) => `- ${f}`).join("\n") : "(tidak ada)";
 
