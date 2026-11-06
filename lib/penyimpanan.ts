@@ -152,7 +152,7 @@ function pecahKata(teks: string): string[] {
 
 // Mencari potongan obrolan lama (obrolan lain, bukan incognito) yang paling nyambung dengan pesan baru.
 // Hasilnya berupa daftar kalimat singkat siap kirim ke server (field obrolanLain).
-export function cariIngatan(daftar: ObrolanMin[], idAktif: string, pesanBaru: string, maks = 5): string[] {
+export function cariIngatan(daftar: ObrolanMin[], idAktif: string, pesanBaru: string, maks = 8): string[] {
   const kataCari = Array.from(new Set(pecahKata(pesanBaru.slice(0, 400))));
   if (kataCari.length === 0) return [];
 
@@ -209,12 +209,12 @@ export function cariIngatan(daftar: ObrolanMin[], idAktif: string, pesanBaru: st
         break;
       }
     }
-    const mulai = Math.max(0, posisi - 60);
-    const potong = x.teks.slice(mulai, mulai + 190);
+    const mulai = Math.max(0, posisi - 100);
+    const potong = x.teks.slice(mulai, mulai + 300);
     if (dipakai.has(potong)) continue;
     dipakai.add(potong);
     const judul = x.judul.slice(0, 24);
-    hasil.push(`${judul} (${x.peran === "user" ? "kamu" : "My AI"}): ${potong}`.slice(0, 260));
+    hasil.push(`${judul} (${x.peran === "user" ? "kamu" : "My AI"}): ${potong}`.slice(0, 400));
   }
   return hasil;
 }
