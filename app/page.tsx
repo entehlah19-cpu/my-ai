@@ -3342,6 +3342,144 @@ function KartuKuis({ kuis }: { kuis: { judul: string; soal: SoalKuis[] } }) {
   );
 }
 
+// ---- Panduan langkah: tiap langkah punya gambar kecil di kiri dan penjelasan di kanan ----
+type LangkahT = { judul: string; teks: string; gambar: string };
+
+function bacaLangkah(data: any): { judul: string; langkah: LangkahT[] } | null {
+  const mentah: any[] = Array.isArray(data?.langkah) ? data.langkah : [];
+  const langkah: LangkahT[] = mentah
+    .slice(0, 6)
+    .map((s: any) => ({
+      judul: typeof s?.judul === "string" ? s.judul.slice(0, 100) : "",
+      teks: typeof s?.teks === "string" ? s.teks.slice(0, 500) : "",
+      gambar: typeof s?.gambar === "string" ? s.gambar.trim().slice(0, 100) : "",
+    }))
+    .filter((s: LangkahT) => s.judul || s.teks);
+  if (langkah.length === 0) return null;
+  return { judul: typeof data?.judul === "string" ? data.judul.slice(0, 100) : "", langkah };
+}
+
+function GambarLangkah({ query }: { query: string }) {
+  const kunci = `myai-foto:${query.toLowerCase()}`;
+  const [foto, setFoto] = useState<Foto[] | null>(null);
+  const [status, setStatus] = useState<"memuat" | "siap" | "gagal">(query ? "memuat" : "gagal");
+  const [terbuka, setTerbuka] = useState(false);
+
+  useEffect(() => {
+    if (!query) {
+      setStatus("gagal");
+      return;
+    }
+    let batal = false;
+    try {
+      const simpan = localStorage.getItem(kunci);
+      if (simpan) {
+        const d = JSON.parse(simpan);
+        if (Array.isArray(d) && d.length > 0) {
+          setFoto(d);
+          setStatus("siap");
+          return;
+        }
+      }
+    } catch {}
+    (async () => {
+      try {
+        const res = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ aksi: "foto", pesan: query }),
+        });
+        const data = await res.json();
+        if (batal) return;
+        if (!res.ok || !Array.isArray(data?.foto) || data.foto.length === 0) {
+          setStatus("gagal");
+          return;
+        }
+        setFoto(data.foto);
+        setStatus("siap");
+        try {
+          localStorage.setItem(kunci, JSON.stringify(data.foto));
+        } catch {}
+      } catch {
+        if (!batal) setStatus("gagal");
+      }
+    })();
+    return () => {
+      batal = true;
+    };
+  }, [kunci, query]);
+
+  const kotak: CSSProperties = {
+    width: 112, height: 112, borderRadius: 16, flexShrink: 0, overflow: "hidden",
+    background: "var(--n1a1a1a)", display: "flex", alignItems: "center", justifyContent: "center",
+  };
+
+  if (status !== "siap" || !foto) {
+    return (
+      <div style={{ ...kotak, color: "var(--n666666)", fontSize: 12 }}>
+        {status === "memuat" ? "Memuat..." : <IconImage />}
+      </div>
+    );
+  }
+
+  const f = foto[0];
+  return (
+    <>
+      <button onClick={() => setTerbuka(true)} style={{ ...kotak, padding: 0, border: "none", cursor: "pointer" }}>
+        <img src={f.kecil} alt={f.judul} referrerPolicy="no-referrer" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+      </button>
+      {terbuka && (
+        <div
+          className="selalu-gelap"
+          onClick={() => setTerbuka(false)}
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.9)", zIndex: 400, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 16, gap: 12 }}
+        >
+          <img
+            src={f.besar}
+            alt={f.judul}
+            referrerPolicy="no-referrer"
+            onClick={(e) => e.stopPropagation()}
+            onError={(e) => {
+              const el = e.currentTarget;
+              if (el.dataset.cadangan !== "1") {
+                el.dataset.cadangan = "1";
+                el.src = f.kecil;
+              }
+            }}
+            style={{ maxWidth: "92vw", maxHeight: "72vh", objectFit: "contain", borderRadius: 10 }}
+          />
+          {f.link && (
+            <a href={f.link} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} style={{ color: "var(--aksen)", fontSize: 13 }}>
+              Buka sumber{f.sumber ? ` (${f.sumber})` : ""}
+            </a>
+          )}
+          <button className="sidebar-btn" onClick={() => setTerbuka(false)}>Tutup</button>
+        </div>
+      )}
+    </>
+  );
+}
+
+function KartuLangkah({ data }: { data: { judul: string; langkah: LangkahT[] } }) {
+  return (
+    <div style={{ margin: "14px 0" }}>
+      {data.judul && <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>{data.judul}</div>}
+      {data.langkah.map((s, i) => (
+        <div
+          key={i}
+          style={{ display: "flex", gap: 14, alignItems: "flex-start", padding: "14px 0", borderTop: i === 0 ? "none" : "1px solid var(--n2a2a2a)" }}
+        >
+          <GambarLangkah query={s.gambar} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontWeight: 700, fontSize: 16.5, lineHeight: 1.4 }}>{s.judul}</div>
+            {s.teks && <div style={{ color: "var(--ncfcfcf)", fontSize: 15, lineHeight: 1.55, marginTop: 4 }}>{s.teks}</div>}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 const komponenMarkdown: any = {
   pre: ({ children }: any) => <>{children}</>,
   a: ({ href, children }: any) => (
@@ -3367,6 +3505,14 @@ const komponenMarkdown: any = {
         }
       } catch {
         // JSON belum valid: tampilkan sebagai blok kode biasa
+      }
+    }
+    if (bahasa === "langkah") {
+      try {
+        const d = bacaLangkah(JSON.parse(teks));
+        if (d) return <KartuLangkah data={d} />;
+      } catch {
+        // JSON belum lengkap (masih mengalir): tampilkan sebagai blok kode biasa
       }
     }
     if (bahasa === "animasi") {
