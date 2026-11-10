@@ -21,14 +21,12 @@ type PendingDoc =
   | { name: string; kind: "binary"; mimeType: string; data: string };
 
 const MAX_IMAGE_SIZE_MB = 15;
-// Kalau sudah punya logo sendiri: taruh di folder public/logo.png lalu isi "/logo.png"
 const LOGO_SRC = "";
 const MAX_DOC_SIZE_MB = 3;
 const DOC_MIME_PDF = "application/pdf";
 const DOC_MIME_DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 const EKSTENSI_TEKS = [".txt", ".md", ".csv", ".json", ".log"];
 
-// Pencarian web selalu aktif, tapi dilewati untuk sapaan dan pesan pendek
 const SAPAAN = /^(hai|halo|hallo|hello|hi|hey|p|pagi|siang|sore|malam|assalamualaikum|apa kabar|terima kasih|makasih|thanks|ok|oke|sip|ya|iya|tes|test)\b[\s!.?,]*$/i;
 const KATA_BUTUH_INFO = /(cari|carikan|berita|terbaru|terkini|hari ini|kemarin|besok|harga|cuaca|skor|jadwal|rilis|update|kapan|siapa (presiden|menteri|ceo|juara|pemenang)|tahun 20\d\d)/i;
 const KATA_NGOBROL = /\b(kamu|lu|lo|loe|elu|kau|anda|my ai|bot)\b|wk(wk)+|haha|hehe|lol|bosen|capek|cape\b|curhat/i;
@@ -41,7 +39,6 @@ function perluCariWeb(teks: string): boolean {
   return true;
 }
 
-// ---- Jawaban mengalir dan sambungan otomatis untuk kode panjang ----
 const PEMISAH = "\u001e";
 
 function kodeTerbuka(t: string): boolean {
@@ -1671,7 +1668,12 @@ export default function Home() {
                 }}
               >
                 <span className="conv-title" onClick={() => pilihObrolan(c.id)} style={{ color: c.id === activeId ? "var(--aksen)" : "var(--ncccccc)" }}>
-                  {c.incognito && "🕶️ "}{c.pinned && "📌 "}{c.title || "Obrolan Baru"}
+                  {c.incognito && (
+                    <span style={{ display: "inline-flex", alignItems: "center", verticalAlign: "middle", marginRight: 6, color: c.id === activeId ? "#ff9d4d" : "#999" }}>
+                      <IconIncognito />
+                    </span>
+                  )}
+                  {c.pinned && "📌 "}{c.title || "Obrolan Baru"}
                 </span>
                 <div className="conv-menu-wrap">
                   <button className="conv-delete-btn" onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === c.id ? null : c.id); }}>
@@ -3103,6 +3105,7 @@ function TeksSoal({ teks }: { teks: string }) {
 
 type SoalKuis = { kategori: string; tanya: string; pilihan: string[]; jawaban: number; penjelasan: string };
 
+// ✅ FIX: parser kuis robust — terima "1", 1, "A", field bahasa Inggris, dll
 function bacaKuis(data: any): { judul: string; soal: SoalKuis[] } | null {
   const ambilPilihan = (s: any): string[] => {
     const raw = s?.pilihan ?? s?.options ?? s?.choices;
@@ -3148,7 +3151,7 @@ function bacaKuis(data: any): { judul: string; soal: SoalKuis[] } | null {
   if (soal.length === 0) return null;
   const judul = typeof data?.judul === "string" ? data.judul.slice(0, 60) : typeof data?.title === "string" ? data.title.slice(0, 60) : "Kuis";
   return { judul, soal };
-          }
+}
 
 function KartuKuis({ kuis }: { kuis: { judul: string; soal: SoalKuis[] } }) {
   const [no, setNo] = useState(0);
@@ -3678,7 +3681,8 @@ function IconBulan() {
     </svg>
   );
 }
-function IconIncognito() {
+
+// ✅ FIX: Icon incognito modern (siluet + garis miring, gaya Linear/Vercel)
 function IconIncognito() {
   return (
     <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ display: "block" }}>
@@ -3705,4 +3709,4 @@ function IconChevron() {
       <path d="M9 6l6 6-6 6" />
     </svg>
   );
-                               }
+}
