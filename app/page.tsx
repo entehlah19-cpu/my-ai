@@ -37,7 +37,6 @@ function perluCariWeb(teks: string): boolean {
   if (baris.length < 12) return false;
   if (SAPAAN.test(baris)) return false;
   if (/https?:\/\//i.test(baris)) return false;
-  // Obrolan santai atau pertanyaan tentang si AI sendiri tidak perlu cari di web
   if (KATA_NGOBROL.test(baris) && !KATA_BUTUH_INFO.test(baris)) return false;
   return true;
 }
@@ -103,7 +102,6 @@ async function mintaJawaban(
       if (done) break;
       buf += dec.decode(value, { stream: true });
       const kini = Date.now();
-      // Makin panjang teksnya, makin jarang layar diperbarui supaya tidak berat
       if (kini - terakhir > (buf.length > 30000 ? 800 : 200)) {
         terakhir = kini;
         saatTeks(buf.split(PEMISAH)[0]);
@@ -127,7 +125,6 @@ async function mintaJawaban(
   return { teks, sumber: bersihkanSumber(data?.sumber), terpotong: false };
 }
 
-// Potongan singkat dari obrolan lain (bukan incognito) untuk dikirim sebagai konteks
 function ringkasObrolanLain(daftar: Conversation[], idAktif: string): string[] {
   return daftar
     .filter((c) => c.id !== idAktif && !c.incognito && c.messages.length > 0)
@@ -142,8 +139,6 @@ function ringkasObrolanLain(daftar: Conversation[], idAktif: string): string[] {
     .filter((x) => x.length > 5);
 }
 
-// Ingatan lintas obrolan: cari potongan yang paling nyambung dengan pesan baru (maks 8),
-// lalu tambal dengan ringkasan obrolan terbaru kalau hasilnya masih kurang
 function ingatanUntukAI(daftar: Conversation[], idAktif: string, pesanBaru: string): string[] {
   let hasil: string[] = [];
   try {
@@ -156,7 +151,6 @@ function ingatanUntukAI(daftar: Conversation[], idAktif: string, pesanBaru: stri
   return [...hasil, ...tambal].slice(0, 8);
 }
 
-// Sapaan layar awal: dipilih sesuai jam, lalu berganti-ganti selama obrolan masih kosong
 const SAPAAN_WAKTU: Record<string, string[]> = {
   larut: ["Masih melek, bro?", "Begadang lagi nih?", "Jam segini lagi mikirin apa?", "Insom ya? Cerita aja.", "Malam-malam gini ada ide apa?"],
   pagi: ["Pagi! Mau ngerjain apa?", "Semangat pagi! Mulai dari mana?", "Pagi, udah sarapan belum?", "Hari baru, ide baru. Apa nih?", "Pagi, lagi mikirin apa?"],
@@ -231,7 +225,6 @@ export default function Home() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  // --- Load & save data: obrolan di IndexedDB, sisanya di localStorage ---
   useEffect(() => {
     let batal = false;
     (async () => {
@@ -243,16 +236,13 @@ export default function Home() {
           setConversations(daftar);
           setActiveId(daftar[0].id);
           berhasilMuat = true;
-          // Migrasi sekali jalan dari localStorage lama: salinan lama dibuang hanya kalau penyimpanan baru berhasil
           if (dariLama) {
             simpanSemua(daftar).then((ok) => {
               if (ok) bersihkanLama();
             });
           }
         }
-      } catch {
-        // data rusak: mulai dari obrolan kosong
-      }
+      } catch {}
       if (batal) return;
       if (!berhasilMuat) buatObrolanBaru();
       setSiapSimpan(true);
@@ -276,17 +266,14 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    // Jangan menyimpan sebelum data lama selesai dimuat, supaya obrolan tidak terhapus
     if (!siapSimpan) return;
     const penunda = setTimeout(async () => {
       const daftar = conversations.filter((c) => !c.incognito);
       const ok = await simpanSemua(daftar);
       if (ok) return;
-      // IndexedDB gagal: simpan ke localStorage seperti dulu
       try {
         localStorage.setItem("myai-conversations", JSON.stringify(daftar));
       } catch {
-        // Penyimpanan browser penuh: simpan tanpa gambar supaya aplikasi tidak crash
         try {
           const tanpaGambar = daftar.map((c) => ({
             ...c,
@@ -320,11 +307,10 @@ export default function Home() {
   useEffect(() => {
     const el = listRef.current;
     const dekat = !el || el.scrollHeight - el.scrollTop - el.clientHeight < 220;
-    if (loading && !dekat) return; // lagi baca ke atas saat jawaban mengalir: jangan ditarik ke bawah
+    if (loading && !dekat) return;
     bottomRef.current?.scrollIntoView({ behavior: loading ? "auto" : "smooth" });
   }, [conversations, activeId]);
 
-  // Kolom ketik tumbuh ke bawah mengikuti isi (maksimal 200px, lalu bisa digulir)
   useEffect(() => {
     const el = inputRef.current;
     if (!el) return;
@@ -332,7 +318,6 @@ export default function Home() {
     el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
   }, [input, activeId]);
 
-  // Kolom ketik langsung aktif (laptop): saat dibuka, ganti obrolan, dan setelah jawaban selesai
   const fokusInput = () => {
     if (typeof window === "undefined" || window.matchMedia("(pointer: coarse)").matches) return;
     inputRef.current?.focus();
@@ -349,7 +334,6 @@ export default function Home() {
     if (!aktif || aktif === document.body) fokusInput();
   }, [loading]);
 
-  // Kamera laptop: buka webcam saat modal tampil, matikan saat ditutup
   useEffect(() => {
     if (!showWebcam) return;
     let stream: MediaStream | null = null;
@@ -377,11 +361,9 @@ export default function Home() {
     };
   }, [showWebcam]);
 
-  // Tutup popup (emoji, menu titik-tiga, menu header) otomatis kalau klik di luar area-nya
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
-
       if (showEmojiPicker && emojiWrapRef.current && !emojiWrapRef.current.contains(target)) {
         setShowEmojiPicker(false);
       }
@@ -439,7 +421,6 @@ export default function Home() {
   const activeConversation = conversations.find((c) => c.id === activeId);
   const kosong = (activeConversation?.messages.length ?? 0) === 0;
 
-  // Sapaan di layar awal: dipilih acak sesuai jam, lalu berganti tiap beberapa detik (berhenti saat kamu mulai mengetik)
   const sedangMengetik = input.length > 0;
   useEffect(() => {
     if (!kosong || sedangMengetik) return;
@@ -463,7 +444,6 @@ export default function Home() {
     return () => clearInterval(t);
   }, [activeId, kosong, sedangMengetik]);
 
-  // --- Obrolan ---
   const buatObrolanBaru = () => {
     const id = Date.now().toString();
     const baru: Conversation = { id, title: "Obrolan Baru", messages: [] };
@@ -472,7 +452,6 @@ export default function Home() {
     setSidebarOpen(false);
   };
 
-  // Obrolan incognito: tidak disimpan di browser, tidak memakai dan tidak menambah memori
   const buatObrolanIncognito = () => {
     const id = `inc-${Date.now()}`;
     const baru: Conversation = { id, title: "Obrolan incognito", messages: [], incognito: true };
@@ -507,7 +486,6 @@ export default function Home() {
     menuEkspor(activeConversation.title || "obrolan", activeConversation.messages);
   };
 
-  // Bagikan isi obrolan lewat menu share bawaan HP/laptop (tanpa link publik, tanpa server)
   const bagikanObrolan = async () => {
     if (!activeConversation || activeConversation.messages.length === 0) {
       alert("Belum ada isi obrolan untuk dibagikan.");
@@ -522,7 +500,7 @@ export default function Home() {
         await navigator.share({ title: judul, text: isi });
         return;
       } catch (err) {
-        if ((err as Error).name === "AbortError") return; // user menutup menu share
+        if ((err as Error).name === "AbortError") return;
       }
     }
     try {
@@ -566,7 +544,6 @@ export default function Home() {
     setConfirmDeleteId(null);
   };
 
-  // --- Proyek ---
   const buatProyekBaru = () => {
     const nama = newProjectName.trim();
     if (!nama) return;
@@ -591,7 +568,6 @@ export default function Home() {
     setCollapsedProjects((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
-  // --- Upload gambar ---
   const handleFilesPicked = (fileList: FileList | File[]) => {
     const files = Array.from(fileList);
     const sisaSlot = MAX_IMAGES - pendingImages.length;
@@ -615,8 +591,8 @@ export default function Home() {
       }
       muatGambar(file)
         .then((img) => {
-          const kirim = gambarKeJpeg(img, 1600, 0.85); // dikirim ke AI (sekitar 300-600KB)
-          const mini = gambarKeJpeg(img, 240, 0.7); // disimpan di riwayat (sekitar 10-20KB)
+          const kirim = gambarKeJpeg(img, 1600, 0.85);
+          const mini = gambarKeJpeg(img, 240, 0.7);
           setPendingImages((prev) =>
             prev.length >= MAX_IMAGES
               ? prev
@@ -632,7 +608,6 @@ export default function Home() {
     setPendingImages((prev) => prev.filter((_, i) => i !== index));
   };
 
-  // --- Kamera: HP pakai kamera bawaan, laptop pakai webcam lewat jendela kecil ---
   const bukaKamera = () => {
     if (pendingImages.length >= MAX_IMAGES) {
       alert(`Maksimal ${MAX_IMAGES} gambar per pesan.`);
@@ -666,7 +641,6 @@ export default function Home() {
     );
   };
 
-  // --- Upload dokumen (teks langsung dibaca, .pdf/.docx dikirim ke server) ---
   const handleDocPicked = (file: File) => {
     const namaLower = file.name.toLowerCase();
     const isTeks = EKSTENSI_TEKS.some((e) => namaLower.endsWith(e));
@@ -757,7 +731,6 @@ export default function Home() {
     setShowLinkSheet(false);
   };
 
-  // --- Cadangkan & pulihkan riwayat (tanpa akun) ---
   const eksporRiwayat = () => {
     const isi = JSON.stringify({ versi: 1, dibuat: new Date().toISOString(), conversations: conversations.filter((c) => !c.incognito), projects, memories }, null, 2);
     const blob = new Blob([isi], { type: "application/json" });
@@ -812,7 +785,6 @@ export default function Home() {
     setShowHeaderMenu(false);
   };
 
-  // --- Memori lintas obrolan (disimpan di browser) ---
   const hapusMemori = (id: string) => setMemories((prev) => prev.filter((m) => m.id !== id));
 
   const ingatDariObrolan = async (pesan: string, jawaban: string, sudahAda: string[]) => {
@@ -832,13 +804,9 @@ export default function Home() {
           .map((f, i) => ({ id: `${Date.now()}-${i}`, teks: f }));
         return [...prev, ...tambahan].slice(-60);
       });
-    } catch {
-      // memori gagal dicatat: abaikan saja, obrolan tetap jalan
-    }
+    } catch {}
   };
 
-  // Judul otomatis: setelah jawaban pertama selesai, minta AI membuat judul pendek.
-  // Hanya mengganti judul kalau belum diganti manual (masih sama dengan potongan pesan awal).
   const buatJudulOtomatis = async (convId: string, judulAwal: string, pesan: string, jawaban: string) => {
     try {
       const res = await fetch("/api/chat", {
@@ -856,13 +824,9 @@ export default function Home() {
         .slice(0, 40);
       if (judul.length < 3) return;
       setConversations((prev) => prev.map((c) => (c.id === convId && c.title === judulAwal ? { ...c, title: judul } : c)));
-    } catch {
-      // judul gagal dibuat: pakai potongan pesan saja
-    }
+    } catch {}
   };
 
-  // --- Kirim pesan ---
-  // Buat ulang jawaban terakhir (hanya untuk pesan teks biasa)
   const ulangiJawaban = async () => {
     const convId = activeId;
     const conv = conversations.find((c) => c.id === convId);
@@ -887,7 +851,6 @@ export default function Home() {
     const ctrl = new AbortController();
     abortRef.current[convId] = ctrl;
 
-    // Jawaban baru dibuat sebagai satu pesan, lalu diisi pelan-pelan
     let sudahAda = false;
     const tulis = (teks: string, sumber?: Sumber[]) => {
       const ada = sudahAda;
@@ -956,11 +919,8 @@ export default function Home() {
 
   const kirimPesan = async () => {
     if ((!input.trim() && pendingImages.length === 0 && !pendingDoc && !pendingLink) || !activeId) return;
-    // Jangan kirim lagi kalau obrolan ini masih menunggu jawaban
     if (loadingIds.includes(activeId)) return;
 
-    // Simpan ID obrolan SAAT pesan dikirim, supaya jawaban masuk ke obrolan yang benar
-    // walaupun user pindah ke obrolan lain selagi menunggu
     const convId = activeId;
     const semuaPesan = conversations.find((c) => c.id === convId)?.messages || [];
     const riwayatUntukAI = semuaPesan
@@ -977,7 +937,6 @@ export default function Home() {
     const memoriUntukAI = memoriAktif && !incognito ? memories.slice(-40).map((m) => m.teks) : [];
     const obrolanLainUntukAI = memoriAktif && !incognito ? ingatanUntukAI(conversations, convId, teksInput) : [];
 
-    // Perintah "ingat ..." langsung disimpan ke memori
     const perintahIngat = /^\s*(tolong\s+)?ingat(kan)?(\s+ya|\s+bahwa)?[\s:,]+(.{6,})/i.exec(teksInput);
     if (perintahIngat && memoriAktif && !incognito) {
       const isi = perintahIngat[4].trim().slice(0, 170);
@@ -987,7 +946,6 @@ export default function Home() {
     const dokUntukDikirim = pendingDoc;
     const linkUntukDikirim = pendingLink;
 
-    // Cari di web otomatis, kecuali sapaan/pesan pendek, atau saat ada file atau link
     const cariWebSekarang = perluCariWeb(teksInput) && !dokUntukDikirim && !linkUntukDikirim;
 
     const pesanUntukAI =
@@ -1003,7 +961,6 @@ export default function Home() {
       imagePreviews: gambarUntukDikirim.length > 0 ? gambarUntukDikirim.map((g) => g.preview) : undefined,
     };
 
-    // Judul awal dari potongan pesan; nanti diganti judul AI kalau belum diubah manual
     const judulAwal = (teksInput || dokUntukDikirim?.name || linkUntukDikirim || "Gambar").slice(0, 30);
     const pesanPertama = semuaPesan.length === 0;
 
@@ -1029,7 +986,6 @@ export default function Home() {
       )
     );
 
-    // Jawaban dibuat sebagai satu pesan, lalu diisi pelan-pelan saat teks mengalir
     let sudahAda = false;
     let teksTerakhir = "";
     const tulis = (teks: string, sumber?: Sumber[]) => {
@@ -1074,7 +1030,6 @@ export default function Home() {
       let teksAkhir = hasil.teks;
       tulis(teksAkhir, hasil.sumber);
 
-      // Kode terpotong oleh batas panjang: sambung otomatis (maksimal 10 bagian)
       let bagian = 1;
       while (modeKode && kodeTerbuka(teksAkhir) && bagian < 10 && !ctrl.signal.aborted) {
         bagian += 1;
@@ -1103,13 +1058,11 @@ export default function Home() {
       }
       setBagianKode(0);
 
-      // Masih terpotong setelah semua bagian: tutup blok kode dan beri catatan
       if (kodeTerbuka(teksAkhir)) {
         teksAkhir += "\n```\n\n_Kode terpotong di sini karena batas panjang. Minta bagian berikutnya sebagai file terpisah ya._";
         tulis(teksAkhir);
       }
 
-      // Judul otomatis (diam-diam): hanya setelah jawaban pertama, bukan incognito, pesan teks biasa
       if (
         pesanPertama &&
         !incognito &&
@@ -1123,7 +1076,6 @@ export default function Home() {
         buatJudulOtomatis(convId, judulAwal, teksInput, teksAkhir);
       }
 
-      // Catat hal penting dari obrolan ini ke memori (diam-diam, tidak menghalangi jawaban)
       if (memoriAktif && !incognito && !modeKode && teksInput.trim().length >= 20 && teksAkhir) {
         ingatDariObrolan(teksInput, teksAkhir, memories.map((m) => m.teks));
       }
@@ -1131,7 +1083,6 @@ export default function Home() {
       setBagianKode(0);
       const henti = (err as Error).name === "AbortError";
       if (sudahAda) {
-        // Jawaban sebagian sudah tampil: biarkan, cukup tambah keterangan
         const tutup = kodeTerbuka(teksTerakhir) ? "\n```" : "";
         const catatan = henti ? "\n\n_Dihentikan._" : "\n\n_Koneksi terputus. Coba kirim lagi ya._";
         setConversations((prev) =>
@@ -1158,7 +1109,6 @@ export default function Home() {
     }
   };
 
-  // --- Tulisan status AI sesuai yang sedang dikerjakan ---
   const pesanTerakhirUser = [...(activeConversation?.messages || [])].reverse().find((m) => m.role === "user");
   const frasaStatus: string[] = [
     ...(pikirDalam ? ["Berpikir dalam"] : []),
@@ -1173,7 +1123,6 @@ export default function Home() {
     "Menulis",
   ];
 
-  // --- Filter berdasarkan pencarian, lalu urutkan: yang disematkan dulu ---
   const cocokPencarian = (c: Conversation) => c.title.toLowerCase().includes(searchQuery.toLowerCase());
   const urutkanPinned = (list: Conversation[]) =>
     [...list].sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0));
@@ -1262,7 +1211,6 @@ export default function Home() {
           --n2a1515: #ffe0e0;
           --n2a1a05: #ffe9d6;
         }
-        /* Bagian yang selalu gelap (misalnya tampilan foto besar) memakai warna gelap walau tema terang */
         .selalu-gelap {
           color-scheme: dark;
           --aksen: #ff9d4d;
@@ -1433,7 +1381,6 @@ export default function Home() {
         }
         .aksi-btn:hover { color: var(--aksen); background: var(--n1a1a1a); }
 
-        /* Titik-titik menunggu jawaban: 5 titik, 6 gaya animasi yang berganti-ganti */
         .sapaan-teks { animation: sapaan-masuk 0.6s ease both; }
         @keyframes sapaan-masuk { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
         .pt-wadah { position: relative; width: 30px; height: 30px; display: inline-block; flex-shrink: 0; }
@@ -1442,18 +1389,12 @@ export default function Home() {
           position: absolute; left: 50%; top: 50%; width: 5px; height: 5px; margin: -2.5px; border-radius: 50%; background: var(--aksen);
           transform: rotate(calc(var(--i) * 72deg)) translateY(var(--r, -10px));
         }
-        /* 0: komet berputar */
         .pt-v0 { animation: pt-spin 1s linear infinite; }
-        /* 1: titik berdenyut bergantian di lingkaran */
         .pt-v1 .pt-titik { animation: pt-kedip 1.2s ease-in-out infinite; animation-delay: calc(var(--i) * 0.2s); }
-        /* 2: titik melompat berurutan di satu baris */
         .pt-v2 .pt-titik { transform: translateX(calc((var(--i) - 2) * 6.5px)); animation: pt-lompat 0.9s ease-in-out infinite; animation-delay: calc(var(--i) * 0.11s); }
-        /* 3: berputar sambil membesar dan mengecil */
         .pt-v3 { animation: pt-spin 2.4s linear infinite; }
         .pt-v3 .pt-dalam { animation: pt-napas 1.2s ease-in-out infinite; }
-        /* 4: berputar patah-patah */
         .pt-v4 { animation: pt-spin 1.5s steps(5) infinite; }
-        /* 5: spiral berputar */
         .pt-v5 { animation: pt-spin 1.3s linear infinite; }
         @keyframes pt-spin { to { transform: rotate(360deg); } }
         @keyframes pt-napas { 0%, 100% { transform: scale(0.8); } 50% { transform: scale(1.25); } }
@@ -1495,11 +1436,6 @@ export default function Home() {
         .myai-typing .icon { display: inline-flex; }
         .myai-typing .teks { animation: myai-fade 0.4s ease; }
         .myai-typing .dots::after { content: ""; animation: myai-dots 1.2s steps(1) infinite; }
-        @keyframes myai-spin {
-          0%, 100% { transform: translateY(0) scale(1); }
-          50% { transform: translateY(-3px) scale(1.12); }
-          
-        }
         @keyframes myai-fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
         @keyframes myai-dots { 0% { content: ""; } 25% { content: "."; } 50% { content: ".."; } 75% { content: "..."; } }
 
@@ -1570,7 +1506,6 @@ export default function Home() {
 
       <div className={`overlay ${sidebarOpen ? "show" : ""}`} onClick={() => setSidebarOpen(false)} />
 
-      {/* ===== SIDEBAR ===== */}
       <aside className={`sidebar ${sidebarOpen ? "open" : ""}`}>
         <div style={{ padding: "4px 6px 16px 6px", fontSize: 22, fontWeight: 800, display: "flex", alignItems: "center", gap: 10 }}>
           <LogoMyAI size={30} />
@@ -1633,7 +1568,6 @@ export default function Home() {
         </div>
 
         <div style={{ overflowY: "auto", flex: 1 }}>
-          {/* Daftar proyek */}
           {projects.map((proj) => {
             const obrolanProyek = urutkanPinned(conversationsTerfilter.filter((c) => c.projectId === proj.id));
             const tertutup = collapsedProjects[proj.id];
@@ -1716,7 +1650,6 @@ export default function Home() {
             );
           })}
 
-          {/* Obrolan tanpa proyek */}
           {projects.length > 0 && obrolanTanpaProyek.length > 0 && (
             <div style={{ fontSize: 12, color: "var(--n555555)", margin: "14px 0 6px 6px" }}>Obrolan lainnya</div>
           )}
@@ -1777,7 +1710,6 @@ export default function Home() {
         </div>
       </aside>
 
-      {/* ===== CHAT UTAMA ===== */}
       <main style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
         <header style={{ padding: "16px 20px", fontWeight: 700, fontSize: 18, display: "flex", alignItems: "center", gap: 12 }}>
           <button
@@ -2017,7 +1949,6 @@ export default function Home() {
 }}
                 onKeyDown={(e) => {
                   if (e.key !== "Enter" || e.shiftKey) return;
-                  // Di HP, Enter = baris baru (kirim pakai tombol panah). Di laptop, Enter = kirim.
                   const layarSentuh = typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
                   if (layarSentuh) return;
                   e.preventDefault();
@@ -2081,7 +2012,6 @@ export default function Home() {
         </div>
       </main>
 
-      {/* ===== MODAL WEBCAM (laptop) ===== */}
       {showWebcam && (
         <div className="webcam-backdrop" onClick={() => setShowWebcam(false)}>
           <div className="webcam-box" onClick={(e) => e.stopPropagation()}>
@@ -2094,7 +2024,6 @@ export default function Home() {
         </div>
       )}
 
-      {/* ===== BOTTOM SHEET: Tambahkan ke chat ===== */}
       <div className={`sheet-backdrop ${showAttachSheet ? "open" : ""}`} onClick={() => setShowAttachSheet(false)}>
         <div className="sheet" onClick={(e) => e.stopPropagation()}>
           <div className="sheet-handle" />
@@ -2164,7 +2093,6 @@ export default function Home() {
         </div>
       </div>
 
-      {/* ===== BOTTOM SHEET: Pengaturan ===== */}
       <div className={`sheet-backdrop ${showSettings ? "open" : ""}`} onClick={() => setShowSettings(false)}>
         <div className="sheet" onClick={(e) => e.stopPropagation()}>
           <div className="sheet-handle" />
@@ -2240,7 +2168,6 @@ export default function Home() {
         </div>
       </div>
 
-      {/* ===== BOTTOM SHEET: Memori ===== */}
       <div className={`sheet-backdrop ${showMemoriSheet ? "open" : ""}`} onClick={() => setShowMemoriSheet(false)}>
         <div className="sheet" onClick={(e) => e.stopPropagation()}>
           <div className="sheet-handle" />
@@ -2269,7 +2196,6 @@ export default function Home() {
         </div>
       </div>
 
-      {/* ===== BOTTOM SHEET: Konektor link ===== */}
       <div className={`sheet-backdrop ${showLinkSheet ? "open" : ""}`} onClick={() => setShowLinkSheet(false)}>
         <div className="sheet" onClick={(e) => e.stopPropagation()}>
           <div className="sheet-handle" />
@@ -2290,7 +2216,6 @@ export default function Home() {
         </div>
       </div>
 
-      {/* ===== BOTTOM SHEET: Pilih / Buat Proyek ===== */}
       <div className={`sheet-backdrop ${showProjectPicker ? "open" : ""}`} onClick={() => setShowProjectPicker(false)}>
         <div className="sheet" onClick={(e) => e.stopPropagation()}>
           <div className="sheet-handle" />
@@ -2325,7 +2250,6 @@ export default function Home() {
   );
 }
 
-/* ---- Ikon SVG ---- */
 const iconProps = { width: 20, height: 20, viewBox: "0 0 24 24", fill: "none", stroke: "var(--aksen)", strokeWidth: 1.8, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
 
 function IconFolderMini() {
@@ -2342,7 +2266,6 @@ function IconChatBubble() {
     </svg>
   );
 }
-// Perkecil gambar di browser: versi kirim (ringan) dan versi mini untuk riwayat chat
 function muatGambar(file: File): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file);
@@ -2368,13 +2291,12 @@ function gambarKeJpeg(img: HTMLImageElement, sisiMaks: number, kualitas: number)
   canvas.height = tinggi;
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("canvas tidak tersedia");
-  ctx.fillStyle = "#ffffff"; // latar putih supaya PNG transparan tidak jadi hitam
+  ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, lebar, tinggi);
   ctx.drawImage(img, 0, 0, lebar, tinggi);
   return canvas.toDataURL("image/jpeg", kualitas);
 }
 
-// Logo My AI: lima busur membulat yang membentuk cincin, dengan kilau di tengah
 const BUSUR_LOGO = Array.from({ length: 5 }, (_, i) => {
   const titik = (derajat: number) => {
     const t = (derajat * Math.PI) / 180;
@@ -2390,7 +2312,6 @@ function LogoMyAI({ size = 28, animated = false }: { size?: number; animated?: b
       <img src={LOGO_SRC} alt="My AI" width={size} height={size} className={animated ? "logo-img-anim" : undefined} style={{ borderRadius: size * 0.28, objectFit: "cover", display: "block" }} />
     );
   }
-  // Logo bawaan: cincin lima busur dengan kilau di tengah (ganti dengan logomu sendiri lewat LOGO_SRC)
   return (
     <svg width={size} height={size} viewBox="0 0 32 32" style={{ display: "block" }}>
       <defs>
@@ -2422,15 +2343,6 @@ function IconWeb({ aktif }: { aktif?: boolean }) {
   );
 }
 
-function IconSpark() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="var(--aksen)">
-      <path d="M12 2l2.2 6.8L21 11l-6.8 2.2L12 20l-2.2-6.8L3 11l6.8-2.2z" />
-    </svg>
-  );
-}
-
-// Logo layar sapaan: dua kurva lima cuping yang saling menganyam (desain asli My AI)
 const ANYAMAN = (() => {
   const r0 = 14;
   const amp = 8;
@@ -2443,7 +2355,6 @@ const ANYAMAN = (() => {
     }
     return "M" + hasil.join("L");
   };
-  // Di 10 titik silang, kurva yang di atas bergantian (oranye, lalu krem, dan seterusnya)
   const jendela = Array.from({ length: 10 }, (_, k) => ({
     d: titik(k % 2 === 0 ? 0 : 36, 18 + 36 * k - 6, 18 + 36 * k + 6, 0.5),
     atas: k % 2 === 0 ? "A" : "B",
@@ -2470,7 +2381,6 @@ function LogoAnyaman({ size = 62 }: { size?: number }) {
   );
 }
 
-// Lima titik yang berputar; gaya animasinya beda-beda (varian 0 sampai 5)
 let varianTerakhir = -1;
 function TitikBerputar({ varian }: { varian: number }) {
   return (
@@ -2484,17 +2394,14 @@ function TitikBerputar({ varian }: { varian: number }) {
   );
 }
 
-// Animasi saat AI bekerja: titik berputar + tulisan yang berganti sesuai pekerjaan
 function IndikatorMengetik({ frasa }: { frasa: string[] }) {
   const [idx, setIdx] = useState(0);
-  // Tiap pesan baru dapat gaya animasi yang berbeda dari sebelumnya
   const [awal] = useState(() => {
     let v = Math.floor(Math.random() * 6);
     while (v === varianTerakhir) v = Math.floor(Math.random() * 6);
     varianTerakhir = v;
     return v;
   });
-  // Berganti gaya tiap kali tulisan status berganti, jadi terus berubah selama menunggu
   const varian = (awal + idx) % 6;
   useEffect(() => {
     const t = setInterval(() => setIdx((i) => i + 1), 2200);
@@ -2511,7 +2418,6 @@ function IndikatorMengetik({ frasa }: { frasa: string[] }) {
   );
 }
 
-// ---- Sumber jawaban (hasil pencarian web atau link), tampil sebagai chip yang bisa dibuka ----
 function bersihkanSumber(data: any): Sumber[] | undefined {
   if (!Array.isArray(data)) return undefined;
   const hasil = data
@@ -2567,7 +2473,6 @@ function ChipSumber({ sumber }: { sumber: Sumber[] }) {
   );
 }
 
-// ---- Baris tombol di bawah jawaban AI: salin, bagikan, bacakan, suka, tidak suka, ulangi ----
 function bisaDiulang(pesan: Message[], i: number): boolean {
   if (i !== pesan.length - 1) return false;
   const u = pesan[i - 1];
@@ -2671,28 +2576,6 @@ function BarisAksi({ teks, sumber, bisaUlang, onUlang }: { teks: string; sumber?
   );
 }
 
-// Tombol salin seluruh jawaban AI
-function TombolSalin({ teks }: { teks: string }) {
-  const [tersalin, setTersalin] = useState(false);
-  const salin = async () => {
-    try {
-      await navigator.clipboard.writeText(teks);
-      setTersalin(true);
-      setTimeout(() => setTersalin(false), 1500);
-    } catch {
-      alert("Tidak bisa menyalin otomatis. Tahan dan salin manual ya.");
-    }
-  };
-  return (
-    <button
-      onClick={salin}
-      style={{ background: "none", border: "none", color: tersalin ? "var(--aksen)" : "var(--n777777)", fontSize: 12.5, cursor: "pointer", padding: "4px 0", marginTop: 4 }}
-    >
-      {tersalin ? "Tersalin ✓" : "Salin jawaban"}
-    </button>
-  );
-}
-
 const EKSTENSI: Record<string, string> = {
   typescript: "ts", ts: "ts", tsx: "tsx", javascript: "js", js: "js", jsx: "jsx", python: "py", py: "py",
   html: "html", css: "css", json: "json", markdown: "md", md: "md", bash: "sh", sh: "sh", shell: "sh",
@@ -2700,7 +2583,6 @@ const EKSTENSI: Record<string, string> = {
   sql: "sql", yaml: "yml", yml: "yml", svg: "svg", kotlin: "kt", swift: "swift", ruby: "rb", dart: "dart", lua: "lua",
 };
 
-// Dokumen terkunci untuk pratinjau HTML: tanpa internet, tanpa akses ke halaman utama
 function dokumenSandbox(kode: string): string {
   return (
     `<!doctype html><html><head><meta charset="utf-8">` +
@@ -2711,7 +2593,6 @@ function dokumenSandbox(kode: string): string {
   );
 }
 
-// Blok kode: kartu file (nama, bahasa, Salin, Unduh, Pratinjau) untuk kode panjang atau yang punya nama file
 function BlokKode({ bahasa, teks, namaFile }: { bahasa?: string; teks: string; namaFile?: string }) {
   const jumlahBaris = teks.split("\n").length;
   const kartu = !!namaFile || jumlahBaris > 8;
@@ -2794,11 +2675,9 @@ function BlokKode({ bahasa, teks, namaFile }: { bahasa?: string; teks: string; n
   );
 }
 
-// ---- Rumus matematika, kartu hasil, dan grafik di dalam jawaban AI ----
 const pluginRemark: any[] = [remarkGfm, [remarkMath, { singleDollarTextMath: false }]];
 const pluginRehype: any[] = [rehypeKatex];
 
-// Ubah gaya rumus lama (garis-miring + kurung) jadi $$...$$, kecuali di dalam blok kode
 function siapkanMatematika(teks: string): string {
   return teks
     .split(/(```[\s\S]*?```)/g)
@@ -2820,7 +2699,6 @@ function bacaGrafik(data: any): { simbol: string; interval: string } | null {
   return { simbol, interval };
 }
 
-// Grafik harga langsung dari TradingView (widget resmi, gratis, tanpa API key)
 function GrafikTradingView({ simbol, interval }: { simbol: string; interval: string }) {
   const wadah = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -2885,7 +2763,6 @@ function IkonKartu({ nama }: { nama?: string }) {
   );
 }
 
-// Kartu hasil / evaluasi: judul + nilai besar + daftar kriteria berikon
 function KartuHasil({ data }: { data: any }) {
   const angka = (v: any): number | null => {
     if (typeof v === "number") return isFinite(v) ? v : null;
@@ -2929,7 +2806,6 @@ function KartuHasil({ data }: { data: any }) {
   );
 }
 
-// ---- Kartu gambar AI: klik "Buat gambar" supaya jatah gratis tidak terbuang ----
 const cacheGambar = new Map<string, string>();
 
 function KartuGambar({ prompt }: { prompt: string }) {
@@ -3001,7 +2877,6 @@ function KartuGambar({ prompt }: { prompt: string }) {
   );
 }
 
-// ---- Kartu animasi: HTML/SVG dari AI dijalankan di kotak terkunci (sandbox), tanpa internet ----
 function KartuAnimasi({ kode }: { kode: string }) {
   const [jalan, setJalan] = useState(false);
   const [putaran, setPutaran] = useState(0);
@@ -3063,7 +2938,6 @@ function KartuAnimasi({ kode }: { kode: string }) {
   );
 }
 
-// ---- Foto asli dari web (pencarian gambar): kotak foto + tampilan besar saat diklik ----
 type Foto = { judul: string; kecil: string; besar: string; link: string; sumber: string };
 
 function KartuFoto({ query }: { query: string }) {
@@ -3210,8 +3084,6 @@ function KartuFoto({ query }: { query: string }) {
   );
 }
 
-// ---- Kuis pilihan ganda interaktif (dari blok "kuis") ----
-// Teks di dalam kuis: rumus seperti $7\times 8$ dirapikan jadi rumus beneran (hanya kalau memang terlihat seperti LaTeX)
 const pluginRemarkDolar: any[] = [[remarkMath, { singleDollarTextMath: true }]];
 function TeksSoal({ teks }: { teks: string }) {
   const adaRumus = /\$[^$\n]*\\[a-zA-Z]+[^$\n]*\$/.test(teks) || /\\\(|\\\[/.test(teks) || teks.includes("$$");
@@ -3370,7 +3242,6 @@ function KartuKuis({ kuis }: { kuis: { judul: string; soal: SoalKuis[] } }) {
   );
 }
 
-// ---- Panduan langkah: tiap langkah punya gambar kecil di kiri dan penjelasan di kanan ----
 type LangkahT = { judul: string; teks: string; gambar: string };
 
 function bacaLangkah(data: any): { judul: string; langkah: LangkahT[] } | null {
@@ -3521,9 +3392,7 @@ const komponenMarkdown: any = {
       try {
         const kuis = bacaKuis(JSON.parse(teks));
         if (kuis) return <KartuKuis kuis={kuis} />;
-      } catch {
-        // JSON belum lengkap (masih mengalir) atau salah: tampilkan sebagai blok kode biasa
-      }
+      } catch {}
     }
     if (bahasa === "foto") {
       try {
@@ -3531,17 +3400,13 @@ const komponenMarkdown: any = {
         if (typeof d?.query === "string" && d.query.trim()) {
           return <KartuFoto query={d.query.trim().slice(0, 100)} />;
         }
-      } catch {
-        // JSON belum valid: tampilkan sebagai blok kode biasa
-      }
+      } catch {}
     }
     if (bahasa === "langkah") {
       try {
         const d = bacaLangkah(JSON.parse(teks));
         if (d) return <KartuLangkah data={d} />;
-      } catch {
-        // JSON belum lengkap (masih mengalir): tampilkan sebagai blok kode biasa
-      }
+      } catch {}
     }
     if (bahasa === "animasi") {
       return <KartuAnimasi kode={teks} />;
@@ -3552,9 +3417,7 @@ const komponenMarkdown: any = {
         if (typeof d?.prompt === "string" && d.prompt.trim()) {
           return <KartuGambar prompt={d.prompt.trim().slice(0, 500)} />;
         }
-      } catch {
-        // JSON belum valid: tampilkan sebagai blok kode biasa
-      }
+      } catch {}
     }
     if (bahasa === "kartu" || bahasa === "grafik") {
       try {
@@ -3562,9 +3425,7 @@ const komponenMarkdown: any = {
         if (bahasa === "kartu") return <KartuHasil data={data} />;
         const grafik = bacaGrafik(data);
         if (grafik) return <GrafikTradingView simbol={grafik.simbol} interval={grafik.interval} />;
-      } catch {
-        // JSON belum valid: tampilkan sebagai blok kode biasa
-      }
+      } catch {}
     }
     const meta: string = typeof node?.data?.meta === "string" ? node.data.meta : "";
     const namaFile = (meta.trim().split(/\s+/)[0] || "").replace(/^title=/, "").replace(/^["']|["']$/g, "");
@@ -3717,14 +3578,6 @@ function IconFolder() {
     </svg>
   );
 }
-function IconGlobe() {
-  return (
-    <svg {...iconProps}>
-      <circle cx="12" cy="12" r="9" />
-      <path d="M3 12h18M12 3c2.5 2.5 4 6 4 9s-1.5 6.5-4 9c-2.5-2.5-4-6-4-9s1.5-6.5 4-9z" />
-    </svg>
-  );
-}
 function IconLink() {
   return (
     <svg {...iconProps}>
@@ -3752,7 +3605,6 @@ function IconSettings() {
   );
 }
 
-// Tombol pilihan bergeser (segmen) untuk pengaturan
 function Segmen<T extends string>({ nilai, pilihan, onPilih }: { nilai: T; pilihan: { nilai: T; label: string }[]; onPilih: (v: T) => void }) {
   return (
     <div style={{ display: "flex", background: "var(--n2a2a2a)", borderRadius: 10, padding: 3, gap: 2 }}>
@@ -3835,25 +3687,4 @@ function IconChevron() {
       <path d="M9 6l6 6-6 6" />
     </svg>
   );
-}
-function IconIncognito() {
-  return (
-    <svg
-      width="19"
-      height="19"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.7"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      style={{ display: "block" }}
-    >
-      <path d="M4 10.5C4.8 6.7 7.6 4.5 12 4.5s7.2 2.2 8 6" />
-      <path d="M3 11.5h18" />
-      <path d="M4.5 11.5l1 4.1c.2 1 1.1 1.7 2.1 1.7h2c1.2 0 2.1-.8 2.4-1.9l.5-2.2.5 2.2c.3 1.1 1.2 1.9 2.4 1.9h2c1 0 1.9-.7 2.1-1.7l1-4.1" />
-      <path d="M10 12.5h4" />
-      <path d="M18.5 3.5l.5 1.5 1.5.5-1.5.5-.5 1.5-.5-1.5-1.5-.5 1.5-.5z" />
-    </svg>
-  );
-}
+                               }
