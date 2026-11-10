@@ -1987,6 +1987,19 @@ export default function Home() {
                 rows={1}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
+                onPaste={(e) => {
+  const items = Array.from(e.clipboardData.items);
+
+  const imageFiles = items
+    .filter((item) => item.type.startsWith("image/"))
+    .map((item) => item.getAsFile())
+    .filter((file): file is File => file !== null);
+
+  if (imageFiles.length > 0) {
+    e.preventDefault();
+    handleFilesPicked(imageFiles);
+  }
+}}
                 onKeyDown={(e) => {
                   if (e.key !== "Enter" || e.shiftKey) return;
                   // Di HP, Enter = baris baru (kirim pakai tombol panah). Di laptop, Enter = kirim.
