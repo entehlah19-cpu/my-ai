@@ -3104,22 +3104,51 @@ function TeksSoal({ teks }: { teks: string }) {
 type SoalKuis = { kategori: string; tanya: string; pilihan: string[]; jawaban: number; penjelasan: string };
 
 function bacaKuis(data: any): { judul: string; soal: SoalKuis[] } | null {
-  const mentah: any[] = Array.isArray(data?.soal) ? data.soal : [];
+  const ambilPilihan = (s: any): string[] => {
+    const raw = s?.pilihan ?? s?.options ?? s?.choices;
+    if (!Array.isArray(raw)) return [];
+    return raw
+      .filter((x: any) => typeof x === "string")
+      .map((x: string) => x.trim().slice(0, 200))
+      .filter(Boolean)
+      .slice(0, 6);
+  };
+  const ambilJawaban = (s: any, panjang: number): number => {
+    const raw = s?.jawaban ?? s?.answer ?? s?.kunci ?? s?.correct;
+    if (typeof raw === "number" && Number.isInteger(raw) && raw >= 0 && raw < panjang) return raw;
+    if (typeof raw === "string") {
+      const t = raw.trim().toUpperCase();
+      if (/^[A-F]$/.test(t)) {
+        const idx = t.charCodeAt(0) - 65;
+        if (idx < panjang) return idx;
+      }
+      const n = Number(raw);
+      if (Number.isInteger(n) && n >= 0 && n < panjang) return n;
+    }
+    return -1;
+  };
+  const mentah: any[] = Array.isArray(data?.soal)
+    ? data.soal
+    : Array.isArray(data?.questions)
+    ? data.questions
+    : [];
   const soal: SoalKuis[] = mentah
     .slice(0, 20)
-    .map((s: any) => ({
-      kategori: typeof s?.kategori === "string" ? s.kategori.slice(0, 40) : "",
-      tanya: typeof s?.tanya === "string" ? s.tanya.slice(0, 500) : "",
-      pilihan: Array.isArray(s?.pilihan)
-        ? s.pilihan.filter((x: any) => typeof x === "string").map((x: string) => x.slice(0, 200)).slice(0, 6)
-        : [],
-      jawaban: Number.isInteger(s?.jawaban) ? s.jawaban : -1,
-      penjelasan: typeof s?.penjelasan === "string" ? s.penjelasan.slice(0, 600) : "",
-    }))
+    .map((s: any) => {
+      const pilihan = ambilPilihan(s);
+      return {
+        kategori: typeof s?.kategori === "string" ? s.kategori.slice(0, 40) : typeof s?.category === "string" ? s.category.slice(0, 40) : "",
+        tanya: typeof s?.tanya === "string" ? s.tanya.slice(0, 500) : typeof s?.question === "string" ? s.question.slice(0, 500) : "",
+        pilihan,
+        jawaban: ambilJawaban(s, pilihan.length),
+        penjelasan: typeof s?.penjelasan === "string" ? s.penjelasan.slice(0, 600) : typeof s?.explanation === "string" ? s.explanation.slice(0, 600) : "",
+      };
+    })
     .filter((s: SoalKuis) => s.tanya && s.pilihan.length >= 2 && s.jawaban >= 0 && s.jawaban < s.pilihan.length);
   if (soal.length === 0) return null;
-  return { judul: typeof data?.judul === "string" ? data.judul.slice(0, 60) : "Kuis", soal };
-}
+  const judul = typeof data?.judul === "string" ? data.judul.slice(0, 60) : typeof data?.title === "string" ? data.title.slice(0, 60) : "Kuis";
+  return { judul, soal };
+          }
 
 function KartuKuis({ kuis }: { kuis: { judul: string; soal: SoalKuis[] } }) {
   const [no, setNo] = useState(0);
@@ -3650,23 +3679,12 @@ function IconBulan() {
   );
 }
 function IconIncognito() {
+function IconIncognito() {
   return (
-    <svg
-      width="19"
-      height="19"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.7"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      style={{ display: "block" }}
-    >
-      <path d="M4 10.5C4.8 6.7 7.6 4.5 12 4.5s7.2 2.2 8 6" />
-      <path d="M3 11.5h18" />
-      <path d="M4.5 11.5l1 4.1c.2 1 1.1 1.7 2.1 1.7h2c1.2 0 2.1-.8 2.4-1.9l.5-2.2.5 2.2c.3 1.1 1.2 1.9 2.4 1.9h2c1 0 1.9-.7 2.1-1.7l1-4.1" />
-      <path d="M10 12.5h4" />
-      <path d="M18.5 3.5l.5 1.5 1.5.5-1.5.5-.5 1.5-.5-1.5-1.5-.5 1.5-.5z" />
+    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ display: "block" }}>
+      <circle cx="12" cy="8" r="4" />
+      <path d="M5 21v-1a7 7 0 0 1 7-7 7 7 0 0 1 7 7v1" />
+      <path d="M3 3l18 18" />
     </svg>
   );
 }
