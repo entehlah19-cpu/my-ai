@@ -1677,7 +1677,22 @@ export default function Home() {
                           }}
                         >
                           <span className="conv-title" onClick={() => pilihObrolan(c.id)} style={{ color: c.id === activeId ? "var(--aksen)" : "var(--ncccccc)" }}>
-                            {c.incognito && "🕶️ "}{c.pinned && "📌 "}{c.title || "Obrolan Baru"}
+                           {c.incognito && (
+  <span
+    title="Obrolan incognito"
+    aria-label="Obrolan incognito"
+    style={{
+      display: "inline-flex",
+      alignItems: "center",
+      verticalAlign: "middle",
+      marginRight: 6,
+      color: c.id === activeId ? "#ff9d4d" : "#999",
+    }}
+  >
+    <IconIncognito />
+  </span>
+)}
+{c.pinned && "📌 "}{c.title || "Obrolan Baru"}
                           </span>
                           <div className="conv-menu-wrap">
                             <button className="conv-delete-btn" onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === c.id ? null : c.id); }}>
@@ -3807,6 +3822,27 @@ function IconChevron() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--n666666)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M9 6l6 6-6 6" />
+    </svg>
+  );
+}
+function IconIncognito() {
+  return (
+    <svg
+      width="19"
+      height="19"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      style={{ display: "block" }}
+    >
+      <path d="M4 10.5C4.8 6.7 7.6 4.5 12 4.5s7.2 2.2 8 6" />
+      <path d="M3 11.5h18" />
+      <path d="M4.5 11.5l1 4.1c.2 1 1.1 1.7 2.1 1.7h2c1.2 0 2.1-.8 2.4-1.9l.5-2.2.5 2.2c.3 1.1 1.2 1.9 2.4 1.9h2c1 0 1.9-.7 2.1-1.7l1-4.1" />
+      <path d="M10 12.5h4" />
+      <path d="M18.5 3.5l.5 1.5 1.5.5-1.5.5-.5 1.5-.5-1.5-1.5-.5 1.5-.5z" />
     </svg>
   );
 }
