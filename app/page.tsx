@@ -3799,15 +3799,26 @@ function IconBulan() {
 }
 function IconIncognito() {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--naaaaaa)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M3 11h18" />
-      <path d="M5 11l1.5-6h11L19 11" />
-      <circle cx="8" cy="16.5" r="2.5" />
-      <circle cx="16" cy="16.5" r="2.5" />
-      <path d="M10.5 16h3" />
+    <svg
+      width="19"
+      height="19"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      style={{ display: "block" }}
+    >
+      <path d="M4 10.5C4.8 6.7 7.6 4.5 12 4.5s7.2 2.2 8 6" />
+      <path d="M3 11.5h18" />
+      <path d="M4.5 11.5l1 4.1c.2 1 1.1 1.7 2.1 1.7h2c1.2 0 2.1-.8 2.4-1.9l.5-2.2.5 2.2c.3 1.1 1.2 1.9 2.4 1.9h2c1 0 1.9-.7 2.1-1.7l1-4.1" />
+      <path d="M10 12.5h4" />
+      <path d="M18.5 3.5l.5 1.5 1.5.5-1.5.5-.5 1.5-.5-1.5-1.5-.5 1.5-.5z" />
     </svg>
   );
 }
+
 function IconShare() {
   return (
     <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
