@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 export const maxDuration = 60;
 
-const GEMINI_MODEL = "gemini-3.6-flash";
+const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.0-flash";
 const API_KEY = process.env.GEMINI_API_KEY;
 const LLAMA_API_KEY = process.env.LLAMA_API_KEY;
 const OLLAMA_MODEL = "gpt-oss:120b";
@@ -234,6 +234,7 @@ async function panggilGemini(prompt: string, images: ImagePart[] = []): Promise<
   const data = await res.json();
   const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
   if (!reply) throw new Error("Gemini tidak mengembalikan jawaban");
+  console.log(`[Gemini OK] ${GEMINI_MODEL}`);
   return reply;
 }
 
@@ -261,6 +262,7 @@ async function panggilQwen(prompt: string, system: string): Promise<string> {
   const data = await res.json();
   const reply = data?.choices?.[0]?.message?.content?.trim();
   if (!reply) throw new Error("Qwen tidak mengembalikan jawaban");
+  console.log(`[Qwen OK] ${QWEN_MODEL}`);
   return reply;
 }
 
@@ -268,10 +270,39 @@ const PETUNJUK_TAMPILAN = `Aturan tampilan jawaban: (1) Rumus matematika ditulis
 
 const PETUNJUK_KODE = `Kamu sedang dalam MODE KODE. Bantu seperti programmer senior yang sabar. Aturan: (1) Setiap file kode ditulis dalam SATU blok kode markdown. Format baris pembuka blok: tiga tanda kutip terbalik, nama bahasa, spasi, lalu nama file lengkap dengan foldernya. Contoh baris pembuka: tsx app/page.tsx. (2) Kalau user minta mengubah file, kirim FILE LENGKAP hasil akhirnya, bukan potongan, dan sebut jelas file mana yang diganti. (3) Kode harus lengkap dan bisa langsung dijalankan, tanpa "dst" atau "bagian lain tetap sama". Kalau terlalu panjang, bagi jadi beberapa file, jangan dipotong di tengah. (4) Sebelum kode, tulis rencana singkat 1 sampai 3 kalimat. Setelah kode, jelaskan singkat cara memasang atau menjalankannya dan bagian yang perlu disesuaikan. (5) Kalau user menempelkan error, jelaskan penyebabnya dulu, baru beri perbaikan. (6) Kalau permintaan kurang jelas, buat asumsi yang masuk akal, sebut asumsinya, lalu kerjakan. Jangan banyak bertanya. (7) Untuk halaman web sederhana, tulis HTML, CSS, dan JavaScript dalam satu blok html supaya bisa langsung dipratinjau. (8) Sebutkan risiko keamanan atau kesalahan umum kalau relevan, dan jangan menulis malware atau kode berbahaya. (9) Penjelasan pakai Bahasa Indonesia santai, nama variabel dan komentar kode boleh Inggris. (10) Kalau diminta file yang sangat panjang, tulis selengkapnya tanpa meringkas atau menulis "bersambung". Sistem akan otomatis menyambung kalau jawabanmu terpotong oleh batas panjang.`;
 
-// Urutan model Ollama Cloud yang dicoba (nama awalan; yang dipakai hanya yang benar-benar tersedia di akunmu)
-const KANDIDAT_TEKS = [process.env.MODEL_TEKS || "", "gpt-oss:120b", "gpt-oss"].filter(Boolean);
-const KANDIDAT_KODE = [process.env.MODEL_KODE || "", "qwen3-coder:480b", "qwen3-coder-next", "glm-4.7", "minimax-m2.5", "gpt-oss:120b"].filter(Boolean);
-const KANDIDAT_GAMBAR = ["qwen3.5:397b", "qwen3.5", "gemma4:31b", "gemma4", "kimi-k2.5", "gemini-3-flash-preview", "ministral-3:14b"];
+// Urutan model Ollama Cloud yang dicoba. Nama harus cocok dengan katalog Ollama (lihat https://ollama.com/library).
+const KANDIDAT_TEKS = [
+  process.env.MODEL_TEKS || "",
+  "gpt-oss:120b",
+  "gpt-oss:20b",
+  "gpt-oss",
+  "llama3.3:70b",
+  "llama3.1:70b",
+  "qwen2.5:72b",
+  "deepseek-v3",
+  "gemma2:27b",
+  "mistral-large",
+].filter(Boolean);
+
+const KANDIDAT_KODE = [
+  process.env.MODEL_KODE || "",
+  "qwen2.5-coder:32b",
+  "qwen2.5-coder:14b",
+  "qwen2.5-coder",
+  "deepseek-coder-v2",
+  "codellama:70b",
+  "gpt-oss:120b",
+].filter(Boolean);
+
+const KANDIDAT_GAMBAR = [
+  "llama3.2-vision:90b",
+  "llama3.2-vision:11b",
+  "llama3.2-vision",
+  "qwen2.5-vl:72b",
+  "qwen2.5-vl:7b",
+  "llava:34b",
+  "llava",
+];
 
 let cacheModelOllama: string[] | null = null;
 
@@ -328,6 +359,7 @@ async function panggilOllamaModel(model: string, prompt: string, system: string,
   const data = await res.json();
   const reply = data?.message?.content?.trim();
   if (!reply) throw new Error(`Ollama (${model}) tidak mengembalikan jawaban`);
+  console.log(`[Ollama OK] ${model}`);
   return reply;
 }
 
@@ -349,6 +381,7 @@ async function panggilCloudflare(prompt: string, system: string): Promise<string
   const data = await res.json();
   const reply = data?.result?.response?.trim();
   if (!reply) throw new Error("Cloudflare tidak mengembalikan jawaban");
+  console.log(`[Cloudflare OK] ${CLOUDFLARE_MODEL}`);
   return reply;
 }
 
@@ -599,7 +632,10 @@ function strimJawaban(prompt: string, mode: "chat" | "kode", sumber: SumberT[], 
             }
             clearTimeout(timer);
             if (alasan === "length") terpotong = true;
-            if (terkirim) break;
+            if (terkirim) {
+              console.log(`[Ollama stream OK] ${model}`);
+              break;
+            }
           } catch (err) {
             clearTimeout(timer);
             console.log("Strim gagal:", (err as Error).message);
@@ -826,7 +862,9 @@ ${docBlock}${linkBlock}
 
 Pesan baru dari user: "${pesanUser}"
 
-${mode === "kode" ? "Tulis kode selengkap yang diminta, jangan dipersingkat atau diringkas." : "Jawab secara natural, ringkas, dan langsung ke inti, sesuai konteks percakapan di atas."}`;
+${mode === "kode"
+  ? "Tulis kode selengkap yang diminta, jangan dipersingkat atau diringkas."
+  : "Jawab secara natural, ringkas, dan langsung ke inti, sesuai konteks percakapan di atas. PENTING: kalau permintaan user membutuhkan salah satu format khusus — (a) foto asli dari web → blok ```foto; (b) gambar AI → blok ```gambar; (c) animasi/simulasi → blok ```animasi; (d) grafik harga pasar → blok ```grafik; (e) kuis/soal PG → blok ```kuis; (f) tutorial bergambar → blok ```langkah; (g) kartu evaluasi → blok ```kartu — WAJIB keluarkan blok kode markdown dengan bahasa yang sesuai. JANGAN jawab hanya dengan teks biasa untuk permintaan seperti itu."}`;
 
     const modeFinal: "chat" | "kode" = mode === "kode" ? "kode" : "chat";
     const tingkatFinal: Tingkat = dalam === true ? "high" : tingkatBerpikir(String(message || ""), modeFinal);
@@ -843,4 +881,4 @@ ${mode === "kode" ? "Tulis kode selengkap yang diminta, jangan dipersingkat atau
     console.error(err);
     return NextResponse.json({ error: "Terjadi kesalahan di server" }, { status: 500 });
   }
-}
+  }
